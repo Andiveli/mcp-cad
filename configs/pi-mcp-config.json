@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-cad": {
+      "command": "python",
+      "args": ["-m", "mcp_cad"],
+      "directTools": true,
+      "lifecycle": "lazy",
+      "_comment": "On Windows with venv, replace 'python' with '.venv\\Scripts\\python.exe'. 'lifecycle: lazy' means the server starts on first tool call. 'directTools: true' means tools are called directly without MCP protocol wrapper."
+    }
+  }
+}

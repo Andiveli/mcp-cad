@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "mcp-cad"
+version = "0.1.0"
+description = "MCP server for Autodesk Inventor parametric modeling"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.4",
+    "pywin32>=308",
+]
+
+[project.scripts]
+mcp-cad = "mcp_cad.__main__:main"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
