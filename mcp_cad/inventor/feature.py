@@ -13,22 +13,43 @@ from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
 log = logging.getLogger(__name__)
 
-# Inventor part-feature operation COM constants
-_JOIN_OPERATION = 0
-_CUT_OPERATION = 1
-_INTERSECT_OPERATION = 2
+# ------------------------------------------------------------------
+# COM enumeration constants for Inventor 2025+
+#
+# These values come from the Inventor type library.  With late-bound
+# Dispatch they must be hard-coded; with early-bound EnsureDispatch
+# they are available as ``win32com.client.constants.k<EnumMember>``.
+#
+# To switch to early binding (recommended for reliable builds):
+#   1. Replace ``Dispatch("Inventor.Application")`` with
+#      ``gencache.EnsureDispatch("Inventor.Application")`` in client.py.
+#   2. From any Python prompt::
+#        from win32com.client import Dispatch, constants
+#        app = Dispatch("Inventor.Application")
+#        print(constants.kPositiveExtentDirection)  # → 20929
+# ------------------------------------------------------------------
+
+# PartFeatureOperationEnum
+_NEW_BODY_OPERATION = 0
+_JOIN_OPERATION = 1
+_CUT_OPERATION = 2
+_INTERSECT_OPERATION = 3
 
 _OPERATION_MAP: dict[str, int] = {
+    "new_body": _NEW_BODY_OPERATION,
     "join": _JOIN_OPERATION,
     "cut": _CUT_OPERATION,
     "intersect": _INTERSECT_OPERATION,
 }
 
-# Direction COM constants
+# PartFeatureExtentDirectionEnum (Inventor 2025+)
+# kPositiveExtentDirection = 20929
+# kNegativeExtentDirection = 20930
+# kSymmetricExtentDirection  = 20931
 _DIRECTION_MAP: dict[str, int] = {
-    "positive": 0,  # kPositiveDirection
-    "negative": 1,  # kNegativeDirection
-    "both": 2,       # kBothDirections
+    "positive": 20929,
+    "negative": 20930,
+    "both": 20931,
 }
 
 # Fillet/Chamfer edge-set mode COM constants
@@ -120,7 +141,7 @@ class FeatureManager:
         distance: float,
         direction: str = "positive",
         taper: float = 0.0,
-        operation: str = "join",
+        operation: str = "new_body",
     ) -> dict[str, Any]:
         """Extrude a sketch profile to create a 3D feature.
 
@@ -135,7 +156,9 @@ class FeatureManager:
         taper:
             Taper angle in radians (default: 0).
         operation:
-            "join", "cut", or "intersect" (default: "join").
+            "new_body", "join", "cut", or "intersect" (default: "new_body").
+            Use "new_body" for the first feature on a part; "join" / "cut"
+            / "intersect" modify an existing body.
 
         Returns
         -------
@@ -163,15 +186,21 @@ class FeatureManager:
         try:
             comp_def = doc.ComponentDefinition
             features = comp_def.Features
+
+            # Inventor 2025 API: second arg is PartFeatureOperationEnum,
+            # NOT the distance — distance is set below via SetDistanceExtent.
             extrude_def = features.ExtrudeFeatures.CreateExtrudeDefinition(
-                resolved, distance
+                resolved, op_value
             )
-            # Use SetDistanceExtent with direction parameter
-            # (replaces deprecated .Direction property)
+            # SetDistanceExtent replaces the deprecated .Direction property.
+            # Direction values are PartFeatureExtentDirectionEnum (20929+).
             extrude_def.SetDistanceExtent(distance, dir_value)
-            extrude_def.TaperAngle = taper
+            # TaperAngle expects a string with unit suffix (e.g. "0.15 rad").
+            extrude_def.TaperAngle = f"{taper} rad"
+            # Operation is already set via CreateExtrudeDefinition above, but
+            # some Inventor builds allow overriding it here as a safety net.
             extrude_def.Operation = op_value
-            feature = features.ExtrudeFeatures.Add(extrude_def)
+            features.ExtrudeFeatures.Add(extrude_def)
             return {
                 "success": True,
                 "feature_type": "extrude",

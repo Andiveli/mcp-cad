@@ -91,14 +91,16 @@ class TestExtrude:
         assert result["feature_type"] == "extrude"
         assert result["distance"] == 10.0
         assert result["direction"] == "positive"
-        assert result["operation"] == "join"
+        assert result["operation"] == "new_body"
         assert result["taper"] == 0.0
+        # Second argument is PartFeatureOperationEnum (0 = kNewBodyOperation),
+        # NOT the distance — distance goes through SetDistanceExtent.
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 10.0
+            mock_profile, 0
         )
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20929)
+        mock_extrude_def.TaperAngle = "0.0 rad"
         mocks["extrude_features"].Add.assert_called_once_with(mock_extrude_def)
-        mock_extrude_def.Direction = 0  # positive
-        mock_extrude_def.Operation = 0  # join
 
     def test_extrude_with_profile_name(self, mock_inventor: MagicMock):
         """Should resolve a string profile name via Profiles.Item."""
@@ -137,7 +139,7 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=10.0, direction="negative")
 
         assert result["direction"] == "negative"
-        mock_extrude_def.Direction = 1  # negative
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20930)
 
     def test_extrude_both_directions(self, mock_inventor: MagicMock):
         """Should accept both directions."""
@@ -151,7 +153,7 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=5.0, direction="both")
 
         assert result["direction"] == "both"
-        mock_extrude_def.Direction = 2  # both
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(5.0, 20931)
 
     def test_extrude_cut_operation(self, mock_inventor: MagicMock):
         """Should accept cut operation."""
@@ -165,7 +167,10 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=5.0, operation="cut")
 
         assert result["operation"] == "cut"
-        mock_extrude_def.Operation = 1  # cut
+        # kCutOperation = 2, passed to CreateExtrudeDefinition
+        mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
+            mock_profile, 2
+        )
 
     def test_extrude_with_taper(self, mock_inventor: MagicMock):
         """Should set taper angle when provided."""
@@ -179,7 +184,8 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=10.0, taper=0.15)
 
         assert result["taper"] == 0.15
-        mock_extrude_def.TaperAngle = 0.15
+        # TaperAngle expects a string with unit suffix
+        mock_extrude_def.TaperAngle = "0.15 rad"
 
     def test_extrude_invalid_direction(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError for invalid direction."""
@@ -196,6 +202,22 @@ class TestExtrude:
 
         with pytest.raises(InventorCOMError, match="Invalid operation"):
             mgr.extrude(mock_profile, distance=10.0, operation="merge")
+
+    def test_extrude_new_body_operation(self, mock_inventor: MagicMock):
+        """Should accept new_body operation (the new default)."""
+        mgr = _make_feature_manager(mock_inventor)
+        mocks = _setup_active_document_with_features(mock_inventor)
+
+        mock_profile = MagicMock()
+        mock_extrude_def = MagicMock()
+        mocks["extrude_features"].CreateExtrudeDefinition.return_value = mock_extrude_def
+
+        result = mgr.extrude(mock_profile, distance=10.0)
+
+        assert result["operation"] == "new_body"
+        mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
+            mock_profile, 0  # kNewBodyOperation
+        )
 
     def test_extrude_com_error(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError when COM call fails."""
@@ -528,7 +550,8 @@ class TestFeatureProfileResolution:
         # mock_profile is already a MagicMock (i.e. a COM object), not a string
         result = mgr.extrude(mock_profile, distance=10.0)
         assert result["success"] is True
-        # Verify CreateExtrudeDefinition was called with the mock_profile directly
+        # Verify CreateExtrudeDefinition was called with the mock_profile
+        # and the operation enum (kNewBodyOperation = 0), not the distance.
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 10.0
+            mock_profile, 0
         )

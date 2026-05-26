@@ -232,7 +232,7 @@ def register_tools(
         distance: float,
         direction: str = "positive",
         taper: float = 0.0,
-        operation: str = "join",
+        operation: str = "new_body",
     ) -> dict[str, Any]:
         """Extrude a sketch profile to create a 3D feature."""
         try:
