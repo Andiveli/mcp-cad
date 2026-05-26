@@ -93,7 +93,7 @@ def register_tools(
             return _err(exc)
 
     @mcp_instance.tool()
-    def doc_new_part(template: str = "Standard") -> dict[str, Any]:
+    def doc_new_part(template: str = "") -> dict[str, Any]:
         """Create a new part document."""
         try:
             return doc_mgr.doc_new_part(template)
@@ -103,7 +103,7 @@ def register_tools(
             return _err(exc)
 
     @mcp_instance.tool()
-    def doc_new_assembly(template: str = "Standard") -> dict[str, Any]:
+    def doc_new_assembly(template: str = "") -> dict[str, Any]:
         """Create a new assembly document."""
         try:
             return doc_mgr.doc_new_assembly(template)
