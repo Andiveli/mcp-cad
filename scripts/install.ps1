@@ -25,7 +25,7 @@
 #>
 
 param(
-    [string]$InstallDir = $PSScriptRoot | Split-Path -Parent,
+    [string]$InstallDir = (Split-Path -Parent $PSScriptRoot),
     [ValidateSet("OpenCode", "Claude", "Pi", "All")]
     [string]$RegisterIn = "All",
     [string]$MCPName = "mcp-cad"
@@ -49,7 +49,7 @@ if (-not $python) {
 $pyVersion = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 Write-Host "[OK] Python $pyVersion" -ForegroundColor Green
 
-# Check Inventor (optional — warn if missing)
+# Check Inventor (optional -- warn if missing)
 $inventorProgId = Get-ItemProperty "HKLM:\SOFTWARE\Classes\Inventor.Application\CLSID" -ErrorAction SilentlyContinue
 if (-not $inventorProgId) {
     Write-Warning "Autodesk Inventor COM registration not found."
@@ -81,6 +81,7 @@ $activateScript = Join-Path $venvDir "Scripts\Activate.ps1"
 Write-Host "Installing mcp-cad dependencies ..."
 & pip install --upgrade pip -q
 & pip install -e "$InstallDir" -q
+& pip install pytest -q
 
 Write-Host "[OK] Dependencies installed:" -ForegroundColor Green
 & pip list | Select-String -Pattern "mcp-cad|pywin32|mcp"
@@ -172,7 +173,7 @@ if (Test-Path $projectConfig) {
             $cfg = $raw | ConvertFrom-Json
         }
     } catch {
-        Write-Host "  (existing config unreadable — replacing)"
+        Write-Host "  (existing config unreadable -- replacing)"
     }
 
     # Build the mcp-cad server entry
@@ -204,10 +205,10 @@ if (Test-Path $projectConfig) {
 
     # Write back
     $cfg | ConvertTo-Json -Depth 5 | Set-Content -Path $projectConfig
-    Write-Host "[OK] opencode.json updated → command: $pythonExe -m mcp_cad" -ForegroundColor Green
+    Write-Host "[OK] opencode.json updated -> command: $pythonExe -m mcp_cad" -ForegroundColor Green
 
     # Global registration offer
-    $globalConfigDir = "$env:APPDATA\opencode"
+    $globalConfigDir = "$env:USERPROFILE\.config\opencode"
     $globalConfigFile = Join-Path $globalConfigDir "opencode.json"
 
     Write-Host ""
@@ -277,7 +278,7 @@ if ($LASTEXITCODE -eq 0) {
     $testCount = ($testOutput | Select-String "(\d+) passed" | ForEach-Object { $_.Matches.Groups[1].Value })
     Write-Host "[OK] $testCount tests passed" -ForegroundColor Green
 } else {
-    Write-Warning "Some tests failed — this may be expected on non-Inventor machines."
+    Write-Warning "Some tests failed -- this may be expected on non-Inventor machines."
 }
 
 Write-Host ""

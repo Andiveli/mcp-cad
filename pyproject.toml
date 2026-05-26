@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-cad"
@@ -14,6 +14,12 @@ dependencies = [
 
 [project.scripts]
 mcp-cad = "mcp_cad.__main__:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["mcp_cad*"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

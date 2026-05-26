@@ -6,11 +6,7 @@ Last updated: 2026-05-26
 
 ## Sources scanned
 
-- /home/samael/.config/opencode/skills
-- /home/samael/.claude/skills
-- /home/samael/.gemini/skills
-- /home/samael/.gemini/antigravity/skills
-- /home/samael/.copilot/skills
+- C:\Users\andyv\.config\opencode\skills
 
 ## Contract
 
@@ -22,16 +18,16 @@ Last updated: 2026-05-26
 
 | Skill | Trigger / description | Scope | Path |
 | --- | --- | --- | --- |
-| `branch-pr` | Create Gentle AI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review. | user | `/home/samael/.config/opencode/skills/branch-pr/SKILL.md` |
-| `chained-pr` | Trigger: PRs over 400 lines, stacked PRs, review slices. Split oversized changes into chained PRs that protect review focus. | user | `/home/samael/.config/opencode/skills/chained-pr/SKILL.md` |
-| `cognitive-doc-design` | Design docs that reduce cognitive load. Trigger: writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs. | user | `/home/samael/.config/opencode/skills/cognitive-doc-design/SKILL.md` |
-| `comment-writer` | Write warm, direct collaboration comments. Trigger: PR feedback, issue replies, reviews, Slack messages, or GitHub comments. | user | `/home/samael/.config/opencode/skills/comment-writer/SKILL.md` |
-| `go-testing` | Trigger: Go tests, go test coverage, Bubbletea teatest, golden files. Apply focused Go testing patterns. | user | `/home/samael/.config/opencode/skills/go-testing/SKILL.md` |
-| `issue-creation` | Create Gentle AI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests. | user | `/home/samael/.config/opencode/skills/issue-creation/SKILL.md` |
-| `judgment-day` | Trigger: judgment day, dual review, adversarial review, juzgar. Run blind dual review, fix confirmed issues, then re-judge. | user | `/home/samael/.config/opencode/skills/judgment-day/SKILL.md` |
-| `skill-creator` | Trigger: new skills, agent instructions, documenting AI usage patterns. Create LLM-first skills with valid frontmatter. | user | `/home/samael/.config/opencode/skills/skill-creator/SKILL.md` |
-| `skill-improver` | Trigger: improve skills, audit skills, refactor skills, skill quality. Audit and upgrade existing LLM-first skills. | user | `/home/samael/.config/opencode/skills/skill-improver/SKILL.md` |
-| `work-unit-commits` | Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code. | user | `/home/samael/.config/opencode/skills/work-unit-commits/SKILL.md` |
+| `branch-pr` | Create Gentle AI pull requests with issue-first checks. Trigger: creating, opening, or preparing PRs for review. | user | `C:\Users\andyv\.config\opencode\skills\branch-pr\SKILL.md` |
+| `chained-pr` | Trigger: PRs over 400 lines, stacked PRs, review slices. Split oversized changes into chained PRs that protect review focus. | user | `C:\Users\andyv\.config\opencode\skills\chained-pr\SKILL.md` |
+| `cognitive-doc-design` | Design docs that reduce cognitive load. Trigger: writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs. | user | `C:\Users\andyv\.config\opencode\skills\cognitive-doc-design\SKILL.md` |
+| `comment-writer` | Write warm, direct collaboration comments. Trigger: PR feedback, issue replies, reviews, Slack messages, or GitHub comments. | user | `C:\Users\andyv\.config\opencode\skills\comment-writer\SKILL.md` |
+| `go-testing` | Trigger: Go tests, go test coverage, Bubbletea teatest, golden files. Apply focused Go testing patterns. | user | `C:\Users\andyv\.config\opencode\skills\go-testing\SKILL.md` |
+| `issue-creation` | Create Gentle AI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests. | user | `C:\Users\andyv\.config\opencode\skills\issue-creation\SKILL.md` |
+| `judgment-day` | Trigger: judgment day, dual review, adversarial review, juzgar. Run blind dual review, fix confirmed issues, then re-judge. | user | `C:\Users\andyv\.config\opencode\skills\judgment-day\SKILL.md` |
+| `skill-creator` | Trigger: new skills, agent instructions, documenting AI usage patterns. Create LLM-first skills with valid frontmatter. | user | `C:\Users\andyv\.config\opencode\skills\skill-creator\SKILL.md` |
+| `skill-improver` | Trigger: improve skills, audit skills, refactor skills, skill quality. Audit and upgrade existing LLM-first skills. | user | `C:\Users\andyv\.config\opencode\skills\skill-improver\SKILL.md` |
+| `work-unit-commits` | Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code. | user | `C:\Users\andyv\.config\opencode\skills\work-unit-commits\SKILL.md` |
 
 ## Loading protocol
 

@@ -1,10 +1,13 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "mcp-cad": {
-      "type": "local",
-      "command": ["python", "-m", "mcp_cad"],
-      "_comment": "On Windows with venv, replace 'python' with '.venv\\Scripts\\python.exe'"
-    }
-  }
+    "$schema":  "https://opencode.ai/config.json",
+    "mcp":  {
+                "mcp-cad":  {
+                                "type":  "local",
+                                "command":  [
+                                                "C:\\Users\\andyv\\mcp-cad\\.venv\\Scripts\\python.exe",
+                                                "-m",
+                                                "mcp_cad"
+                                            ]
+                            }
+            }
 }

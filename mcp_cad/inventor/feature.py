@@ -81,9 +81,11 @@ class FeatureManager:
     def _resolve_profile(self, profile: Any) -> Any:
         """Resolve a profile reference from a name string or pass through.
 
-        If *profile* is a string, look it up on the active sketch's
-        Profiles collection.  If it is already a COM object, return it
-        unchanged.
+        If *profile* is a string that looks like an integer, convert it
+        to int and use it as a 1-based index into the Profiles collection.
+        If profiles are empty, call AddForSolid() to force profile creation.
+        Otherwise, treat it as a profile name string.
+        If it is already a COM object, return it unchanged.
         """
         if isinstance(profile, str):
             doc = self._ensure_active_document()
@@ -92,7 +94,16 @@ class FeatureManager:
                 # Use the last sketch (most likely the one just drawn on)
                 sketches = comp_def.Sketches
                 sketch = sketches.Item(sketches.Count)
-                return sketch.Profiles.Item(profile)
+                profiles = sketch.Profiles
+                # Force profile creation if the collection is empty
+                if profiles.Count == 0:
+                    profiles.AddForSolid()
+                # Try integer index first (most reliable for COM bridge)
+                try:
+                    index = int(profile)
+                    return profiles.Item(index)
+                except ValueError:
+                    return profiles.Item(profile)
             except Exception as exc:
                 raise InventorCOMError(
                     f"Failed to resolve profile '{profile}': {exc}"
@@ -155,7 +166,9 @@ class FeatureManager:
             extrude_def = features.ExtrudeFeatures.CreateExtrudeDefinition(
                 resolved, distance
             )
-            extrude_def.Direction = dir_value
+            # Use SetDistanceExtent with direction parameter
+            # (replaces deprecated .Direction property)
+            extrude_def.SetDistanceExtent(distance, dir_value)
             extrude_def.TaperAngle = taper
             extrude_def.Operation = op_value
             feature = features.ExtrudeFeatures.Add(extrude_def)
