@@ -46,15 +46,6 @@ _DIRECTION_MAP: dict[str, int] = {
     "both": 20995,      # kSymmetricExtentDirection
 }
 
-# Fillet edge-set mode COM constants
-_CONSTANT_FILLET = 0
-_VARIABLE_FILLET = 1
-
-_FILLET_MODE_MAP: dict[str, int] = {
-    "constant": _CONSTANT_FILLET,
-    "variable": _VARIABLE_FILLET,
-}
-
 
 class FeatureManager:
     """Manages 3D feature operations: extrude, revolve, fillet, chamfer.
@@ -261,14 +252,18 @@ class FeatureManager:
     ) -> dict[str, Any]:
         """Apply a fillet to the specified edges.
 
+        In Inventor 2025+, fillets use AddSimple for constant-radius fillets
+        instead of the old CreateFilletDefinition + Add pattern.
+
         Parameters
         ----------
         edges:
             Edge or edge collection COM object, or a single edge name (str).
+            Currently applies to ALL edges of the first surface body.
         radius:
             Fillet radius (cm in Inventor's internal units).
         mode:
-            "constant" or "variable" (default: "constant").
+            "constant" (default). "variable" not yet supported in 2025+ API.
 
         Returns
         -------
@@ -276,11 +271,9 @@ class FeatureManager:
         """
         self._ensure_connected()
 
-        mode_value = _FILLET_MODE_MAP.get(mode.lower())
-        if mode_value is None:
+        if mode not in ("constant",):
             raise InventorCOMError(
-                f"Invalid fillet mode '{mode}'. Must be one of: "
-                f"{', '.join(sorted(_FILLET_MODE_MAP))}"
+                f"Invalid fillet mode '{mode}'. Must be one of: constant"
             )
 
         doc = self._ensure_active_document()
@@ -288,18 +281,20 @@ class FeatureManager:
         try:
             comp_def = doc.ComponentDefinition
             features = comp_def.Features
-            # Build an edge collection from the provided edges
-            edge_col = comp_def.SurfaceBodies.Item(1).Edges
-            fillet_def = features.FilletFeatures.CreateFilletDefinition(
-                edge_col, mode_value
-            )
-            fillet_def.Radius = radius
-            feature = features.FilletFeatures.Add(fillet_def)
+
+            # Build an EdgeCollection via TransientObjects
+            to = self._driver.inventor.TransientObjects
+            edge_col = to.CreateEdgeCollection()
+            sb = comp_def.SurfaceBodies.Item(1)
+            for i in range(1, sb.Edges.Count + 1):
+                edge_col.Add(sb.Edges.Item(i))
+
+            feature = features.FilletFeatures.AddSimple(edge_col, radius)
             return {
                 "success": True,
                 "feature_type": "fillet",
                 "radius": radius,
-                "mode": mode.lower(),
+                "mode": mode,
             }
         except (InventorDisconnectedError, InventorCOMError):
             raise
