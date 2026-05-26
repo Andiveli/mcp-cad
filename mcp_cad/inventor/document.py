@@ -85,13 +85,13 @@ class DocumentManager:
         """Create a new part document.
 
         Uses ``FileManager.GetTemplateFile`` for fast, deterministic template
-        resolution instead of passing a template name string to ``Documents.Add``,
-        which can hang when the default template path is not configured.
+        resolution.  When *template* is empty, the one-argument overload is
+        called and returns the system-default part template path.
 
         Parameters
         ----------
         template:
-            Optional template name or path (default: "" → uses default template).
+            Optional full path to a template file (default: "" → default template).
 
         Returns
         -------
@@ -101,9 +101,7 @@ class DocumentManager:
         try:
             inv = self._driver.inventor
             if template == "" or template.isspace():
-                template_path = inv.FileManager.GetTemplateFile(
-                    PART_DOCUMENT, ""
-                )
+                template_path = inv.FileManager.GetTemplateFile(PART_DOCUMENT)
             else:
                 template_path = template
             doc = inv.Documents.Add(PART_DOCUMENT, template_path, True)
@@ -124,12 +122,10 @@ class DocumentManager:
     def doc_new_assembly(self, template: str = "") -> dict[str, Any]:
         """Create a new assembly document.
 
-        Uses ``FileManager.GetTemplateFile`` for fast template resolution.
-
         Parameters
         ----------
         template:
-            Optional template name or path (default: "" → uses default template).
+            Optional full path to a template file (default: "" → default template).
 
         Returns
         -------
@@ -139,9 +135,7 @@ class DocumentManager:
         try:
             inv = self._driver.inventor
             if template == "" or template.isspace():
-                template_path = inv.FileManager.GetTemplateFile(
-                    ASSEMBLY_DOCUMENT, ""
-                )
+                template_path = inv.FileManager.GetTemplateFile(ASSEMBLY_DOCUMENT)
             else:
                 template_path = template
             doc = inv.Documents.Add(ASSEMBLY_DOCUMENT, template_path, True)
