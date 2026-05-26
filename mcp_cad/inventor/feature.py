@@ -16,24 +16,21 @@ log = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # COM enumeration constants for Inventor 2025+
 #
-# These values come from the Inventor type library.  With late-bound
-# Dispatch they must be hard-coded; with early-bound EnsureDispatch
-# they are available as ``win32com.client.constants.k<EnumMember>``.
+# These values come from the Inventor type library via early binding:
+#     from win32com.client import gencache, constants
+#     app = gencache.EnsureDispatch("Inventor.Application")
+#     print(constants.kNewBodyOperation)  # → 20485
 #
-# To switch to early binding (recommended for reliable builds):
-#   1. Replace ``Dispatch("Inventor.Application")`` with
-#      ``gencache.EnsureDispatch("Inventor.Application")`` in client.py.
-#   2. From any Python prompt::
-#        from win32com.client import Dispatch, constants
-#        app = Dispatch("Inventor.Application")
-#        print(constants.kPositiveExtentDirection)  # → 20929
+# Late-bound Dispatch requires hard-coded values.
+# NOTE: EnsureDispatch corrupts the cache for regular Dispatch;
+#       clear ``%LOCALAPPDATA%\\Temp\\gen_py`` after using it.
 # ------------------------------------------------------------------
 
-# PartFeatureOperationEnum
-_NEW_BODY_OPERATION = 0
-_JOIN_OPERATION = 1
-_CUT_OPERATION = 2
-_INTERSECT_OPERATION = 3
+# PartFeatureOperationEnum (Inventor 2025+)
+_NEW_BODY_OPERATION = 20485
+_JOIN_OPERATION = 20481
+_CUT_OPERATION = 20482
+_INTERSECT_OPERATION = 20483
 
 _OPERATION_MAP: dict[str, int] = {
     "new_body": _NEW_BODY_OPERATION,
@@ -43,13 +40,10 @@ _OPERATION_MAP: dict[str, int] = {
 }
 
 # PartFeatureExtentDirectionEnum (Inventor 2025+)
-# kPositiveExtentDirection = 20929
-# kNegativeExtentDirection = 20930
-# kSymmetricExtentDirection  = 20931
 _DIRECTION_MAP: dict[str, int] = {
-    "positive": 20929,
-    "negative": 20930,
-    "both": 20931,
+    "positive": 20993,  # kPositiveExtentDirection
+    "negative": 20994,  # kNegativeExtentDirection
+    "both": 20995,      # kSymmetricExtentDirection
 }
 
 # Fillet/Chamfer edge-set mode COM constants
@@ -193,13 +187,10 @@ class FeatureManager:
                 resolved, op_value
             )
             # SetDistanceExtent replaces the deprecated .Direction property.
-            # Direction values are PartFeatureExtentDirectionEnum (20929+).
+            # Direction values are PartFeatureExtentDirectionEnum (20993+).
             extrude_def.SetDistanceExtent(distance, dir_value)
-            # TaperAngle expects a string with unit suffix (e.g. "0.15 rad").
-            extrude_def.TaperAngle = f"{taper} rad"
-            # Operation is already set via CreateExtrudeDefinition above, but
-            # some Inventor builds allow overriding it here as a safety net.
-            extrude_def.Operation = op_value
+            # TaperAngle expects a string with unit suffix (e.g. "2 deg").
+            extrude_def.TaperAngle = f"{taper} deg"
             features.ExtrudeFeatures.Add(extrude_def)
             return {
                 "success": True,
