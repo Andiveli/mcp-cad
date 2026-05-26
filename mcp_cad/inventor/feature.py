@@ -46,21 +46,13 @@ _DIRECTION_MAP: dict[str, int] = {
     "both": 20995,      # kSymmetricExtentDirection
 }
 
-# Fillet/Chamfer edge-set mode COM constants
+# Fillet edge-set mode COM constants
 _CONSTANT_FILLET = 0
 _VARIABLE_FILLET = 1
 
 _FILLET_MODE_MAP: dict[str, int] = {
     "constant": _CONSTANT_FILLET,
     "variable": _VARIABLE_FILLET,
-}
-
-_EQUAL_DISTANCE = 0  # kEqualDistanceChamferType
-_TWO_DISTANCES = 1   # kTwoDistancesChamferType
-
-_CHAMFER_MODE_MAP: dict[str, int] = {
-    "equal_distance": _EQUAL_DISTANCE,
-    "two_distances": _TWO_DISTANCES,
 }
 
 
@@ -322,10 +314,15 @@ class FeatureManager:
     ) -> dict[str, Any]:
         """Apply a chamfer to the specified edges.
 
+        In Inventor 2025+, chamfers use direct convenience methods
+        (AddUsingDistance / AddUsingTwoDistances) instead of the old
+        CreateChamferDefinition + Add pattern.
+
         Parameters
         ----------
         edges:
             Edge or edge collection COM object, or a single edge name (str).
+            Currently applies to ALL edges of the first surface body.
         distance:
             Chamfer distance (cm in Inventor's internal units).
         mode:
@@ -337,11 +334,10 @@ class FeatureManager:
         """
         self._ensure_connected()
 
-        mode_value = _CHAMFER_MODE_MAP.get(mode.lower())
-        if mode_value is None:
+        if mode not in ("equal_distance", "two_distances"):
             raise InventorCOMError(
                 f"Invalid chamfer mode '{mode}'. Must be one of: "
-                f"{', '.join(sorted(_CHAMFER_MODE_MAP))}"
+                "equal_distance, two_distances"
             )
 
         doc = self._ensure_active_document()
@@ -349,16 +345,29 @@ class FeatureManager:
         try:
             comp_def = doc.ComponentDefinition
             features = comp_def.Features
-            edge_col = comp_def.SurfaceBodies.Item(1).Edges
-            chamfer_def = features.ChamferFeatures.CreateChamferDefinition(
-                edge_col, mode_value, distance
-            )
-            feature = features.ChamferFeatures.Add(chamfer_def)
+
+            # Build an EdgeCollection via TransientObjects
+            to = self._driver.inventor.TransientObjects
+            edge_col = to.CreateEdgeCollection()
+            sb = comp_def.SurfaceBodies.Item(1)
+            for i in range(1, sb.Edges.Count + 1):
+                edge_col.Add(sb.Edges.Item(i))
+
+            if mode == "equal_distance":
+                feature = features.ChamferFeatures.AddUsingDistance(
+                    edge_col, distance
+                )
+            else:
+                # two_distances — use same distance for both sides
+                feature = features.ChamferFeatures.AddUsingTwoDistances(
+                    edge_col, distance, distance
+                )
+
             return {
                 "success": True,
                 "feature_type": "chamfer",
                 "distance": distance,
-                "mode": mode.lower(),
+                "mode": mode,
             }
         except (InventorDisconnectedError, InventorCOMError):
             raise
