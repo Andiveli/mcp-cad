@@ -457,32 +457,19 @@ class SketchManager:
         """
         sketch = self._ensure_active_sketch()
         try:
-            to = self._driver.inventor.TransientObjects
+            col = self._build_entity_collection(sketch, entities)
 
-            # Collect sketch entities into ObjectCollection
-            col = to.CreateObjectCollection()
-            if _CAST_TO is not None:
-                col = _CAST_TO(col, "ObjectCollection")
-            for idx_str in entities.split(","):
-                idx_str = idx_str.strip()
-                if not idx_str:
-                    continue
-                ent = sketch.SketchEntities.Item(int(idx_str))
-                if _CAST_TO is not None:
-                    ent = _CAST_TO(ent, "Object")
-                col.Add(ent)
-
-            # Resolve axis
-            if isinstance(axis, str):
-                try:
-                    axis_index = int(axis)
-                    axis_entity = sketch.SketchPoints.Item(axis_index)
-                except ValueError:
-                    axis_entity = sketch.SketchPoints.Item(axis)
-            else:
-                axis_entity = axis
-            if _CAST_TO is not None:
-                axis_entity = _CAST_TO(axis_entity, "Object")
+            # Resolve axis point with Dispatch
+            try:
+                axis_index = int(axis)
+                axis_entity = sketch.SketchPoints.Item(axis_index)
+            except ValueError:
+                axis_entity = sketch.SketchPoints.Item(axis)
+            try:
+                import win32com.client
+                axis_entity = win32com.client.Dispatch(axis_entity)
+            except Exception:
+                pass
 
             # Create definition, set properties, add
             cp = sketch.CircularPatterns
@@ -540,32 +527,25 @@ class SketchManager:
         """
         sketch = self._ensure_active_sketch()
         try:
-            to = self._driver.inventor.TransientObjects
+            col = self._build_entity_collection(sketch, entities)
 
-            # Collect sketch entities into ObjectCollection
-            col = to.CreateObjectCollection()
-            if _CAST_TO is not None:
-                col = _CAST_TO(col, "ObjectCollection")
-            for idx_str in entities.split(","):
-                idx_str = idx_str.strip()
-                if not idx_str:
-                    continue
-                ent = sketch.SketchEntities.Item(int(idx_str))
-                if _CAST_TO is not None:
-                    ent = _CAST_TO(ent, "Object")
-                col.Add(ent)
-
-            # Resolve X direction entity
+            # Resolve direction entities with Dispatch
             x_dir = sketch.SketchEntities.Item(int(x_axis))
-            if _CAST_TO is not None:
-                x_dir = _CAST_TO(x_dir, "Object")
+            try:
+                import win32com.client
+                x_dir = win32com.client.Dispatch(x_dir)
+            except Exception:
+                pass
 
             rp = sketch.RectangularPatterns
 
             if y_axis:
                 y_dir = sketch.SketchEntities.Item(int(y_axis))
-                if _CAST_TO is not None:
-                    y_dir = _CAST_TO(y_dir, "Object")
+                try:
+                    import win32com.client
+                    y_dir = win32com.client.Dispatch(y_dir)
+                except Exception:
+                    pass
                 definition = rp.CreateDefinition(
                     col, x_dir, x_count,
                     None,  # NaturalXDirection (default True)
@@ -597,18 +577,23 @@ class SketchManager:
             raise InventorCOMError(f"Failed to create sketch rectangular pattern: {exc}") from exc
 
     def _build_entity_collection(self, sketch: Any, entities: str) -> Any:
-        """Build a CastTo-wrapped ObjectCollection from comma-separated indices."""
+        """Build an ObjectCollection from comma-separated indices.
+
+        Uses ``Dispatch()`` on each entity to force late binding
+        and avoid gen_py cache corruption.
+        """
         to = self._driver.inventor.TransientObjects
         col = to.CreateObjectCollection()
-        if _CAST_TO is not None:
-            col = _CAST_TO(col, "ObjectCollection")
         for idx_str in entities.split(","):
             idx_str = idx_str.strip()
             if not idx_str:
                 continue
             ent = sketch.SketchEntities.Item(int(idx_str))
-            if _CAST_TO is not None:
-                ent = _CAST_TO(ent, "Object")
+            try:
+                import win32com.client
+                ent = win32com.client.Dispatch(ent)
+            except Exception:
+                pass
             col.Add(ent)
         return col
 
@@ -852,10 +837,17 @@ class SketchManager:
             raise InventorCOMError(f"Failed to mirror: {exc}") from exc
 
     def _resolve_entity(self, sketch: Any, ref: str) -> Any:
-        """Resolve a sketch entity from a 1-based index string."""
+        """Resolve a sketch entity from a 1-based index string.
+
+        Wraps in ``win32com.client.Dispatch()`` to force a fresh
+        late-bound wrapper, avoiding gen_py cache corruption.
+        """
         ent = sketch.SketchEntities.Item(int(ref.strip()))
-        if _CAST_TO is not None:
-            ent = _CAST_TO(ent, "Object")
+        try:
+            import win32com.client
+            ent = win32com.client.Dispatch(ent)
+        except Exception:
+            pass
         return ent
 
     def sketch_constraint(
