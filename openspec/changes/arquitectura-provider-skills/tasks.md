@@ -46,29 +46,29 @@
 
 ## Phase 2: Provider Migration
 
-- [ ] 2.1 Create `mcp_cad/providers/__init__.py` — package init
-- [ ] 2.2 Create `mcp_cad/providers/inventor/__init__.py` — re-export managers + `InventorProvider`
-- [ ] 2.3 `git mv mcp_cad/inventor/client.py mcp_cad/providers/inventor/client.py` — zero logic change
-- [ ] 2.4 `git mv mcp_cad/inventor/document.py mcp_cad/providers/inventor/document.py`
-- [ ] 2.5 `git mv mcp_cad/inventor/sketch.py mcp_cad/providers/inventor/sketch.py`
-- [ ] 2.6 `git mv mcp_cad/inventor/feature.py mcp_cad/providers/inventor/feature.py`
-- [ ] 2.7 `git mv mcp_cad/inventor/parameter.py mcp_cad/providers/inventor/parameter.py`
-- [ ] 2.8 `git mv mcp_cad/inventor/property.py mcp_cad/providers/inventor/property.py`
-- [ ] 2.9 `git mv mcp_cad/inventor/export.py mcp_cad/providers/inventor/export.py`
-- [ ] 2.10 Update all internal imports in moved files: `from mcp_cad.inventor.client` → `from mcp_cad.providers.inventor.client`
-- [ ] 2.11 Update `tests/conftest.py` import paths for moved modules
-- [ ] 2.12 Add backward-compat imports in `mcp_cad/inventor/__init__.py` or remove old package
+- [x] 2.1 Create `mcp_cad/providers/__init__.py` — package init
+- [x] 2.2 Create `mcp_cad/providers/inventor/__init__.py` — re-export managers + `InventorProvider`
+- [x] 2.3 `git mv mcp_cad/inventor/client.py mcp_cad/providers/inventor/client.py` — zero logic change
+- [x] 2.4 `git mv mcp_cad/inventor/document.py mcp_cad/providers/inventor/document.py`
+- [x] 2.5 `git mv mcp_cad/inventor/sketch.py mcp_cad/providers/inventor/sketch.py`
+- [x] 2.6 `git mv mcp_cad/inventor/feature.py mcp_cad/providers/inventor/feature.py`
+- [x] 2.7 `git mv mcp_cad/inventor/parameter.py mcp_cad/providers/inventor/parameter.py`
+- [x] 2.8 `git mv mcp_cad/inventor/property.py mcp_cad/providers/inventor/property.py`
+- [x] 2.9 `git mv mcp_cad/inventor/export.py mcp_cad/providers/inventor/export.py`
+- [x] 2.10 Update all internal imports in moved files: `from mcp_cad.inventor.client` → `from mcp_cad.providers.inventor.client`
+- [x] 2.11 Update `tests/conftest.py` import paths for moved modules
+- [x] 2.12 Add backward-compat imports in `mcp_cad/inventor/__init__.py` or remove old package
 
 **Verification**: `pytest tests/ -q` — all 201 tests pass after import path updates. Dependencies: Phase 1.
 
 ## Phase 3: Protocol Adapters
 
-- [ ] 3.1 Create `mcp_cad/providers/inventor/adapter.py` — `InventorProvider` class implementing `CADProvider`, delegates to manager instances
-- [ ] 3.2 Add edge parsing helper `_parse_edge_indices(edges: str) -> list[int]` in adapter
-- [ ] 3.3 Implement `fillet()` in adapter: parse edges string, build `EdgeCollection` via `TransientObjects`, delegate to `FeatureManager.fillet()`
-- [ ] 3.4 Implement `chamfer()` in adapter same pattern
-- [ ] 3.5 Create `tests/test_adapter.py` — test `InventorProvider` delegates 1:1 to each manager with mocked managers
-- [ ] 3.6 Add `make_mock_provider()` factory to `tests/conftest.py`
+- [x] 3.1 Create `mcp_cad/providers/inventor/adapter.py` — `InventorProvider` class implementing `CADProvider`, delegates to manager instances
+- [x] 3.2 Add edge parsing helper `_parse_edge_indices(edges: str) -> list[int]` in adapter — DEFERRED: FeatureManager already has `_parse_edge_indices` and `_build_edge_collection`; adapter delegates directly to manager methods which handle edge parsing internally
+- [x] 3.3 Implement `fillet()` in adapter: delegates directly to `FeatureManager.fillet()` which handles edge parsing internally
+- [x] 3.4 Implement `chamfer()` in adapter same pattern
+- [x] 3.5 Create `tests/test_adapter.py` — test `InventorProvider` delegates 1:1 to each manager with mocked managers (49 tests)
+- [x] 3.6 Add `make_mock_provider()` factory to `tests/conftest.py`
 
 **Verification**: `pytest tests/test_adapter.py -q` — all adapter delegation tests pass. Dependencies: Phase 2.
 
