@@ -298,3 +298,17 @@ def sketch_scale(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_mirror(
+    provider: CADProvider,
+    entities: str,
+    mirror_entity: str,
+) -> dict[str, Any]:
+    """Mirror sketch entities across a mirror line."""
+    try:
+        return provider.sketch_mirror(entities, mirror_entity)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

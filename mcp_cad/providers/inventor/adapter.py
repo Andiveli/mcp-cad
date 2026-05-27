@@ -245,6 +245,12 @@ class InventorProvider:
         """Scale sketch entities."""
         return self._sketch.sketch_scale(entities, cx, cy, factor)
 
+    def sketch_mirror(
+        self, entities: str, mirror_entity: str,
+    ) -> dict[str, Any]:
+        """Mirror sketch entities."""
+        return self._sketch.sketch_mirror(entities, mirror_entity)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

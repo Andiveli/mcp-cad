@@ -747,6 +747,74 @@ class SketchManager:
         except Exception as exc:
             raise InventorCOMError(f"Failed to scale: {exc}") from exc
 
+    def sketch_mirror(
+        self,
+        entities: str,
+        mirror_entity: str,
+    ) -> dict[str, Any]:
+        """Mirror sketch entities across a mirror line.
+
+        Uses ``Geometry`` to read positions, computes reflected
+        coordinates across the mirror line, and moves endpoints.
+
+        Parameters
+        ----------
+        entities:
+            Comma-separated entity indices to mirror.
+        mirror_entity:
+            Index of the line entity used as the mirror axis.
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            mirror_line = sketch.SketchEntities.Item(int(mirror_entity))
+
+            # Get mirror axis line endpoints
+            mg = mirror_line.Geometry  # LineSegment2d
+            ax1, ay1 = mg.StartPoint.X, mg.StartPoint.Y
+            ax2, ay2 = mg.EndPoint.X, mg.EndPoint.Y
+
+            # Direction vector of the mirror line
+            vx = ax2 - ax1
+            vy = ay2 - ay1
+            vlen2 = vx * vx + vy * vy
+
+            if vlen2 < 1e-12:
+                return {"success": False, "error": "Mirror line has zero length"}
+
+            tg = self._transient_geometry()
+
+            for idx_str in entities.split(","):
+                idx_str = idx_str.strip()
+                if not idx_str:
+                    continue
+                ent = sketch.SketchEntities.Item(int(idx_str))
+                start = ent.StartSketchPoint
+                end = ent.EndSketchPoint
+
+                sg = start.Geometry  # Point2d
+                eg = end.Geometry
+
+                # Reflect start point
+                dx, dy = sg.X - ax1, sg.Y - ay1
+                t = (dx * vx + dy * vy) / vlen2
+                cx, cy = ax1 + t * vx, ay1 + t * vy
+                rx1, ry1 = 2.0 * cx - sg.X, 2.0 * cy - sg.Y
+
+                # Reflect end point
+                dx, dy = eg.X - ax1, eg.Y - ay1
+                t = (dx * vx + dy * vy) / vlen2
+                cx, cy = ax1 + t * vx, ay1 + t * vy
+                rx2, ry2 = 2.0 * cx - eg.X, 2.0 * cy - eg.Y
+
+                start.MoveTo(tg.CreatePoint2d(rx1, ry1))
+                end.MoveTo(tg.CreatePoint2d(rx2, ry2))
+
+            return {"success": True, "operation": "mirror"}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to mirror: {exc}") from exc
+
     def _resolve_entity(self, sketch: Any, ref: str) -> Any:
         """Resolve a sketch entity from a 1-based index string."""
         ent = sketch.SketchEntities.Item(int(ref.strip()))

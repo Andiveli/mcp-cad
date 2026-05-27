@@ -179,3 +179,29 @@ def skill_scale(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def skill_mirror(
+    provider: CADProvider,
+    entities: str = "1",
+    mirror_entity: str = "2",
+) -> dict[str, Any]:
+    """Mirror sketch entities across a mirror line.
+
+    Reflects each entity's endpoints across the specified line
+    using point-to-line projection math.
+
+    Args:
+        entities: Comma-separated entity indices to mirror.
+        mirror_entity: Index of the line entity used as mirror axis.
+
+    Examples:
+        skill_mirror(entities="1", mirror_entity="2")
+        skill_mirror(entities="1,3,5", mirror_entity="2")
+    """
+    try:
+        return provider.sketch_mirror(entities, mirror_entity)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

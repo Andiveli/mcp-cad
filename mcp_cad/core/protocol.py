@@ -260,6 +260,14 @@ class CADProvider(Protocol):
         """Scale sketch entities around a center point."""
         ...
 
+    def sketch_mirror(
+        self,
+        entities: str,
+        mirror_entity: str,
+    ) -> dict[str, Any]:
+        """Mirror sketch entities across a mirror line."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

@@ -71,6 +71,7 @@ from mcp_cad.tools.sketches import (
     sketch_constraint as tool_sketch_constraint,
     sketch_trim as tool_sketch_trim,
     sketch_scale as tool_sketch_scale,
+    sketch_mirror as tool_sketch_mirror,
 )
 
 
@@ -353,6 +354,19 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
             factor: Scale factor (>1 = enlarge, <1 = shrink).
         """
         return tool_sketch_scale(provider, entities, cx, cy, factor)
+
+    @mcp_instance.tool()
+    def sketch_mirror(
+        entities: str,
+        mirror_entity: str,
+    ) -> dict[str, Any]:
+        """Mirror sketch entities across a mirror line.
+
+        Args:
+            entities: Comma-separated entity indices to mirror.
+            mirror_entity: Index of the line used as mirror axis.
+        """
+        return tool_sketch_mirror(provider, entities, mirror_entity)
 
     # ------------------------------------------------------------------
     # Feature tools
