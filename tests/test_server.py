@@ -259,22 +259,22 @@ class TestSketchTools:
         provider.sketch_line.assert_called_once_with(0.0, 0.0, 1.0, 1.0)
 
     def test_sketch_dimension_merges_position(self):
-        """Should merge position_x and position_y into a tuple for the provider."""
+        """Should pass position_x and position_y as keyword args to the provider."""
         fake_mcp, tools = _make_mcp()
         provider = _make_mock_provider()
         register_tools(fake_mcp, provider)
 
         tools["sketch_dimension"](entity="d0", value=5.0, position_x=1.0, position_y=2.0)
-        provider.sketch_dimension.assert_called_once_with("d0", 5.0, (1.0, 2.0))
+        provider.sketch_dimension.assert_called_once_with("d0", 5.0, position_x=1.0, position_y=2.0)
 
     def test_sketch_dimension_no_position(self):
-        """Should pass None when position is not provided."""
+        """Should pass None for both position kwargs when not provided."""
         fake_mcp, tools = _make_mcp()
         provider = _make_mock_provider()
         register_tools(fake_mcp, provider)
 
         tools["sketch_dimension"](entity="d0", value=5.0)
-        provider.sketch_dimension.assert_called_once_with("d0", 5.0, None)
+        provider.sketch_dimension.assert_called_once_with("d0", 5.0, position_x=None, position_y=None)
 
 
 # ==================================================================

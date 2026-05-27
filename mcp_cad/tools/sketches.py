@@ -96,11 +96,9 @@ def sketch_dimension(
 ) -> dict[str, Any]:
     """Add a dimension constraint to the active sketch."""
     try:
-        if position_x is not None and position_y is not None:
-            position: tuple[float, float] | None = (position_x, position_y)
-        else:
-            position = None
-        return provider.sketch_dimension(entity, value, position)
+        return provider.sketch_dimension(
+            entity, value, position_x=position_x, position_y=position_y
+        )
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

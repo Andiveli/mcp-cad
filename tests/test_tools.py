@@ -252,18 +252,18 @@ class TestSketchTools:
     def test_sketch_dimension_with_position(self):
         provider = _make_mock_provider()
         result = sketch_dimension(provider, "Line1", 50.0, position_x=5.0, position_y=10.0)
-        provider.sketch_dimension.assert_called_once_with("Line1", 50.0, (5.0, 10.0))
+        provider.sketch_dimension.assert_called_once_with("Line1", 50.0, position_x=5.0, position_y=10.0)
 
     def test_sketch_dimension_no_position(self):
         provider = _make_mock_provider()
         result = sketch_dimension(provider, "Line1", 25.0)
-        provider.sketch_dimension.assert_called_once_with("Line1", 25.0, None)
+        provider.sketch_dimension.assert_called_once_with("Line1", 25.0, position_x=None, position_y=None)
 
     def test_sketch_dimension_only_x_ignores_position(self):
-        """If only position_x is given, position should be None."""
+        """If only position_x is given, position_y is still passed as None. Adapter handles 'both or nothing' logic."""
         provider = _make_mock_provider()
         result = sketch_dimension(provider, "Line1", 25.0, position_x=5.0)
-        provider.sketch_dimension.assert_called_once_with("Line1", 25.0, None)
+        provider.sketch_dimension.assert_called_once_with("Line1", 25.0, position_x=5.0, position_y=None)
 
 
 # ==================================================================
