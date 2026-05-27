@@ -1,8 +1,8 @@
 # mcp-cad
 
-MCP server for Autodesk Inventor. Give AI agents direct parametric control over your CAD models.
+MCP server for CAD automation. Give AI agents direct parametric control over your CAD models — starting with Autodesk Inventor, architected for AutoCAD, SolidWorks, Revit, KiCad, and more.
 
-32 tools across 7 domains — connection, documents, sketches, 3D features, parameters, iProperties, and export. All through COM automation. No VBA, no macros.
+**32 atomic tools** + **composable skills** across 7 domains. Provider-based architecture: add a new CAD backend by implementing one protocol. No VBA, no macros.
 
 ## Requirements
 
@@ -54,8 +54,8 @@ The installer creates a virtual environment, installs dependencies, runs the tes
 |------|-------------|
 | `extrude` | Extrude a sketch profile (join/cut/intersect) |
 | `revolve` | Revolve a profile around an axis |
-| `fillet` | Apply fillet to edges |
-| `chamfer` | Apply chamfer to edges |
+| `fillet` | Apply fillet to specific edges |
+| `chamfer` | Apply chamfer to specific edges |
 
 ### Parameters
 | Tool | Description |
@@ -82,37 +82,87 @@ The installer creates a virtual environment, installs dependencies, runs the tes
 | `export_pdf` | Export to PDF |
 | `export_dxf` | Export sketch/flat pattern to DXF |
 
+### Skills (composable operations)
+
+| Skill | Description |
+|-------|-------------|
+| `crear_patron_taladros` | Circular hole pattern — composes sketch → circle → extrude(cut) → pattern |
+
+Skills chain atomic tools into reliable multi-step operations. Define a skill once and the LLM calls it as a single tool — no round-trips, no hallucinations.
+
 ## Architecture
 
 ```
 mcp_cad/
-├── server.py              FastMCP instance + 32 tool registrations
-├── errors.py              Exception hierarchy (InventorError → COM/permission/not-found)
-├── inventor/
-│   ├── client.py          COM connection lifecycle (connect, health, disconnect)
-│   ├── document.py        Document operations
-│   ├── sketch.py          2D sketch geometry
-│   ├── feature.py         3D features
-│   ├── parameter.py       Model parameters
-│   ├── property.py        iProperties
-│   └── export.py          STEP/STL/PDF/DXF export
+├── server.py                     FastMCP instance — 56 lines
+├── errors.py                     Exception hierarchy
+├── core/                         Abstract protocol (zero COM dependencies)
+│   ├── protocol.py               CADProvider — 32 methods
+│   └── models.py                 Point2D, Plane, ExtrudeDef, …
+├── providers/                    CAD backends
+│   └── inventor/                 Inventor via COM (pywin32)
+│       ├── adapter.py            InventorProvider implements CADProvider
+│       ├── client.py             COM lifecycle
+│       ├── document.py           Documents
+│       ├── sketch.py             2D geometry
+│       ├── feature.py            3D features
+│       ├── parameter.py          Model parameters
+│       ├── property.py           iProperties
+│       └── export.py             STEP/STL/PDF/DXF
+├── tools/                        Generic MCP tools (backend-agnostic)
+│   ├── connection.py             connect / health / disconnect
+│   ├── documents.py              open / new / save / close
+│   ├── sketches.py               line / circle / arc / rectangle / dimension
+│   ├── features.py               extrude / revolve / fillet / chamfer
+│   ├── parameters.py             list / get / set / expression
+│   ├── properties.py             iProperty operations
+│   └── export.py                 STEP / STL / PDF / DXF
+├── skills/                       Composable operations
+│   ├── base.py                   Skill base + SkillResult
+│   └── drilling.py               crear_patron_taladros
 └── tests/
-    200 tests, COM-mocked, run on Linux
+     313 tests, COM-mocked, run on Linux
 ```
 
-All managers receive the driver and access the COM object via `driver.inventor` — a property that always reflects the current connection state. No stale references.
+### How it works
+
+```
+MCP client → server.py → tools/ (generic) → CADProvider (protocol) → providers/inventor (COM)
+                                                                    → providers/solidworks (COM)
+                                                                    → providers/kicad (Python API)
+```
+
+Tools and skills depend only on `CADProvider`. Adding a new CAD backend means writing one adapter — zero changes to tools, skills, or server.
+
+### Skills
+
+Skills compose atomic tools into reliable multi-step operations:
+
+```python
+# Define once — LLM calls as single tool
+def crear_patron_taladros(provider, diametro, profundidad, espaciado, cantidad):
+    provider.sketch_create("XY")
+    provider.sketch_circle(x_centro + espaciado, y_centro, diametro / 2)
+    provider.extrude("1", profundidad, operation="cut")
+    # Circular pattern via provider
+```
+
+No round-trips to the LLM mid-operation. No hallucinated tool sequences. Deterministic and fast.
 
 ## Development
 
 ```bash
-# Run tests (works on Linux)
+# Install dev dependencies
+pip install -e ".[test]"
+
+# Run tests (works on Linux — no Inventor needed)
 python -m pytest tests/ -v
 
-# Run with coverage (needs pytest-cov in venv)
+# Run with coverage
 python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
 ```
 
-Tests mock the entire COM layer — no Inventor installation needed for development. 200 tests covering happy paths, error scenarios, disconnected guards, and edge cases.
+313 tests covering happy paths, error scenarios, delegation verification, skills composition, and disconnected guards. Entire COM layer is mocked — cross-platform development.
 
 ## Configuration
 
@@ -148,3 +198,4 @@ Tests mock the entire COM layer — no Inventor installation needed for developm
 - stdio transport only (SSE/remote transport planned)
 - No Docker support (COM cannot cross container boundaries)
 - Assemblies, drawings, iLogic, and sheet metal not yet implemented
+- HoleFeatures, CircularPatternFeatures, and ThreadFeatures blocked by COM bridge type conversion (see `docs/com-bridge-investigation.md` for workarounds and research paths)
