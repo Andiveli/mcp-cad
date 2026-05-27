@@ -2,7 +2,7 @@
 
 MCP server for CAD automation. Give AI agents direct parametric control over your CAD models — starting with Autodesk Inventor, architected for AutoCAD, SolidWorks, Revit, KiCad, and more.
 
-**32 atomic tools** + **composable skills** across 7 domains. Provider-based architecture: add a new CAD backend by implementing one protocol. No VBA, no macros.
+**46 atomic tools** + **19 composable skills** across 8 domains. Provider-based architecture: add a new CAD backend by implementing one protocol. No VBA, no macros.
 
 ## Requirements
 
@@ -90,11 +90,14 @@ The installer creates a virtual environment, installs dependencies, and runs the
 
 ### Skills (composable operations)
 
-| Skill | Description |
-|-------|-------------|
-| `crear_patron_taladros` | Circular hole pattern — composes sketch → circle → extrude(cut) → pattern |
+| Panel | Skills |
+|-------|--------|
+| **Sketch → Draw** | `skill_sketch`, `skill_point`, `skill_line`, `skill_circle`, `skill_arc`, `skill_rect`, `skill_ellipse`, `skill_spline` |
+| **Sketch → Pattern** | `skill_pattern_circular`, `skill_pattern_rectangular` |
+| **Sketch → Modify** | `skill_offset`, `skill_move`, `skill_rotate`, `skill_scale`, `skill_trim`, `skill_mirror`, `skill_delete_sketch` |
+| **Sketch → Constrain** | `skill_constraint` (12 modes), `skill_dimension` |
 
-Skills chain atomic tools into reliable multi-step operations. Define a skill once and the LLM calls it as a single tool — no round-trips, no hallucinations.
+Skills chain atomic tools into reliable multi-step operations. Define a skill once and the LLM calls it as a single tool — no round-trips, no hallucinations. Each skill includes usage examples in its docstring so the LLM never guesses parameter formats.
 
 ## Architecture
 
@@ -125,9 +128,20 @@ mcp_cad/
 │   └── export.py                 STEP / STL / PDF / DXF
 ├── skills/                       Composable operations
 │   ├── base.py                   Skill base + SkillResult
-│   └── drilling.py               crear_patron_taladros
+│   ├── sketch.py                 skill_sketch
+│   ├── line.py                   skill_line
+│   ├── circle.py                 skill_circle
+│   ├── arc.py                    skill_arc
+│   ├── rect.py                   skill_rect
+│   ├── point.py                  skill_point
+│   ├── ellipse.py                skill_ellipse
+│   ├── spline.py                 skill_spline
+│   ├── pattern.py                skill_pattern_circular/rectangular
+│   ├── modify.py                 skill_offset/move/rotate/scale/trim/mirror/delete
+│   ├── constrain.py              skill_constraint (12 modes)
+│   └── dimension.py              skill_dimension
 └── tests/
-     313 tests, COM-mocked, run on Linux
+      394 tests, COM-mocked, run on Linux
 ```
 
 ### How it works
@@ -146,11 +160,13 @@ Skills compose atomic tools into reliable multi-step operations:
 
 ```python
 # Define once — LLM calls as single tool
-def crear_patron_taladros(provider, diametro, profundidad, espaciado, cantidad):
-    provider.sketch_create("XY")
-    provider.sketch_circle(x_centro + espaciado, y_centro, diametro / 2)
-    provider.extrude("1", profundidad, operation="cut")
-    # Circular pattern via provider
+def skill_rect(provider, mode="diagonal", x1=0, y1=0, x2=10, y2=10, **kwargs):
+    if mode == "diagonal":
+        return provider.sketch_rectangle(x1, y1, x2, y2)
+    elif mode == "center":
+        opp_x = 2.0 * kwargs["cx"] - kwargs["corner_x"]
+        opp_y = 2.0 * kwargs["cy"] - kwargs["corner_y"]
+        return provider.sketch_rectangle(kwargs["corner_x"], kwargs["corner_y"], opp_x, opp_y)
 ```
 
 No round-trips to the LLM mid-operation. No hallucinated tool sequences. Deterministic and fast.
@@ -168,7 +184,7 @@ python -m pytest tests/ -v
 python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
 ```
 
-313 tests covering happy paths, error scenarios, delegation verification, skills composition, and disconnected guards. Entire COM layer is mocked — cross-platform development.
+394 tests covering happy paths, error scenarios, delegation verification, skills composition, and disconnected guards. Entire COM layer is mocked — cross-platform development.
 
 ## Configuration
 
