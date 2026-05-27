@@ -11,6 +11,9 @@ from mcp_cad.skills.line import skill_line
 from mcp_cad.skills.circle import skill_circle
 from mcp_cad.skills.arc import skill_arc
 from mcp_cad.skills.rect import skill_rect
+from mcp_cad.skills.point import skill_point
+from mcp_cad.skills.spline import skill_spline
+from mcp_cad.skills.ellipse import skill_ellipse
 from mcp_cad.skills import register_skills
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
@@ -22,6 +25,9 @@ def _make_mock_provider():
     provider.sketch_circle.return_value = {"success": True, "entity_type": "circle"}
     provider.sketch_arc.return_value = {"success": True, "entity_type": "arc"}
     provider.sketch_rectangle.return_value = {"success": True, "entity_type": "rectangle"}
+    provider.sketch_point.return_value = {"success": True, "entity_type": "point"}
+    provider.sketch_spline.return_value = {"success": True, "entity_type": "spline"}
+    provider.sketch_ellipse.return_value = {"success": True, "entity_type": "ellipse"}
     return provider
 
 
@@ -308,3 +314,72 @@ class TestSkillRect:
         provider = _make_mock_provider()
         register_skills(fake_mcp, provider)
         assert "skill_rect" in tools
+
+
+# ==================================================================
+# skill_point
+# ==================================================================
+
+
+class TestSkillPoint:
+    def test_point(self):
+        provider = _make_mock_provider()
+        result = skill_point(provider, x=10, y=5)
+        provider.sketch_point.assert_called_once_with(10.0, 5.0)
+        assert result["success"] is True
+
+    def test_point_registered(self):
+        fake_mcp, tools = _make_mcp()
+        provider = _make_mock_provider()
+        register_skills(fake_mcp, provider)
+        assert "skill_point" in tools
+
+
+# ==================================================================
+# skill_spline
+# ==================================================================
+
+
+class TestSkillSpline:
+    def test_fit_spline(self):
+        provider = _make_mock_provider()
+        pts = [(0, 0), (3, 5), (7, 3), (10, 0)]
+        result = skill_spline(provider, mode="fit", points=pts)
+        provider.sketch_spline.assert_called_once_with(pts, "sweet")
+        assert result["success"] is True
+
+    def test_not_enough_points(self):
+        provider = _make_mock_provider()
+        result = skill_spline(provider, points=[(0, 0), (10, 10)])
+        assert result["success"] is False
+
+    def test_spline_registered(self):
+        fake_mcp, tools = _make_mcp()
+        provider = _make_mock_provider()
+        register_skills(fake_mcp, provider)
+        assert "skill_spline" in tools
+
+
+# ==================================================================
+# skill_ellipse
+# ==================================================================
+
+
+class TestSkillEllipse:
+    def test_ellipse_default(self):
+        provider = _make_mock_provider()
+        result = skill_ellipse(provider)
+        provider.sketch_ellipse.assert_called_once_with(0.0, 0.0, 5.0, 3.0, 0.0)
+        assert result["success"] is True
+
+    def test_ellipse_rotated(self):
+        provider = _make_mock_provider()
+        result = skill_ellipse(provider, cx=10, cy=20, major_radius=8, minor_radius=4, angle=45)
+        provider.sketch_ellipse.assert_called_once_with(10.0, 20.0, 8.0, 4.0, 45.0)
+        assert result["success"] is True
+
+    def test_ellipse_registered(self):
+        fake_mcp, tools = _make_mcp()
+        provider = _make_mock_provider()
+        register_skills(fake_mcp, provider)
+        assert "skill_ellipse" in tools

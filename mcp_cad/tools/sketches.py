@@ -103,3 +103,48 @@ def sketch_dimension(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_point(
+    provider: CADProvider,
+    x: float,
+    y: float,
+) -> dict[str, Any]:
+    """Draw a point in the active sketch."""
+    try:
+        return provider.sketch_point(x, y)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def sketch_spline(
+    provider: CADProvider,
+    points: list[tuple[float, float]],
+    fit_method: str = "sweet",
+) -> dict[str, Any]:
+    """Draw a spline through fit points."""
+    try:
+        return provider.sketch_spline(points, fit_method)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def sketch_ellipse(
+    provider: CADProvider,
+    cx: float,
+    cy: float,
+    major_radius: float,
+    minor_radius: float,
+    major_axis_angle: float = 0.0,
+) -> dict[str, Any]:
+    """Draw an ellipse in the active sketch."""
+    try:
+        return provider.sketch_ellipse(cx, cy, major_radius, minor_radius, major_axis_angle)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

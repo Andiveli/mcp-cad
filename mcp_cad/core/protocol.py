@@ -138,6 +138,45 @@ class CADProvider(Protocol):
         """Add a dimension constraint to the active sketch."""
         ...
 
+    def sketch_point(
+        self,
+        x: float,
+        y: float,
+    ) -> dict[str, Any]:
+        """Draw a point in the active sketch."""
+        ...
+
+    def sketch_spline(
+        self,
+        points: list[tuple[float, float]],
+        fit_method: str = "sweet",
+    ) -> dict[str, Any]:
+        """Draw a spline through fit points.
+
+        Args:
+            points: List of (x, y) tuples defining the fit points.
+            fit_method: ``"smooth"``, ``"sweet"``, or ``"autocad"``.
+        """
+        ...
+
+    def sketch_ellipse(
+        self,
+        cx: float,
+        cy: float,
+        major_radius: float,
+        minor_radius: float,
+        major_axis_angle: float = 0.0,
+    ) -> dict[str, Any]:
+        """Draw an ellipse in the active sketch.
+
+        Args:
+            cx, cy: Center point.
+            major_radius: Major axis radius in cm.
+            minor_radius: Minor axis radius in cm.
+            major_axis_angle: Angle of major axis in degrees (0° = +X).
+        """
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

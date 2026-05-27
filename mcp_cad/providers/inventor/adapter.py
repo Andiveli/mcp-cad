@@ -151,6 +151,29 @@ class InventorProvider:
             position = None
         return self._sketch.sketch_dimension(entity, value, position)
 
+    def sketch_point(self, x: float, y: float) -> dict[str, Any]:
+        """Draw a point in the active sketch."""
+        return self._sketch.sketch_point(x, y)
+
+    def sketch_spline(
+        self,
+        points: list[tuple[float, float]],
+        fit_method: str = "sweet",
+    ) -> dict[str, Any]:
+        """Draw a spline through fit points."""
+        return self._sketch.sketch_spline(points, fit_method)
+
+    def sketch_ellipse(
+        self,
+        cx: float,
+        cy: float,
+        major_radius: float,
+        minor_radius: float,
+        major_axis_angle: float = 0.0,
+    ) -> dict[str, Any]:
+        """Draw an ellipse."""
+        return self._sketch.sketch_ellipse(cx, cy, major_radius, minor_radius, major_axis_angle)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

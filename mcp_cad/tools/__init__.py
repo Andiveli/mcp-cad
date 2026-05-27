@@ -56,8 +56,11 @@ from mcp_cad.tools.sketches import (
     sketch_circle as tool_sketch_circle,
     sketch_create as tool_sketch_create,
     sketch_dimension as tool_sketch_dimension,
+    sketch_ellipse as tool_sketch_ellipse,
     sketch_line as tool_sketch_line,
+    sketch_point as tool_sketch_point,
     sketch_rectangle as tool_sketch_rectangle,
+    sketch_spline as tool_sketch_spline,
 )
 
 
@@ -175,6 +178,40 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     ) -> dict[str, Any]:
         """Add a dimension constraint to the active sketch."""
         return tool_sketch_dimension(provider, entity, value, position_x, position_y)
+
+    @mcp_instance.tool()
+    def sketch_point(
+        x: float,
+        y: float,
+    ) -> dict[str, Any]:
+        """Draw a point in the active sketch."""
+        return tool_sketch_point(provider, x, y)
+
+    @mcp_instance.tool()
+    def sketch_spline(
+        points: str,
+        fit_method: str = "sweet",
+    ) -> dict[str, Any]:
+        """Draw a spline through fit points.
+
+        Args:
+            points: Comma-separated coordinates: "x1,y1,x2,y2,..."
+            fit_method: "sweet" (default), "smooth", or "autocad".
+        """
+        coords = [float(v) for v in points.split(",")]
+        pts = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
+        return tool_sketch_spline(provider, pts, fit_method)
+
+    @mcp_instance.tool()
+    def sketch_ellipse(
+        cx: float,
+        cy: float,
+        major_radius: float,
+        minor_radius: float,
+        major_axis_angle: float = 0.0,
+    ) -> dict[str, Any]:
+        """Draw an ellipse in the active sketch."""
+        return tool_sketch_ellipse(provider, cx, cy, major_radius, minor_radius, major_axis_angle)
 
     # ------------------------------------------------------------------
     # Feature tools

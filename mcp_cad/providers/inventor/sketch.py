@@ -290,3 +290,97 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to add dimension: {exc}") from exc
+
+    def sketch_point(
+        self, x: float, y: float
+    ) -> dict[str, Any]:
+        """Draw a point in the active sketch."""
+        sketch = self._ensure_active_sketch()
+        try:
+            tg = self._transient_geometry()
+            pt = tg.CreatePoint2d(x, y)
+            sketch.SketchPoints.Add(pt)
+            return {"success": True, "entity_type": "point", "x": x, "y": y}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to draw point: {exc}") from exc
+
+    def sketch_spline(
+        self,
+        points: list[tuple[float, float]],
+        fit_method: str = "sweet",
+    ) -> dict[str, Any]:
+        """Draw a spline through fit points."""
+        sketch = self._ensure_active_sketch()
+        try:
+            tg = self._transient_geometry()
+            to = self._driver.inventor.TransientObjects
+            col = to.CreateObjectCollection()
+            for px, py in points:
+                col.Add(tg.CreatePoint2d(px, py))
+
+            # SplineFitMethodEnum values
+            methods: dict[str, int] = {
+                "smooth": 26369,
+                "sweet": 26370,
+                "autocad": 26371,
+            }
+            if fit_method not in methods:
+                raise InventorCOMError(
+                    f"Unknown fit method '{fit_method}'. Use: {', '.join(methods)}"
+                )
+
+            sketch.SketchSplines.Add(col, methods[fit_method])
+            return {
+                "success": True,
+                "entity_type": "spline",
+                "points": len(points),
+                "fit_method": fit_method,
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to draw spline: {exc}") from exc
+
+    def sketch_ellipse(
+        self,
+        cx: float,
+        cy: float,
+        major_radius: float,
+        minor_radius: float,
+        major_axis_angle: float = 0.0,
+    ) -> dict[str, Any]:
+        """Draw an ellipse in the active sketch.
+
+        Parameters
+        ----------
+        cx, cy:
+            Center point.
+        major_radius:
+            Major axis radius in cm.
+        minor_radius:
+            Minor axis radius in cm.
+        major_axis_angle:
+            Angle of major axis in degrees (0° = +X axis).
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            import math
+            tg = self._transient_geometry()
+            center = tg.CreatePoint2d(cx, cy)
+            rad = math.radians(major_axis_angle)
+            axis_vec = tg.CreateUnitVector2d(math.cos(rad), math.sin(rad))
+            sketch.SketchEllipses.Add(center, axis_vec, major_radius, minor_radius)
+            return {
+                "success": True,
+                "entity_type": "ellipse",
+                "cx": cx,
+                "cy": cy,
+                "major_radius": major_radius,
+                "minor_radius": minor_radius,
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to draw ellipse: {exc}") from exc

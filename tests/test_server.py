@@ -147,13 +147,13 @@ class TestToolRegistration:
             assert name in tools, f"Tool '{name}' not registered"
 
     def test_tool_count(self):
-        """Should register exactly 32 tools."""
+        """Should register exactly 35 tools."""
         fake_mcp, tools = _make_mcp()
         provider = _make_mock_provider()
 
         register_tools(fake_mcp, provider)
 
-        assert len(tools) == 32
+        assert len(tools) == 35
 
 
 # ==================================================================

@@ -24,6 +24,9 @@ from mcp_cad.skills.line import skill_line as _skill_line
 from mcp_cad.skills.circle import skill_circle as _skill_circle
 from mcp_cad.skills.arc import skill_arc as _skill_arc
 from mcp_cad.skills.rect import skill_rect as _skill_rect
+from mcp_cad.skills.point import skill_point as _skill_point
+from mcp_cad.skills.spline import skill_spline as _skill_spline
+from mcp_cad.skills.ellipse import skill_ellipse as _skill_ellipse
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -222,3 +225,63 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             corner_x=corner_x,
             corner_y=corner_y,
         )
+
+    @mcp_instance.tool()
+    def skill_point(
+        x: float = 0.0,
+        y: float = 0.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw a point.
+
+        Examples:
+            skill_point(x=10, y=5)
+        """
+        return _skill_point(provider, x, y)
+
+    @mcp_instance.tool()
+    def skill_spline(
+        mode: str = "fit",
+        points: str = "",
+        fit_method: str = "sweet",
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw a spline.
+
+        Modes:
+            fit     — passes through all points (smooth interpolation)
+            control — points define control polygon vertices
+
+        Args:
+            points: Comma-separated coords: "x1,y1,x2,y2,..." (min 3 points).
+            fit_method: "sweet" (default), "smooth", or "autocad".
+
+        Examples:
+            skill_spline(points="0,0,3,5,7,3,10,0")
+            skill_spline(points="0,0,5,10,10,0", fit_method="smooth")
+        """
+        coords = [float(v) for v in points.split(",")]
+        pts = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
+        return _skill_spline(provider, mode=mode, points=pts, fit_method=fit_method)
+
+    @mcp_instance.tool()
+    def skill_ellipse(
+        cx: float = 0.0,
+        cy: float = 0.0,
+        major_radius: float = 5.0,
+        minor_radius: float = 3.0,
+        angle: float = 0.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw an ellipse.
+
+        Args:
+            cx, cy: Center point.
+            major_radius, minor_radius: Radii in cm.
+            angle: Major axis angle in degrees (0° = +X).
+
+        Examples:
+            # Horizontal ellipse 10x6
+            skill_ellipse(cx=0, cy=0, major_radius=5, minor_radius=3)
+
+            # Rotated 45°
+            skill_ellipse(cx=10, cy=10, major_radius=8, minor_radius=4, angle=45)
+        """
+        return _skill_ellipse(provider, cx, cy, major_radius, minor_radius, angle)
