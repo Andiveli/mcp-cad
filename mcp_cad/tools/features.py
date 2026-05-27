@@ -74,3 +74,23 @@ def chamfer(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def circular_pattern(
+    provider: CADProvider,
+    profile: str,
+    axis: str,
+    count: int,
+    angle: float = 360.0,
+    fit_within_angle: bool = True,
+    natural_direction: bool = True,
+) -> dict[str, Any]:
+    """Create a circular pattern of a feature around an axis."""
+    try:
+        return provider.circular_pattern(
+            profile, axis, count, angle, fit_within_angle, natural_direction,
+        )
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

@@ -8,6 +8,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+try:
+    import win32com.client as _win32com
+    _CAST_TO = getattr(_win32com, "CastTo", None)
+except ImportError:
+    _CAST_TO = None
+
 from mcp_cad.providers.inventor.client import InventorDriver
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
@@ -107,6 +113,60 @@ class FeatureManager:
                     f"Failed to resolve profile '{profile}': {exc}"
                 ) from exc
         return profile
+
+    def _resolve_feature(self, feature_ref: Any, comp_def: Any = None) -> Any:
+        """Resolve a feature reference from name string or pass through.
+
+        If *feature_ref* is a string, tries to find it in the Features
+        collection.  If it's already a COM object, return it unchanged.
+        """
+        if isinstance(feature_ref, str):
+            doc = self._ensure_active_document()
+            if comp_def is None:
+                comp_def = doc.ComponentDefinition
+            try:
+                features = comp_def.Features
+                try:
+                    index = int(feature_ref)
+                    return features.Item(index)
+                except ValueError:
+                    return features.Item(feature_ref)
+            except Exception as exc:
+                raise InventorCOMError(
+                    f"Failed to resolve feature '{feature_ref}': {exc}"
+                ) from exc
+        return feature_ref
+
+    def _resolve_axis(self, axis_ref: Any, comp_def: Any = None) -> Any:
+        """Resolve an axis reference from name string.
+
+        Tries: WorkAxes, then edges from SurfaceBodies.
+        If already a COM object, return unchanged.
+        """
+        if isinstance(axis_ref, str):
+            doc = self._ensure_active_document()
+            if comp_def is None:
+                comp_def = doc.ComponentDefinition
+            try:
+                # Try integer index as edge
+                try:
+                    index = int(axis_ref)
+                    sb = comp_def.SurfaceBodies.Item(1)
+                    return sb.Edges.Item(index)
+                except ValueError:
+                    pass
+                # Try WorkAxes
+                try:
+                    return comp_def.WorkAxes.Item(axis_ref)
+                except Exception:
+                    pass
+                # Fallback: try Features (user might pass an axis feature)
+                return comp_def.Features.Item(axis_ref)
+            except Exception as exc:
+                raise InventorCOMError(
+                    f"Failed to resolve axis '{axis_ref}': {exc}"
+                ) from exc
+        return axis_ref
 
     @staticmethod
     def _parse_edge_indices(edges: str) -> list[int]:
@@ -293,6 +353,88 @@ class FeatureManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to revolve: {exc}") from exc
+
+    def circular_pattern(
+        self,
+        profile: Any,
+        axis: Any,
+        count: int,
+        angle: float = 360.0,
+        fit_within_angle: bool = True,
+        natural_direction: bool = True,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of a feature around an axis.
+
+        Uses ``CastTo`` to fix pywin32 ObjectCollection marshaling
+        when passing features to ``CreateDefinition``.
+
+        Parameters
+        ----------
+        profile:
+            Feature to pattern — resolved via ``_resolve_profile``.
+        axis:
+            Axis entity — a linear edge, work axis, or face.
+            Resolved like profile (name str or COM object).
+        count:
+            Number of instances including the original.
+        angle:
+            Total sweep angle or offset angle in degrees.
+        fit_within_angle:
+            True → angle is total sweep (instances spaced evenly).
+            False → angle is offset between each instance.
+        natural_direction:
+            Use natural axis direction (default True).
+        """
+        self._ensure_connected()
+        doc = self._ensure_active_document()
+
+        try:
+            comp_def = doc.ComponentDefinition
+            features = comp_def.Features
+            to = self._driver.inventor.TransientObjects
+
+            # Resolve parent feature to pattern
+            resolved_feature = self._resolve_feature(profile, comp_def)
+
+            # Build ObjectCollection with CastTo
+            col = to.CreateObjectCollection()
+            if _CAST_TO is not None:
+                col = _CAST_TO(col, "ObjectCollection")
+                parent = _CAST_TO(resolved_feature, "PartFeature")
+                col.Add(parent)
+            else:
+                col.Add(resolved_feature)
+
+            # Resolve axis entity
+            resolved_axis = self._resolve_axis(axis, comp_def)
+
+            # Use CastTo on the axis entity too
+            if _CAST_TO is not None:
+                resolved_axis = _CAST_TO(resolved_axis, "Object")
+
+            # Create the pattern definition
+            cp_features = features.CircularPatternFeatures
+            pattern_def = cp_features.CreateDefinition(
+                col,
+                resolved_axis,
+                natural_direction,
+                count,
+                angle,
+                fit_within_angle,
+            )
+            cp_features.Add(pattern_def)
+
+            return {
+                "success": True,
+                "feature_type": "circular_pattern",
+                "count": count,
+                "angle": angle,
+                "fit_within_angle": fit_within_angle,
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to create circular pattern: {exc}") from exc
 
     def fillet(
         self,

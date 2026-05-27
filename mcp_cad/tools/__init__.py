@@ -34,6 +34,7 @@ from mcp_cad.tools.export import (
 )
 from mcp_cad.tools.features import (
     chamfer as tool_chamfer,
+    circular_pattern as tool_circular_pattern,
     extrude as tool_extrude,
     fillet as tool_fillet,
     revolve as tool_revolve,
@@ -255,6 +256,30 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     ) -> dict[str, Any]:
         """Apply a chamfer to the specified edges."""
         return tool_chamfer(provider, edges, distance, mode)
+
+    @mcp_instance.tool()
+    def circular_pattern(
+        profile: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fit_within_angle: bool = True,
+        natural_direction: bool = True,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of a feature around an axis.
+
+        Uses CastTo to fix ObjectCollection marshaling.
+
+        Args:
+            profile: Feature name/index to pattern (e.g. "1" for first feature).
+            axis: Axis entity — edge index, work axis name, or face.
+            count: Number of instances (including original).
+            angle: Total sweep or offset angle in degrees.
+            fit_within_angle: True → angle is total sweep. False → offset between instances.
+            natural_direction: Use natural axis direction (default True).
+        """
+        return tool_circular_pattern(
+            provider, profile, axis, count, angle, fit_within_angle, natural_direction)
 
     # ------------------------------------------------------------------
     # Parameter tools

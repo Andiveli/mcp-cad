@@ -217,6 +217,20 @@ class InventorProvider:
         """Apply a chamfer to the specified edges."""
         return self._feature.chamfer(edges, distance, mode)
 
+    def circular_pattern(
+        self,
+        profile: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fit_within_angle: bool = True,
+        natural_direction: bool = True,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of a feature around an axis."""
+        return self._feature.circular_pattern(
+            profile, axis, count, angle, fit_within_angle, natural_direction
+        )
+
     # ------------------------------------------------------------------
     # Parameter management
     # ------------------------------------------------------------------
