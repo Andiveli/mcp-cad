@@ -74,27 +74,27 @@
 
 ## Phase 4: Generic Tools + server.py Rewrite
 
-- [ ] 4.1 Create `mcp_cad/tools/__init__.py` — `register_tools(mcp, provider: CADProvider)` registering all 32 tools
-- [ ] 4.2 Create `mcp_cad/tools/connection.py` — `inventor_connect`, `inventor_health`, `inventor_disconnect` wrapping `provider`
-- [ ] 4.3 Create `mcp_cad/tools/documents.py` — `doc_open`, `doc_new_part`, `doc_new_assembly`, `doc_save`, `doc_save_as`, `doc_close`
-- [ ] 4.4 Create `mcp_cad/tools/sketches.py` — `sketch_create`, `sketch_line`, `sketch_circle`, `sketch_arc`, `sketch_rectangle`, `sketch_dimension`
-- [ ] 4.5 Create `mcp_cad/tools/features.py` — `extrude`, `revolve`, `fillet`, `chamfer`
-- [ ] 4.6 Create `mcp_cad/tools/parameters.py` — `param_list`, `param_get`, `param_set`, `param_set_expression`
-- [ ] 4.7 Create `mcp_cad/tools/properties.py` — `iproperty_get`, `iproperty_set`, `iproperty_summary`, `iproperty_custom_get`, `iproperty_custom_set`
-- [ ] 4.8 Create `mcp_cad/tools/export.py` — `export_step`, `export_stl`, `export_pdf`, `export_dxf`
-- [ ] 4.9 Rewrite `mcp_cad/server.py` — import `InventorProvider` from adapter factory, call `register_tools(mcp, provider)`
-- [ ] 4.10 Update `tests/test_server.py` — new `register_tools(mcp, provider)` signature, mock provider instead of 7 managers
-- [ ] 4.11 Remove old `register_tools` backward-compat shim
+- [x] 4.1 Create `mcp_cad/tools/__init__.py` — `register_tools(mcp, provider: CADProvider)` registering all 32 tools
+- [x] 4.2 Create `mcp_cad/tools/connection.py` — `inventor_connect`, `inventor_health`, `inventor_disconnect` wrapping `provider`
+- [x] 4.3 Create `mcp_cad/tools/documents.py` — `doc_open`, `doc_new_part`, `doc_new_assembly`, `doc_save`, `doc_save_as`, `doc_close`
+- [x] 4.4 Create `mcp_cad/tools/sketches.py` — `sketch_create`, `sketch_line`, `sketch_circle`, `sketch_arc`, `sketch_rectangle`, `sketch_dimension`
+- [x] 4.5 Create `mcp_cad/tools/features.py` — `extrude`, `revolve`, `fillet`, `chamfer`
+- [x] 4.6 Create `mcp_cad/tools/parameters.py` — `param_list`, `param_get`, `param_set`, `param_set_expression`
+- [x] 4.7 Create `mcp_cad/tools/properties.py` — `iproperty_get`, `iproperty_set`, `iproperty_summary`, `iproperty_custom_get`, `iproperty_custom_set`
+- [x] 4.8 Create `mcp_cad/tools/export.py` — `export_step`, `export_stl`, `export_pdf`, `export_dxf`
+- [x] 4.9 Rewrite `mcp_cad/server.py` — import `InventorProvider` from adapter factory, call `register_tools(mcp, provider)`
+- [x] 4.10 Update `tests/test_server.py` — new `register_tools(mcp, provider)` signature, mock provider instead of 7 managers
+- [x] 4.11 Remove old `register_tools` backward-compat shim (old signature removed entirely in rewrite)
 
-**Verification**: `pytest tests/ -q` — all tests pass with new wiring. `server.py` has zero `mcp_cad.inventor.*` imports. Dependencies: Phase 3.
+**Verification**: `pytest tests/ -q` — 313 tests pass with new wiring. `server.py` has zero `mcp_cad.inventor.*` imports. Dependencies: Phase 3.
 
 ## Phase 5: Skills System
 
-- [ ] 5.1 Create `mcp_cad/skills/__init__.py` — `register_skills(mcp, provider)` function
-- [ ] 5.2 Create `mcp_cad/skills/base.py` — `Skill` base class with `provider` DI and `register(mcp)` method
-- [ ] 5.3 Create `mcp_cad/skills/drilling.py` — `DrillingSkill` with `crear_patron_taladros()` composing sketch→circle→extrude-cut
-- [ ] 5.4 Add `register_skills()` call to `server.py` after `register_tools()`
-- [ ] 5.5 Create `tests/test_skills.py` — mock provider, verify composition order
+- [x] 5.1 Create `mcp_cad/skills/__init__.py` — `register_skills(mcp, provider)` function
+- [x] 5.2 Create `mcp_cad/skills/base.py` — `Skill` base class with `provider` DI and `register(mcp)` method
+- [x] 5.3 Create `mcp_cad/skills/drilling.py` — `crear_patron_taladros()` composing sketch→circle→extrude-cut
+- [x] 5.4 Add `register_skills()` call to `server.py` after `register_tools()`
+- [x] 5.5 Create `tests/test_skills.py` — mock provider, verify composition order
 
 **Verification**: `pytest tests/test_skills.py -q` — skill operations verify composition chain. Dependencies: Phase 4.
 
