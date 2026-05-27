@@ -174,6 +174,20 @@ class InventorProvider:
         """Draw an ellipse."""
         return self._sketch.sketch_ellipse(cx, cy, major_radius, minor_radius, major_axis_angle)
 
+    def sketch_circular_pattern(
+        self,
+        entities: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fitted: bool = True,
+        symmetric: bool = False,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of sketch entities."""
+        return self._sketch.sketch_circular_pattern(
+            entities, axis, count, angle, fitted, symmetric,
+        )
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

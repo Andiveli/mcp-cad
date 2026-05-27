@@ -62,6 +62,7 @@ from mcp_cad.tools.sketches import (
     sketch_point as tool_sketch_point,
     sketch_rectangle as tool_sketch_rectangle,
     sketch_spline as tool_sketch_spline,
+    sketch_circular_pattern as tool_sketch_circular_pattern,
 )
 
 
@@ -213,6 +214,28 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     ) -> dict[str, Any]:
         """Draw an ellipse in the active sketch."""
         return tool_sketch_ellipse(provider, cx, cy, major_radius, minor_radius, major_axis_angle)
+
+    @mcp_instance.tool()
+    def sketch_circular_pattern(
+        entities: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fitted: bool = True,
+        symmetric: bool = False,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of sketch entities.
+
+        Args:
+            entities: Comma-separated entity indices (e.g. "1,2,3").
+            axis: Axis entity index or name.
+            count: Number of instances.
+            angle: Angle between instances or total sweep if fitted=True.
+            fitted: True → angle is total sweep, False → offset.
+            symmetric: Distribute on both sides of original.
+        """
+        return tool_sketch_circular_pattern(
+            provider, entities, axis, count, angle, fitted, symmetric)
 
     # ------------------------------------------------------------------
     # Feature tools

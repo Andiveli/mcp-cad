@@ -167,14 +167,19 @@ class CADProvider(Protocol):
         minor_radius: float,
         major_axis_angle: float = 0.0,
     ) -> dict[str, Any]:
-        """Draw an ellipse in the active sketch.
+        """Draw an ellipse in the active sketch."""
+        ...
 
-        Args:
-            cx, cy: Center point.
-            major_radius: Major axis radius in cm.
-            minor_radius: Minor axis radius in cm.
-            major_axis_angle: Angle of major axis in degrees (0° = +X).
-        """
+    def sketch_circular_pattern(
+        self,
+        entities: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fitted: bool = True,
+        symmetric: bool = False,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of sketch entities."""
         ...
 
     # ------------------------------------------------------------------

@@ -27,6 +27,7 @@ from mcp_cad.skills.rect import skill_rect as _skill_rect
 from mcp_cad.skills.point import skill_point as _skill_point
 from mcp_cad.skills.spline import skill_spline as _skill_spline
 from mcp_cad.skills.ellipse import skill_ellipse as _skill_ellipse
+from mcp_cad.skills.pattern import skill_pattern_circular as _skill_pattern_circular
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -285,3 +286,32 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_ellipse(cx=10, cy=10, major_radius=8, minor_radius=4, angle=45)
         """
         return _skill_ellipse(provider, cx, cy, major_radius, minor_radius, angle)
+
+    @mcp_instance.tool()
+    def skill_pattern_circular(
+        entities: str = "1",
+        axis: str = "1",
+        count: int = 6,
+        angle: float = 360.0,
+        fitted: bool = True,
+        symmetric: bool = False,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Pattern — Circular pattern of sketch entities.
+
+        Args:
+            entities: Comma-separated entity indices, e.g. "1,2,3".
+            axis: Sketch point index for rotation center.
+            count: Number of instances including original.
+            angle: Degrees between instances or total sweep.
+            fitted: True → angle is total sweep, False → offset.
+            symmetric: Distribute on both sides.
+
+        Examples:
+            # 6 copies equally around axis point 2
+            skill_pattern_circular(entities="1", axis="2", count=6)
+
+            # 45° offset between copies
+            skill_pattern_circular(entities="1", axis="1", count=4, angle=45, fitted=False)
+        """
+        return _skill_pattern_circular(
+            provider, entities, axis, count, angle, fitted, symmetric)

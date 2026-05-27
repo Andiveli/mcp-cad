@@ -9,6 +9,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+try:
+    import win32com.client as _win32com
+    _CAST_TO = getattr(_win32com, "CastTo", None)
+except ImportError:
+    _CAST_TO = None
+
 from mcp_cad.providers.inventor.client import InventorDriver
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
@@ -384,3 +390,83 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to draw ellipse: {exc}") from exc
+
+    def sketch_circular_pattern(
+        self,
+        entities: str,
+        axis: str,
+        count: int,
+        angle: float = 360.0,
+        fitted: bool = True,
+        symmetric: bool = False,
+    ) -> dict[str, Any]:
+        """Create a circular pattern of sketch entities.
+
+        Uses ``CastTo`` for ObjectCollection to fix pywin32 marshaling.
+
+        Parameters
+        ----------
+        entities:
+            Comma-separated entity indices (e.g. "1,2,3").
+        axis:
+            Axis entity reference — sketch point, work point, etc.
+        count:
+            Number of instances including the original.
+        angle:
+            Angle between instances (or total sweep if fitted=True).
+        fitted:
+            True → angle is total sweep. False → offset between instances.
+        symmetric:
+            Distribute on both sides of original geometry.
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            to = self._driver.inventor.TransientObjects
+
+            # Collect sketch entities into ObjectCollection
+            col = to.CreateObjectCollection()
+            if _CAST_TO is not None:
+                col = _CAST_TO(col, "ObjectCollection")
+            for idx_str in entities.split(","):
+                idx_str = idx_str.strip()
+                if not idx_str:
+                    continue
+                ent = sketch.SketchEntities.Item(int(idx_str))
+                if _CAST_TO is not None:
+                    ent = _CAST_TO(ent, "Object")
+                col.Add(ent)
+
+            # Resolve axis
+            if isinstance(axis, str):
+                try:
+                    axis_index = int(axis)
+                    axis_entity = sketch.SketchPoints.Item(axis_index)
+                except ValueError:
+                    axis_entity = sketch.SketchPoints.Item(axis)
+            else:
+                axis_entity = axis
+            if _CAST_TO is not None:
+                axis_entity = _CAST_TO(axis_entity, "Object")
+
+            # Create definition, set properties, add
+            cp = sketch.CircularPatterns
+            definition = cp.CreateDefinition()
+            definition.Geometries = col
+            definition.AxisEntity = axis_entity
+            definition.Count = count
+            definition.Angle = angle
+            definition.Fitted = fitted
+            definition.Symmetric = symmetric
+            cp.Add(definition)
+
+            return {
+                "success": True,
+                "pattern_type": "sketch_circular",
+                "count": count,
+                "angle": angle,
+                "fitted": fitted,
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to create sketch circular pattern: {exc}") from exc

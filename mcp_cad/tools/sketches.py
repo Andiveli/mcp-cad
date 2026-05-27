@@ -148,3 +148,23 @@ def sketch_ellipse(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_circular_pattern(
+    provider: CADProvider,
+    entities: str,
+    axis: str,
+    count: int,
+    angle: float = 360.0,
+    fitted: bool = True,
+    symmetric: bool = False,
+) -> dict[str, Any]:
+    """Create a circular pattern of sketch entities."""
+    try:
+        return provider.sketch_circular_pattern(
+            entities, axis, count, angle, fitted, symmetric,
+        )
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
