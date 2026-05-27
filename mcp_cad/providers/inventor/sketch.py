@@ -304,13 +304,13 @@ class SketchManager:
             if mode == "linear":
                 pt1 = sketch.SketchPoints.Item(int(entity1))
                 pt2 = sketch.SketchPoints.Item(int(entity2)) if entity2 else sketch.SketchPoints.Item(int(entity1) + 1)
-                orient_map = {"aligned": 0, "horizontal": 1, "vertical": 2}
-                orient = orient_map.get(orientation.lower(), 0)
+                orient_map = {"aligned": 19203, "horizontal": 19201, "vertical": 19202}
+                orient = orient_map.get(orientation.lower(), 19203)
                 dim = dc.AddTwoPointDistance(pt1, pt2, orient, text_pt)
             elif mode == "radius":
-                dim = dc.AddRadius(e1, text_pt)
+                dim = dc.AddRadius(e1, text_pt, False)
             elif mode == "diameter":
-                dim = dc.AddDiameter(e1, text_pt)
+                dim = dc.AddDiameter(e1, text_pt, False)
             elif mode == "angle":
                 e2 = self._resolve_entity(sketch, entity2) if entity2 else None
                 if e2 is None:
