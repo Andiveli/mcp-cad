@@ -130,8 +130,11 @@ class CADProvider(Protocol):
 
     def sketch_dimension(
         self,
-        entity: str,
-        value: float,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        value: float | None = None,
+        orientation: str = "aligned",
         position_x: float | None = None,
         position_y: float | None = None,
     ) -> dict[str, Any]:

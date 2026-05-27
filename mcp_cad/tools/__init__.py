@@ -182,13 +182,17 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
 
     @mcp_instance.tool()
     def sketch_dimension(
-        entity: str,
-        value: float,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        value: float | None = None,
+        orientation: str = "aligned",
         position_x: float | None = None,
         position_y: float | None = None,
     ) -> dict[str, Any]:
-        """Add a dimension constraint to the active sketch."""
-        return tool_sketch_dimension(provider, entity, value, position_x, position_y)
+        """Add a dimension constraint. Modes: linear, radius, diameter, angle."""
+        return tool_sketch_dimension(
+            provider, mode, entity1, entity2, value, orientation, position_x, position_y)
 
     @mcp_instance.tool()
     def sketch_point(

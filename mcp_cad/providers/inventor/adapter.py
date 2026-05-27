@@ -134,22 +134,18 @@ class InventorProvider:
 
     def sketch_dimension(
         self,
-        entity: str,
-        value: float,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        value: float | None = None,
+        orientation: str = "aligned",
         position_x: float | None = None,
         position_y: float | None = None,
     ) -> dict[str, Any]:
-        """Add a dimension constraint to the active sketch.
-
-        Converts ``position_x`` / ``position_y`` into a ``(x, y)`` tuple
-        for ``SketchManager.sketch_dimension()``, or ``None`` if both are
-        omitted.
-        """
-        if position_x is not None and position_y is not None:
-            position: tuple[float, float] | None = (position_x, position_y)
-        else:
-            position = None
-        return self._sketch.sketch_dimension(entity, value, position)
+        """Add a dimension constraint to the active sketch."""
+        return self._sketch.sketch_dimension(
+            mode, entity1, entity2, value, orientation, position_x, position_y,
+        )
 
     def sketch_point(self, x: float, y: float) -> dict[str, Any]:
         """Draw a point in the active sketch."""

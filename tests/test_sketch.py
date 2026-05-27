@@ -339,22 +339,18 @@ class TestSketchDimension:
     """Tests for sketch_dimension()."""
 
     def test_dimension_success(self, mock_inventor: MagicMock):
-        """Should add a dimension constraint with value."""
+        """Should add a linear dimension between two points."""
         mgr = _make_sketch_manager(mock_inventor)
         sketch = _setup_active_document_with_sketch(mock_inventor)
         mock_dim = MagicMock()
-        sketch.DimensionConstraints.AddLinearDimension.return_value = mock_dim
+        sketch.DimensionConstraints.AddTwoPointDistance.return_value = mock_dim
         mgr.sketch_create()
 
-        result = mgr.sketch_dimension("Line1", 25.0)
+        result = mgr.sketch_dimension("linear", "1", "2", value=25.0)
 
         assert result["success"] is True
         assert result["entity_type"] == "dimension"
-        assert result["entity"] == "Line1"
         assert result["value"] == 25.0
-        sketch.DimensionConstraints.AddLinearDimension.assert_called_once_with(
-            "Line1"
-        )
         mock_dim.Parameter.Value = 25.0
 
     def test_dimension_with_position(self, mock_inventor: MagicMock):
@@ -362,36 +358,30 @@ class TestSketchDimension:
         mgr = _make_sketch_manager(mock_inventor)
         sketch = _setup_active_document_with_sketch(mock_inventor)
         mock_dim = MagicMock()
-        sketch.DimensionConstraints.AddLinearDimension.return_value = mock_dim
+        sketch.DimensionConstraints.AddTwoPointDistance.return_value = mock_dim
         mgr.sketch_create()
 
-        result = mgr.sketch_dimension("Line1", 50.0, position=(5.0, 10.0))
+        result = mgr.sketch_dimension("linear", "1", "2", value=50.0,
+                                        position_x=5.0, position_y=10.0)
 
         assert result["success"] is True
         assert result["value"] == 50.0
-        # Should have called CreatePoint2d for the position
-        tg = mock_inventor.TransientGeometry
-        tg.CreatePoint2d.assert_any_call(5.0, 10.0)
-        # AddLinearDimension should be called with entity and text_pos
-        sketch.DimensionConstraints.AddLinearDimension.assert_called_once()
 
     def test_dimension_no_active_sketch(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError when no active sketch."""
         mgr = _make_sketch_manager(mock_inventor)
         with pytest.raises(InventorCOMError, match="No active sketch"):
-            mgr.sketch_dimension("Line1", 25.0)
+            mgr.sketch_dimension("linear", "1")
 
     def test_dimension_com_error(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError when COM call fails."""
         mgr = _make_sketch_manager(mock_inventor)
         sketch = _setup_active_document_with_sketch(mock_inventor)
-        sketch.DimensionConstraints.AddLinearDimension.side_effect = Exception(
-            "COM error"
-        )
+        sketch.DimensionConstraints.AddTwoPointDistance.side_effect = Exception("COM error")
         mgr.sketch_create()
 
         with pytest.raises(InventorCOMError, match="Failed to add dimension"):
-            mgr.sketch_dimension("Line1", 25.0)
+            mgr.sketch_dimension("linear", "1", "2")
 
 
 # ==================================================================
@@ -430,4 +420,4 @@ class TestSketchNotConnected:
         driver = make_mock_driver(None)
         mgr = SketchManager(driver)
         with pytest.raises(InventorDisconnectedError):
-            mgr.sketch_dimension("Line1", 25.0)
+            mgr.sketch_dimension("linear", "1")

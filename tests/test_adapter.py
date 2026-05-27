@@ -204,24 +204,22 @@ class TestSketchDelegation:
         mocks["sketch"].sketch_rectangle.assert_called_once_with(0.0, 0.0, 10.0, 5.0)
 
     def test_sketch_dimension_no_position(self):
-        """sketch_dimension without position passes None to SketchManager."""
         provider, mocks = _make_mock_provider()
-        provider.sketch_dimension("Line1", 25.0)
-        mocks["sketch"].sketch_dimension.assert_called_once_with("Line1", 25.0, None)
+        provider.sketch_dimension("linear", "1", "")
+        mocks["sketch"].sketch_dimension.assert_called_once_with(
+            "linear", "1", "", None, "aligned", None, None)
 
     def test_sketch_dimension_with_position(self):
-        """sketch_dimension with position converts to (x, y) tuple."""
         provider, mocks = _make_mock_provider()
-        provider.sketch_dimension("Line1", 50.0, position_x=5.0, position_y=10.0)
+        provider.sketch_dimension("linear", "1", "2", value=50.0, position_x=5.0, position_y=10.0)
         mocks["sketch"].sketch_dimension.assert_called_once_with(
-            "Line1", 50.0, (5.0, 10.0)
-        )
+            "linear", "1", "2", 50.0, "aligned", 5.0, 10.0)
 
     def test_sketch_dimension_only_x_ignores_position(self):
-        """If only position_x is given, position should be None (not a partial tuple)."""
         provider, mocks = _make_mock_provider()
-        provider.sketch_dimension("Line1", 25.0, position_x=5.0)
-        mocks["sketch"].sketch_dimension.assert_called_once_with("Line1", 25.0, None)
+        provider.sketch_dimension("linear", "1", "", value=25.0, position_x=5.0)
+        mocks["sketch"].sketch_dimension.assert_called_once_with(
+            "linear", "1", "", 25.0, "aligned", 5.0, None)
 
 
 # ==================================================================

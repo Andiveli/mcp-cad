@@ -489,20 +489,21 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
 
     @mcp_instance.tool()
     def skill_dimension(
-        entity: str = "1",
-        value: float = 10.0,
+        mode: str = "linear",
+        entity1: str = "1",
+        entity2: str = "",
+        value: float | None = None,
+        orientation: str = "aligned",
         position_x: float | None = None,
         position_y: float | None = None,
     ) -> dict[str, Any]:
         """Tab: Sketch → Panel: Constrain — Add a dimension constraint.
 
-        Args:
-            entity: 1-based entity index.
-            value: Dimension value in cm.
-            position_x, position_y: Optional text placement.
+        Modes: linear, radius, diameter, angle.
 
         Examples:
-            skill_dimension(entity="1", value=25)
-            skill_dimension(entity="2", value=15, position_x=5, position_y=5)
+            skill_dimension(mode="linear", entity1="1", entity2="2", value=25)
+            skill_dimension(mode="radius", entity1="3", value=5)
         """
-        return _skill_dimension(provider, entity, value, position_x, position_y)
+        return _skill_dimension(
+            provider, mode, entity1, entity2, value, orientation, position_x, position_y)

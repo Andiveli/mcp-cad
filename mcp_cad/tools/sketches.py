@@ -89,15 +89,18 @@ def sketch_rectangle(
 
 def sketch_dimension(
     provider: CADProvider,
-    entity: str,
-    value: float,
+    mode: str,
+    entity1: str,
+    entity2: str = "",
+    value: float | None = None,
+    orientation: str = "aligned",
     position_x: float | None = None,
     position_y: float | None = None,
 ) -> dict[str, Any]:
     """Add a dimension constraint to the active sketch."""
     try:
         return provider.sketch_dimension(
-            entity, value, position_x=position_x, position_y=position_y
+            mode, entity1, entity2, value, orientation, position_x, position_y,
         )
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}

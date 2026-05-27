@@ -257,39 +257,75 @@ class SketchManager:
 
     def sketch_dimension(
         self,
-        entity: str,
-        value: float,
-        position: tuple[float, float] | None = None,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        value: float | None = None,
+        orientation: str = "aligned",
+        position_x: float | None = None,
+        position_y: float | None = None,
     ) -> dict[str, Any]:
         """Add a dimension constraint to the active sketch.
 
         Parameters
         ----------
-        entity:
-            Identifier of the sketch entity to dimension.
+        mode:
+            "linear" (two points), "radius", "diameter", "angle" (two lines).
+        entity1:
+            First entity index (1-based).
+        entity2:
+            Second entity index (linear needs two points, angle needs two lines).
         value:
-            Dimension value (length or radius).
-        position:
-            Optional (x, y) placement position for the dimension text.
-
-        Returns
-        -------
-        dict with dimension metadata.
+            Optional dimension value. If None, uses the current measured value.
+        orientation:
+            For linear: "aligned" (default), "horizontal", "vertical".
+        position_x, position_y:
+            Optional text placement position.
         """
         sketch = self._ensure_active_sketch()
         try:
-            dim_constraints = sketch.DimensionConstraints
-            if position is not None:
-                tg = self._transient_geometry()
-                text_pos = tg.CreatePoint2d(position[0], position[1])
-                dim = dim_constraints.AddLinearDimension(entity, text_pos)
+            dc = sketch.DimensionConstraints
+            tg = self._transient_geometry()
+            e1 = self._resolve_entity(sketch, entity1)
+
+            # Determine text position
+            if position_x is not None and position_y is not None:
+                text_pt = tg.CreatePoint2d(position_x, position_y)
             else:
-                dim = dim_constraints.AddLinearDimension(entity)
-            dim.Parameter.Value = value
+                # Default: use entity1's geometry midpoint
+                g = e1.Geometry
+                try:
+                    mx = (g.StartPoint.X + g.EndPoint.X) / 2.0 + 2.0
+                    my = (g.StartPoint.Y + g.EndPoint.Y) / 2.0 + 2.0
+                except Exception:
+                    mx, my = 5.0, 5.0
+                text_pt = tg.CreatePoint2d(mx, my)
+
+            if mode == "linear":
+                pt1 = sketch.SketchPoints.Item(int(entity1))
+                pt2 = sketch.SketchPoints.Item(int(entity2)) if entity2 else sketch.SketchPoints.Item(int(entity1) + 1)
+                orient_map = {"aligned": 0, "horizontal": 1, "vertical": 2}
+                orient = orient_map.get(orientation.lower(), 0)
+                dim = dc.AddTwoPointDistance(pt1, pt2, orient, text_pt)
+            elif mode == "radius":
+                dim = dc.AddRadius(e1, text_pt)
+            elif mode == "diameter":
+                dim = dc.AddDiameter(e1, text_pt)
+            elif mode == "angle":
+                e2 = self._resolve_entity(sketch, entity2) if entity2 else None
+                if e2 is None:
+                    return {"success": False, "error": "Angle mode needs entity2 (second line)"}
+                dim = dc.AddTwoLineAngle(e1, e2, text_pt)
+            else:
+                return {"success": False, "error": f"Unknown dimension mode '{mode}'"}
+
+            if value is not None:
+                dim.Parameter.Value = value
+
             return {
                 "success": True,
                 "entity_type": "dimension",
-                "entity": entity,
+                "mode": mode,
                 "value": value,
             }
         except (InventorDisconnectedError, InventorCOMError):
