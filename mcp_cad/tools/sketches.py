@@ -282,3 +282,19 @@ def sketch_trim(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_scale(
+    provider: CADProvider,
+    entities: str,
+    cx: float,
+    cy: float,
+    factor: float,
+) -> dict[str, Any]:
+    """Scale sketch entities around a center point."""
+    try:
+        return provider.sketch_scale(entities, cx, cy, factor)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

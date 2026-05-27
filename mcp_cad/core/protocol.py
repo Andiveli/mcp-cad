@@ -250,6 +250,16 @@ class CADProvider(Protocol):
         """Trim a sketch entity to its intersection with another."""
         ...
 
+    def sketch_scale(
+        self,
+        entities: str,
+        cx: float,
+        cy: float,
+        factor: float,
+    ) -> dict[str, Any]:
+        """Scale sketch entities around a center point."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

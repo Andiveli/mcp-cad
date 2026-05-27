@@ -698,6 +698,55 @@ class SketchManager:
         except Exception as exc:
             raise InventorCOMError(f"Failed to trim: {exc}") from exc
 
+    def sketch_scale(
+        self,
+        entities: str,
+        cx: float,
+        cy: float,
+        factor: float,
+    ) -> dict[str, Any]:
+        """Scale sketch entities around a center point.
+
+        Uses ``Geometry`` to read current positions, computes scaled
+        coordinates, and moves endpoints via ``MoveTo``.
+
+        Parameters
+        ----------
+        entities:
+            Comma-separated entity indices.
+        cx, cy:
+            Scale center point.
+        factor:
+            Scale factor (>1 = enlarge, <1 = shrink).
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            tg = self._transient_geometry()
+            for idx_str in entities.split(","):
+                idx_str = idx_str.strip()
+                if not idx_str:
+                    continue
+                ent = sketch.SketchEntities.Item(int(idx_str))
+                start = ent.StartSketchPoint
+                end = ent.EndSketchPoint
+
+                sg = start.Geometry  # Point2d
+                eg = end.Geometry
+
+                nx1 = cx + (sg.X - cx) * factor
+                ny1 = cy + (sg.Y - cy) * factor
+                nx2 = cx + (eg.X - cx) * factor
+                ny2 = cy + (eg.Y - cy) * factor
+
+                start.MoveTo(tg.CreatePoint2d(nx1, ny1))
+                end.MoveTo(tg.CreatePoint2d(nx2, ny2))
+
+            return {"success": True, "operation": "scale", "factor": factor, "cx": cx, "cy": cy}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to scale: {exc}") from exc
+
     def _resolve_entity(self, sketch: Any, ref: str) -> Any:
         """Resolve a sketch entity from a 1-based index string."""
         ent = sketch.SketchEntities.Item(int(ref.strip()))

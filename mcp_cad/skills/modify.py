@@ -147,3 +147,35 @@ def skill_trim(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def skill_scale(
+    provider: CADProvider,
+    entities: str = "1",
+    cx: float = 0.0,
+    cy: float = 0.0,
+    factor: float = 2.0,
+) -> dict[str, Any]:
+    """Scale sketch entities around a center point.
+
+    Uses Geometry to read positions, computes scaled coordinates via
+    ``new = center + (old - center) * factor``, and moves endpoints.
+
+    Args:
+        entities: Comma-separated entity indices.
+        cx, cy: Scale center point.
+        factor: >1 = enlarge, <1 = shrink, 1 = no change.
+
+    Examples:
+        # Double size around origin
+        skill_scale(entities="1,2", cx=0, cy=0, factor=2)
+
+        # Shrink to half around center (5,5)
+        skill_scale(entities="1", cx=5, cy=5, factor=0.5)
+    """
+    try:
+        return provider.sketch_scale(entities, cx, cy, factor)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

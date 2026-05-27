@@ -239,6 +239,12 @@ class InventorProvider:
         """Trim a sketch entity."""
         return self._sketch.sketch_trim(entity, cutting_entity, side)
 
+    def sketch_scale(
+        self, entities: str, cx: float, cy: float, factor: float,
+    ) -> dict[str, Any]:
+        """Scale sketch entities."""
+        return self._sketch.sketch_scale(entities, cx, cy, factor)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

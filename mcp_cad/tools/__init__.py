@@ -70,6 +70,7 @@ from mcp_cad.tools.sketches import (
     sketch_delete as tool_sketch_delete,
     sketch_constraint as tool_sketch_constraint,
     sketch_trim as tool_sketch_trim,
+    sketch_scale as tool_sketch_scale,
 )
 
 
@@ -336,6 +337,22 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
             side: "start" or "end" — which endpoint to move.
         """
         return tool_sketch_trim(provider, entity, cutting_entity, side)
+
+    @mcp_instance.tool()
+    def sketch_scale(
+        entities: str,
+        cx: float,
+        cy: float,
+        factor: float,
+    ) -> dict[str, Any]:
+        """Scale sketch entities around a center point.
+
+        Args:
+            entities: Comma-separated entity indices.
+            cx, cy: Scale center point.
+            factor: Scale factor (>1 = enlarge, <1 = shrink).
+        """
+        return tool_sketch_scale(provider, entities, cx, cy, factor)
 
     # ------------------------------------------------------------------
     # Feature tools

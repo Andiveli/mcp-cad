@@ -34,6 +34,7 @@ from mcp_cad.skills.modify import skill_move as _skill_move
 from mcp_cad.skills.modify import skill_rotate as _skill_rotate
 from mcp_cad.skills.modify import skill_delete_sketch as _skill_delete_sketch
 from mcp_cad.skills.modify import skill_trim as _skill_trim
+from mcp_cad.skills.modify import skill_scale as _skill_scale
 from mcp_cad.skills.constrain import skill_constraint as _skill_constraint
 from mcp_cad.skills.dimension import skill_dimension as _skill_dimension
 
@@ -427,6 +428,26 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_trim(entity="3", cutting_entity="1", side="start")
         """
         return _skill_trim(provider, entity, cutting_entity, side)
+
+    @mcp_instance.tool()
+    def skill_scale(
+        entities: str = "1",
+        cx: float = 0.0,
+        cy: float = 0.0,
+        factor: float = 2.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Scale entities around a center.
+
+        Args:
+            entities: Comma-separated entity indices.
+            cx, cy: Center point.
+            factor: >1 = enlarge, <1 = shrink.
+
+        Examples:
+            skill_scale(entities="1,2", cx=0, cy=0, factor=2)
+            skill_scale(entities="1", cx=5, cy=5, factor=0.5)
+        """
+        return _skill_scale(provider, entities, cx, cy, factor)
 
     @mcp_instance.tool()
     def skill_constraint(

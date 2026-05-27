@@ -153,7 +153,7 @@ class TestToolRegistration:
 
         register_tools(fake_mcp, provider)
 
-        assert len(tools) == 44
+        assert len(tools) == 45
 
 
 # ==================================================================
