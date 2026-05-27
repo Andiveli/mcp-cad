@@ -168,3 +168,24 @@ def sketch_circular_pattern(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_rectangular_pattern(
+    provider: CADProvider,
+    entities: str,
+    x_axis: str,
+    x_count: int,
+    x_spacing: float,
+    y_axis: str = "",
+    y_count: int = 1,
+    y_spacing: float = 0.0,
+) -> dict[str, Any]:
+    """Create a rectangular pattern of sketch entities."""
+    try:
+        return provider.sketch_rectangular_pattern(
+            entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing,
+        )
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

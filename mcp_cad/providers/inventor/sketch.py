@@ -470,3 +470,92 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to create sketch circular pattern: {exc}") from exc
+
+    def sketch_rectangular_pattern(
+        self,
+        entities: str,
+        x_axis: str,
+        x_count: int,
+        x_spacing: float,
+        y_axis: str = "",
+        y_count: int = 1,
+        y_spacing: float = 0.0,
+    ) -> dict[str, Any]:
+        """Create a rectangular pattern of sketch entities.
+
+        Uses ``CastTo`` for ObjectCollection.
+
+        Parameters
+        ----------
+        entities:
+            Comma-separated entity indices (e.g. "1,2,3").
+        x_axis:
+            Linear sketch entity index for X direction.
+        x_count:
+            Number of instances in X direction.
+        x_spacing:
+            Spacing in X direction (cm).
+        y_axis:
+            Linear sketch entity index for Y direction (optional).
+        y_count:
+            Number of instances in Y direction.
+        y_spacing:
+            Spacing in Y direction (cm).
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            to = self._driver.inventor.TransientObjects
+
+            # Collect sketch entities into ObjectCollection
+            col = to.CreateObjectCollection()
+            if _CAST_TO is not None:
+                col = _CAST_TO(col, "ObjectCollection")
+            for idx_str in entities.split(","):
+                idx_str = idx_str.strip()
+                if not idx_str:
+                    continue
+                ent = sketch.SketchEntities.Item(int(idx_str))
+                if _CAST_TO is not None:
+                    ent = _CAST_TO(ent, "Object")
+                col.Add(ent)
+
+            # Resolve X direction entity
+            x_dir = sketch.SketchEntities.Item(int(x_axis))
+            if _CAST_TO is not None:
+                x_dir = _CAST_TO(x_dir, "Object")
+
+            rp = sketch.RectangularPatterns
+
+            if y_axis:
+                y_dir = sketch.SketchEntities.Item(int(y_axis))
+                if _CAST_TO is not None:
+                    y_dir = _CAST_TO(y_dir, "Object")
+                definition = rp.CreateDefinition(
+                    col, x_dir, x_count,
+                    None,  # NaturalXDirection (default True)
+                    None,  # XDirectionSymmetric
+                    x_spacing,
+                    y_dir, y_count,
+                    None,  # NaturalYDirection
+                    None,  # YDirectionSymmetric
+                    y_spacing,
+                )
+            else:
+                definition = rp.CreateDefinition(
+                    col, x_dir, x_count,
+                    None, None, x_spacing,
+                )
+
+            rp.Add(definition)
+
+            return {
+                "success": True,
+                "pattern_type": "sketch_rectangular",
+                "x_count": x_count,
+                "y_count": y_count,
+                "x_spacing": x_spacing,
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to create sketch rectangular pattern: {exc}") from exc

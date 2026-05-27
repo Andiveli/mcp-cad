@@ -182,6 +182,19 @@ class CADProvider(Protocol):
         """Create a circular pattern of sketch entities."""
         ...
 
+    def sketch_rectangular_pattern(
+        self,
+        entities: str,
+        x_axis: str,
+        x_count: int,
+        x_spacing: float,
+        y_axis: str = "",
+        y_count: int = 1,
+        y_spacing: float = 0.0,
+    ) -> dict[str, Any]:
+        """Create a rectangular pattern of sketch entities."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

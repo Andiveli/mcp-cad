@@ -63,6 +63,7 @@ from mcp_cad.tools.sketches import (
     sketch_rectangle as tool_sketch_rectangle,
     sketch_spline as tool_sketch_spline,
     sketch_circular_pattern as tool_sketch_circular_pattern,
+    sketch_rectangular_pattern as tool_sketch_rectangular_pattern,
 )
 
 
@@ -236,6 +237,30 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """
         return tool_sketch_circular_pattern(
             provider, entities, axis, count, angle, fitted, symmetric)
+
+    @mcp_instance.tool()
+    def sketch_rectangular_pattern(
+        entities: str,
+        x_axis: str,
+        x_count: int,
+        x_spacing: float,
+        y_axis: str = "",
+        y_count: int = 1,
+        y_spacing: float = 0.0,
+    ) -> dict[str, Any]:
+        """Create a rectangular pattern of sketch entities.
+
+        Args:
+            entities: Comma-separated entity indices.
+            x_axis: Linear sketch entity index for X direction.
+            x_count: Instances in X.
+            x_spacing: Spacing in X (cm).
+            y_axis: Linear entity for Y (optional).
+            y_count: Instances in Y.
+            y_spacing: Spacing in Y (cm).
+        """
+        return tool_sketch_rectangular_pattern(
+            provider, entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing)
 
     # ------------------------------------------------------------------
     # Feature tools

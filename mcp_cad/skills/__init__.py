@@ -28,6 +28,7 @@ from mcp_cad.skills.point import skill_point as _skill_point
 from mcp_cad.skills.spline import skill_spline as _skill_spline
 from mcp_cad.skills.ellipse import skill_ellipse as _skill_ellipse
 from mcp_cad.skills.pattern import skill_pattern_circular as _skill_pattern_circular
+from mcp_cad.skills.pattern import skill_pattern_rectangular as _skill_pattern_rectangular
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -315,3 +316,31 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """
         return _skill_pattern_circular(
             provider, entities, axis, count, angle, fitted, symmetric)
+
+    @mcp_instance.tool()
+    def skill_pattern_rectangular(
+        entities: str = "1",
+        x_axis: str = "1",
+        x_count: int = 2,
+        x_spacing: float = 5.0,
+        y_axis: str = "",
+        y_count: int = 1,
+        y_spacing: float = 0.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Pattern — Rectangular pattern of sketch entities.
+
+        Args:
+            entities: Comma-separated entity indices.
+            x_axis: Linear sketch entity for X direction.
+            x_count, x_spacing: Instances and spacing in X (cm).
+            y_axis, y_count, y_spacing: Y direction (optional, for 2D grid).
+
+        Examples:
+            # Linear: 5 copies at 10cm along X
+            skill_pattern_rectangular(entities="1", x_axis="2", x_count=5, x_spacing=10)
+
+            # 2D grid: 3x2 at 5cm
+            skill_pattern_rectangular(entities="1", x_axis="2", x_count=3, x_spacing=5, y_axis="3", y_count=2, y_spacing=5)
+        """
+        return _skill_pattern_rectangular(
+            provider, entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing)

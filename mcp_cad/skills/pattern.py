@@ -1,11 +1,11 @@
-"""Tab: Sketch → Panel: Pattern — circular pattern of sketch entities.
+"""Tab: Sketch → Panel: Pattern — sketch entity patterns.
 
 Examples:
-    # Pattern entities 1,2,3 around entity 4, 6 copies, 360°
-    skill_pattern_circular(entities="1,2,3", axis="4", count=6)
+    # Circular: 6 copies around axis point 2
+    skill_pattern_circular(entities="1", axis="2", count=6)
 
-    # 45° offset between instances, on both sides
-    skill_pattern_circular(entities="1", axis="1", count=4, angle=45, fitted=False, symmetric=True)
+    # Rectangular: 3x2 grid with 5cm spacing
+    skill_pattern_rectangular(entities="1", x_axis="2", x_count=3, x_spacing=5, y_axis="3", y_count=2, y_spacing=5)
 """
 
 from __future__ import annotations
@@ -52,6 +52,47 @@ def skill_pattern_circular(
     try:
         return provider.sketch_circular_pattern(
             entities, axis, count, angle, fitted, symmetric,
+        )
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def skill_pattern_rectangular(
+    provider: CADProvider,
+    entities: str = "1",
+    x_axis: str = "1",
+    x_count: int = 2,
+    x_spacing: float = 5.0,
+    y_axis: str = "",
+    y_count: int = 1,
+    y_spacing: float = 0.0,
+) -> dict[str, Any]:
+    """Create a rectangular pattern of sketch entities.
+
+    Args:
+        entities: Comma-separated entity indices to pattern.
+        x_axis: Linear sketch entity index for X direction.
+        x_count: Number of instances in X.
+        x_spacing: Spacing in X direction (cm).
+        y_axis: Linear entity for Y (optional, for 2D grid).
+        y_count: Instances in Y.
+        y_spacing: Spacing in Y (cm).
+
+    Returns:
+        dict with ``success``, ``pattern_type``, counts, spacing.
+
+    Examples:
+        # Linear pattern: 5 copies at 10cm along X
+        skill_pattern_rectangular(entities="1", x_axis="2", x_count=5, x_spacing=10)
+
+        # 2D grid: 3x2 at 5cm
+        skill_pattern_rectangular(entities="1", x_axis="2", x_count=3, x_spacing=5, y_axis="3", y_count=2, y_spacing=5)
+    """
+    try:
+        return provider.sketch_rectangular_pattern(
+            entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing,
         )
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
