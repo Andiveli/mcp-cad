@@ -1,9 +1,4 @@
-"""Backward-compatibility shim — re-exports from mcp_cad.providers.inventor.
-
-The Inventor managers have moved to ``mcp_cad.providers.inventor``.
-This module re-exports them so that existing ``from mcp_cad.inventor.X``
-imports continue to work during the migration period.
-"""
+"""Inventor provider package — manager classes and protocol adapter."""
 
 from mcp_cad.providers.inventor.client import InventorDriver, RealInventorDriver
 from mcp_cad.providers.inventor.document import DocumentManager

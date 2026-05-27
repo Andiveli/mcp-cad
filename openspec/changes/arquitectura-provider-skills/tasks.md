@@ -38,9 +38,9 @@
 
 ## Phase 1: Protocol Definition
 
-- [ ] 1.1 Create `mcp_cad/core/__init__.py` — package init
-- [ ] 1.2 Create `mcp_cad/core/models.py` — `Point2D`, `Plane`, `ExtrudeDef`, `RevolveDef` dataclasses with validation
-- [ ] 1.3 Create `mcp_cad/core/protocol.py` — `CADProvider` typing.Protocol with all domain method signatures (connection, doc, sketch, feature, param, property, export)
+- [x] 1.1 Create `mcp_cad/core/__init__.py` — package init
+- [x] 1.2 Create `mcp_cad/core/models.py` — `Point2D`, `Plane`, `ExtrudeDef`, `RevolveDef` dataclasses with validation
+- [x] 1.3 Create `mcp_cad/core/protocol.py` — `CADProvider` typing.Protocol with all domain method signatures (connection, doc, sketch, feature, param, property, export)
 
 **Verification**: `python -c "from mcp_cad.core.protocol import CADProvider"` succeeds. Dependencies: Phase 0.
 

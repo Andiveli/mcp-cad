@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from mcp_cad.inventor.client import InventorDriver
+from mcp_cad.providers.inventor.client import InventorDriver
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
 log = logging.getLogger(__name__)

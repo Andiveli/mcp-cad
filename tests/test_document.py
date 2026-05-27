@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
-from mcp_cad.inventor.document import DocumentManager
+from mcp_cad.providers.inventor.document import DocumentManager
 from tests.conftest import make_mock_driver
 
 

@@ -178,6 +178,6 @@ def mock_dispatch(mock_inventor: MagicMock) -> MagicMock:
 @pytest.fixture
 def driver():
     """Return a fresh ``RealInventorDriver`` pre-loaded with COM mocks."""
-    from mcp_cad.inventor.client import RealInventorDriver
+    from mcp_cad.providers.inventor.client import RealInventorDriver
 
     return RealInventorDriver()
