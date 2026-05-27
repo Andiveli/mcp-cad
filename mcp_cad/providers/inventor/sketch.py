@@ -637,3 +637,14 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to rotate sketch: {exc}") from exc
+
+    def sketch_delete(self) -> dict[str, Any]:
+        """Delete the active sketch. Only valid for sketches not used by a feature."""
+        sketch = self._ensure_active_sketch()
+        try:
+            sketch.Delete()
+            return {"success": True, "operation": "delete_sketch"}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to delete sketch: {exc}") from exc

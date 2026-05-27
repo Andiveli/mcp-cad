@@ -226,6 +226,10 @@ class CADProvider(Protocol):
         """Rotate sketch entities around a center point."""
         ...
 
+    def sketch_delete(self) -> dict[str, Any]:
+        """Delete the active sketch (must not be used by a feature)."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

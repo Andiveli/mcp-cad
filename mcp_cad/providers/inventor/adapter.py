@@ -222,6 +222,10 @@ class InventorProvider:
         """Rotate sketch entities."""
         return self._sketch.sketch_rotate(entities, cx, cy, angle, copy)
 
+    def sketch_delete(self) -> dict[str, Any]:
+        """Delete the active sketch."""
+        return self._sketch.sketch_delete()
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

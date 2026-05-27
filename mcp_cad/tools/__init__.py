@@ -67,6 +67,7 @@ from mcp_cad.tools.sketches import (
     sketch_offset as tool_sketch_offset,
     sketch_move as tool_sketch_move,
     sketch_rotate as tool_sketch_rotate,
+    sketch_delete as tool_sketch_delete,
 )
 
 
@@ -295,6 +296,11 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     ) -> dict[str, Any]:
         """Rotate sketch entities around a center point (degrees)."""
         return tool_sketch_rotate(provider, entities, cx, cy, angle, copy)
+
+    @mcp_instance.tool()
+    def sketch_delete() -> dict[str, Any]:
+        """Delete the active sketch (must not be used by a feature)."""
+        return tool_sketch_delete(provider)
 
     # ------------------------------------------------------------------
     # Feature tools

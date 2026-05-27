@@ -98,3 +98,21 @@ def skill_rotate(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def skill_delete_sketch(
+    provider: CADProvider,
+) -> dict[str, Any]:
+    """Delete the active sketch.
+
+    Only works if the sketch is not consumed by a feature.
+
+    Examples:
+        skill_delete_sketch()
+    """
+    try:
+        return provider.sketch_delete()
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

@@ -32,6 +32,7 @@ from mcp_cad.skills.pattern import skill_pattern_rectangular as _skill_pattern_r
 from mcp_cad.skills.modify import skill_offset as _skill_offset
 from mcp_cad.skills.modify import skill_move as _skill_move
 from mcp_cad.skills.modify import skill_rotate as _skill_rotate
+from mcp_cad.skills.modify import skill_delete_sketch as _skill_delete_sketch
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -393,3 +394,14 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_rotate(entities="1,2,3", cx=5, cy=5, angle=45, copy=True)
         """
         return _skill_rotate(provider, entities, cx, cy, angle, copy)
+
+    @mcp_instance.tool()
+    def skill_delete_sketch() -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Delete the active sketch.
+
+        Only works if not consumed by a feature.
+
+        Examples:
+            skill_delete_sketch()
+        """
+        return _skill_delete_sketch(provider)

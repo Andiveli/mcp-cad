@@ -238,3 +238,15 @@ def sketch_rotate(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_delete(
+    provider: CADProvider,
+) -> dict[str, Any]:
+    """Delete the active sketch."""
+    try:
+        return provider.sketch_delete()
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
