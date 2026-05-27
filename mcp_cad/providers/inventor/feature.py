@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from mcp_cad.inventor.client import InventorDriver
+from mcp_cad.providers.inventor.client import InventorDriver
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
 log = logging.getLogger(__name__)
@@ -107,6 +107,56 @@ class FeatureManager:
                     f"Failed to resolve profile '{profile}': {exc}"
                 ) from exc
         return profile
+
+    @staticmethod
+    def _parse_edge_indices(edges: str) -> list[int]:
+        """Parse a comma-separated string of 1-based edge indices.
+
+        Accepts strings like ``"1"``, ``"1,3,5"``, or ``"1, 3, 5"``.
+        Returns a list of integers. Raises ``InventorCOMError`` if any
+        value is not a positive integer.
+        """
+        indices: list[int] = []
+        for part in edges.split(","):
+            stripped = part.strip()
+            if stripped == "":
+                continue
+            try:
+                idx = int(stripped)
+            except ValueError:
+                raise InventorCOMError(
+                    f"Invalid edge index '{stripped}'. Must be a positive integer."
+                )
+            if idx < 1:
+                raise InventorCOMError(
+                    f"Edge index must be >= 1, got {idx}."
+                )
+            indices.append(idx)
+        return indices
+
+    def _build_edge_collection(self, edges: Any, comp_def: Any) -> Any:
+        """Build an Inventor EdgeCollection from the *edges* parameter.
+
+        - ``None`` / empty string → all edges of SurfaceBodies.Item(1).
+        - ``str`` like ``"1"`` or ``"1,3,5"`` → specific edge indices.
+        - Any other value (COM EdgeCollection) → passed through directly.
+        """
+        to = self._driver.inventor.TransientObjects
+        edge_col = to.CreateEdgeCollection()
+        sb = comp_def.SurfaceBodies.Item(1)
+
+        if edges is None or (isinstance(edges, str) and edges.strip() == ""):
+            # Default: all edges of the first surface body
+            for i in range(1, sb.Edges.Count + 1):
+                edge_col.Add(sb.Edges.Item(i))
+        elif isinstance(edges, str):
+            for idx in self._parse_edge_indices(edges):
+                edge_col.Add(sb.Edges.Item(idx))
+        else:
+            # COM EdgeCollection or single edge — pass through
+            edge_col.Add(edges)
+
+        return edge_col
 
     # ------------------------------------------------------------------
     # Public API
@@ -258,8 +308,9 @@ class FeatureManager:
         Parameters
         ----------
         edges:
-            Edge or edge collection COM object, or a single edge name (str).
-            Currently applies to ALL edges of the first surface body.
+            Edge or edge collection COM object, a string of comma-separated
+            1-based edge indices (e.g. "1,3,5"), or None/empty to apply to
+            all edges of the first surface body.
         radius:
             Fillet radius (cm in Inventor's internal units).
         mode:
@@ -267,7 +318,7 @@ class FeatureManager:
 
         Returns
         -------
-        dict with feature metadata.
+        dict with feature metadata including ``edges_applied`` count.
         """
         self._ensure_connected()
 
@@ -283,11 +334,7 @@ class FeatureManager:
             features = comp_def.Features
 
             # Build an EdgeCollection via TransientObjects
-            to = self._driver.inventor.TransientObjects
-            edge_col = to.CreateEdgeCollection()
-            sb = comp_def.SurfaceBodies.Item(1)
-            for i in range(1, sb.Edges.Count + 1):
-                edge_col.Add(sb.Edges.Item(i))
+            edge_col = self._build_edge_collection(edges, comp_def)
 
             feature = features.FilletFeatures.AddSimple(edge_col, radius)
             return {
@@ -295,6 +342,7 @@ class FeatureManager:
                 "feature_type": "fillet",
                 "radius": radius,
                 "mode": mode,
+                "edges_applied": edge_col.Count,
             }
         except (InventorDisconnectedError, InventorCOMError):
             raise
@@ -316,8 +364,9 @@ class FeatureManager:
         Parameters
         ----------
         edges:
-            Edge or edge collection COM object, or a single edge name (str).
-            Currently applies to ALL edges of the first surface body.
+            Edge or edge collection COM object, a string of comma-separated
+            1-based edge indices (e.g. "1,3,5"), or None/empty to apply to
+            all edges of the first surface body.
         distance:
             Chamfer distance (cm in Inventor's internal units).
         mode:
@@ -325,7 +374,7 @@ class FeatureManager:
 
         Returns
         -------
-        dict with feature metadata.
+        dict with feature metadata including ``edges_applied`` count.
         """
         self._ensure_connected()
 
@@ -342,11 +391,7 @@ class FeatureManager:
             features = comp_def.Features
 
             # Build an EdgeCollection via TransientObjects
-            to = self._driver.inventor.TransientObjects
-            edge_col = to.CreateEdgeCollection()
-            sb = comp_def.SurfaceBodies.Item(1)
-            for i in range(1, sb.Edges.Count + 1):
-                edge_col.Add(sb.Edges.Item(i))
+            edge_col = self._build_edge_collection(edges, comp_def)
 
             if mode == "equal_distance":
                 feature = features.ChamferFeatures.AddUsingDistance(
@@ -363,6 +408,7 @@ class FeatureManager:
                 "feature_type": "chamfer",
                 "distance": distance,
                 "mode": mode,
+                "edges_applied": edge_col.Count,
             }
         except (InventorDisconnectedError, InventorCOMError):
             raise
