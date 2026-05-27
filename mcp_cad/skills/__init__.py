@@ -29,6 +29,9 @@ from mcp_cad.skills.spline import skill_spline as _skill_spline
 from mcp_cad.skills.ellipse import skill_ellipse as _skill_ellipse
 from mcp_cad.skills.pattern import skill_pattern_circular as _skill_pattern_circular
 from mcp_cad.skills.pattern import skill_pattern_rectangular as _skill_pattern_rectangular
+from mcp_cad.skills.modify import skill_offset as _skill_offset
+from mcp_cad.skills.modify import skill_move as _skill_move
+from mcp_cad.skills.modify import skill_rotate as _skill_rotate
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -344,3 +347,49 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """
         return _skill_pattern_rectangular(
             provider, entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing)
+
+    @mcp_instance.tool()
+    def skill_offset(
+        entities: str = "1",
+        distance: float = 1.0,
+        natural_direction: bool = True,
+        include_connected: bool = False,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Offset sketch entities.
+
+        Examples:
+            skill_offset(entities="2", distance=5)
+            skill_offset(entities="1", distance=3, natural_direction=False)
+        """
+        return _skill_offset(provider, entities, distance, natural_direction, include_connected)
+
+    @mcp_instance.tool()
+    def skill_move(
+        entities: str = "1",
+        dx: float = 0.0,
+        dy: float = 0.0,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Move sketch entities by a vector.
+
+        Examples:
+            skill_move(entities="1", dx=10, dy=0)
+            skill_move(entities="1,2", dx=5, dy=5, copy=True)
+        """
+        return _skill_move(provider, entities, dx, dy, copy)
+
+    @mcp_instance.tool()
+    def skill_rotate(
+        entities: str = "1",
+        cx: float = 0.0,
+        cy: float = 0.0,
+        angle: float = 90.0,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Rotate sketch entities.
+
+        Examples:
+            skill_rotate(entities="1", cx=0, cy=0, angle=90)
+            skill_rotate(entities="1,2,3", cx=5, cy=5, angle=45, copy=True)
+        """
+        return _skill_rotate(provider, entities, cx, cy, angle, copy)

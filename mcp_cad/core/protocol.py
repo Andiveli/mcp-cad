@@ -195,6 +195,37 @@ class CADProvider(Protocol):
         """Create a rectangular pattern of sketch entities."""
         ...
 
+    def sketch_offset(
+        self,
+        entities: str,
+        distance: float,
+        natural_direction: bool = True,
+        include_connected: bool = False,
+    ) -> dict[str, Any]:
+        """Offset sketch entities by a distance."""
+        ...
+
+    def sketch_move(
+        self,
+        entities: str,
+        dx: float,
+        dy: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Move sketch entities by a vector."""
+        ...
+
+    def sketch_rotate(
+        self,
+        entities: str,
+        cx: float,
+        cy: float,
+        angle: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Rotate sketch entities around a center point."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

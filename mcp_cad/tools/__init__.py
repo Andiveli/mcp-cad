@@ -64,6 +64,9 @@ from mcp_cad.tools.sketches import (
     sketch_spline as tool_sketch_spline,
     sketch_circular_pattern as tool_sketch_circular_pattern,
     sketch_rectangular_pattern as tool_sketch_rectangular_pattern,
+    sketch_offset as tool_sketch_offset,
+    sketch_move as tool_sketch_move,
+    sketch_rotate as tool_sketch_rotate,
 )
 
 
@@ -261,6 +264,37 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """
         return tool_sketch_rectangular_pattern(
             provider, entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing)
+
+    @mcp_instance.tool()
+    def sketch_offset(
+        entities: str,
+        distance: float,
+        natural_direction: bool = True,
+        include_connected: bool = False,
+    ) -> dict[str, Any]:
+        """Offset sketch entities by a distance (cm)."""
+        return tool_sketch_offset(provider, entities, distance, natural_direction, include_connected)
+
+    @mcp_instance.tool()
+    def sketch_move(
+        entities: str,
+        dx: float,
+        dy: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Move sketch entities by a vector (cm)."""
+        return tool_sketch_move(provider, entities, dx, dy, copy)
+
+    @mcp_instance.tool()
+    def sketch_rotate(
+        entities: str,
+        cx: float,
+        cy: float,
+        angle: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Rotate sketch entities around a center point (degrees)."""
+        return tool_sketch_rotate(provider, entities, cx, cy, angle, copy)
 
     # ------------------------------------------------------------------
     # Feature tools

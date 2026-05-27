@@ -189,3 +189,52 @@ def sketch_rectangular_pattern(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_offset(
+    provider: CADProvider,
+    entities: str,
+    distance: float,
+    natural_direction: bool = True,
+    include_connected: bool = False,
+) -> dict[str, Any]:
+    """Offset sketch entities by a distance."""
+    try:
+        return provider.sketch_offset(entities, distance, natural_direction, include_connected)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def sketch_move(
+    provider: CADProvider,
+    entities: str,
+    dx: float,
+    dy: float,
+    copy: bool = False,
+) -> dict[str, Any]:
+    """Move sketch entities by a vector."""
+    try:
+        return provider.sketch_move(entities, dx, dy, copy)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def sketch_rotate(
+    provider: CADProvider,
+    entities: str,
+    cx: float,
+    cy: float,
+    angle: float,
+    copy: bool = False,
+) -> dict[str, Any]:
+    """Rotate sketch entities around a center point."""
+    try:
+        return provider.sketch_rotate(entities, cx, cy, angle, copy)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

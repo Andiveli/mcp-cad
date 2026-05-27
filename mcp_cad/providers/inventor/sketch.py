@@ -559,3 +559,81 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to create sketch rectangular pattern: {exc}") from exc
+
+    def _build_entity_collection(self, sketch: Any, entities: str) -> Any:
+        """Build a CastTo-wrapped ObjectCollection from comma-separated indices."""
+        to = self._driver.inventor.TransientObjects
+        col = to.CreateObjectCollection()
+        if _CAST_TO is not None:
+            col = _CAST_TO(col, "ObjectCollection")
+        for idx_str in entities.split(","):
+            idx_str = idx_str.strip()
+            if not idx_str:
+                continue
+            ent = sketch.SketchEntities.Item(int(idx_str))
+            if _CAST_TO is not None:
+                ent = _CAST_TO(ent, "Object")
+            col.Add(ent)
+        return col
+
+    def sketch_offset(
+        self,
+        entities: str,
+        distance: float,
+        natural_direction: bool = True,
+        include_connected: bool = False,
+    ) -> dict[str, Any]:
+        """Offset sketch entities by a distance."""
+        sketch = self._ensure_active_sketch()
+        try:
+            col = self._build_entity_collection(sketch, entities)
+            sketch.OffsetSketchEntitiesUsingDistance(
+                col, distance, natural_direction, include_connected, True,
+            )
+            return {"success": True, "operation": "offset", "distance": distance}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to offset sketch: {exc}") from exc
+
+    def sketch_move(
+        self,
+        entities: str,
+        dx: float,
+        dy: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Move sketch entities by a vector."""
+        sketch = self._ensure_active_sketch()
+        try:
+            col = self._build_entity_collection(sketch, entities)
+            tg = self._transient_geometry()
+            vec = tg.CreateVector2d(dx, dy)
+            sketch.MoveSketchObjects(col, vec, copy, False)
+            return {"success": True, "operation": "move", "dx": dx, "dy": dy, "copy": copy}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to move sketch: {exc}") from exc
+
+    def sketch_rotate(
+        self,
+        entities: str,
+        cx: float,
+        cy: float,
+        angle: float,
+        copy: bool = False,
+    ) -> dict[str, Any]:
+        """Rotate sketch entities around a center point."""
+        sketch = self._ensure_active_sketch()
+        try:
+            import math
+            col = self._build_entity_collection(sketch, entities)
+            tg = self._transient_geometry()
+            center = tg.CreatePoint2d(cx, cy)
+            sketch.RotateSketchObjects(col, center, math.radians(angle), copy, False)
+            return {"success": True, "operation": "rotate", "angle": angle, "cx": cx, "cy": cy, "copy": copy}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to rotate sketch: {exc}") from exc

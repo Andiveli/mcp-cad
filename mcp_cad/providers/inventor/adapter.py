@@ -203,6 +203,25 @@ class InventorProvider:
             entities, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing,
         )
 
+    def sketch_offset(
+        self, entities: str, distance: float,
+        natural_direction: bool = True, include_connected: bool = False,
+    ) -> dict[str, Any]:
+        """Offset sketch entities."""
+        return self._sketch.sketch_offset(entities, distance, natural_direction, include_connected)
+
+    def sketch_move(
+        self, entities: str, dx: float, dy: float, copy: bool = False,
+    ) -> dict[str, Any]:
+        """Move sketch entities."""
+        return self._sketch.sketch_move(entities, dx, dy, copy)
+
+    def sketch_rotate(
+        self, entities: str, cx: float, cy: float, angle: float, copy: bool = False,
+    ) -> dict[str, Any]:
+        """Rotate sketch entities."""
+        return self._sketch.sketch_rotate(entities, cx, cy, angle, copy)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------
