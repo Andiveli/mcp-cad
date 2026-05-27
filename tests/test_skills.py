@@ -9,6 +9,8 @@ import pytest
 from mcp_cad.skills.sketch import skill_sketch
 from mcp_cad.skills.line import skill_line
 from mcp_cad.skills.circle import skill_circle
+from mcp_cad.skills.arc import skill_arc
+from mcp_cad.skills.rect import skill_rect
 from mcp_cad.skills import register_skills
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
@@ -18,6 +20,8 @@ def _make_mock_provider():
     provider.sketch_create.return_value = {"success": True, "plane": "XY"}
     provider.sketch_line.return_value = {"success": True, "entity_type": "line"}
     provider.sketch_circle.return_value = {"success": True, "entity_type": "circle"}
+    provider.sketch_arc.return_value = {"success": True, "entity_type": "arc"}
+    provider.sketch_rectangle.return_value = {"success": True, "entity_type": "rectangle"}
     return provider
 
 
@@ -222,3 +226,85 @@ class TestSkillCircle:
                                        x1=0, y1=0, x2=6, y2=0, x3=3, y3=3)
         provider.sketch_circle.assert_called_once_with(3.0, 0.0, 3.0)
         assert result["success"] is True
+
+
+# ==================================================================
+# skill_arc
+# ==================================================================
+
+
+class TestSkillArc:
+    def test_center_arc_ccw(self):
+        """Center at origin, start at (10,0), end at (0,10) → 90° CCW."""
+        provider = _make_mock_provider()
+        result = skill_arc(provider, mode="center",
+                           cx=0, cy=0, sx=10, sy=0, ex=0, ey=10)
+        provider.sketch_arc.assert_called_once_with(0.0, 0.0, 10.0, 0.0, 90.0)
+        assert result["success"] is True
+
+    def test_sweep_arc(self):
+        """Radius 5, start 0°, sweep 180° → semicircle."""
+        provider = _make_mock_provider()
+        result = skill_arc(provider, mode="sweep",
+                           cx=0, cy=0, radius=5, start_angle=0, sweep_angle=180)
+        provider.sketch_arc.assert_called_once_with(0.0, 0.0, 5.0, 0.0, 180.0)
+        assert result["success"] is True
+
+    def test_3point_arc(self):
+        """Three points: (0,0), (3,3), (6,0) → center at (3,0)."""
+        provider = _make_mock_provider()
+        result = skill_arc(provider, mode="3point",
+                           x1=0, y1=0, x_mid=3, y_mid=3, x_end=6, y_end=0)
+        provider.sketch_arc.assert_called_once_with(3.0, 0.0, 3.0, 180.0, 0.0)
+        assert result["success"] is True
+
+    def test_3point_collinear(self):
+        provider = _make_mock_provider()
+        result = skill_arc(provider, mode="3point",
+                           x1=0, y1=0, x_mid=5, y_mid=5, x_end=10, y_end=10)
+        assert result["success"] is False
+        assert "collinear" in result["error"].lower()
+
+    def test_unknown_mode(self):
+        provider = _make_mock_provider()
+        result = skill_arc(provider, mode="spiral")
+        assert result["success"] is False
+
+    def test_skill_arc_registered(self):
+        fake_mcp, tools = _make_mcp()
+        provider = _make_mock_provider()
+        register_skills(fake_mcp, provider)
+        assert "skill_arc" in tools
+
+
+# ==================================================================
+# skill_rect
+# ==================================================================
+
+
+class TestSkillRect:
+    def test_diagonal_rect(self):
+        provider = _make_mock_provider()
+        result = skill_rect(provider, mode="diagonal",
+                            x1=0, y1=0, x2=10, y2=5)
+        provider.sketch_rectangle.assert_called_once_with(0.0, 0.0, 10.0, 5.0)
+        assert result["success"] is True
+
+    def test_center_rect(self):
+        """Center at (5,5), corner at (10,7.5) → opposite at (0,2.5)."""
+        provider = _make_mock_provider()
+        result = skill_rect(provider, mode="center",
+                            cx=5, cy=5, corner_x=10, corner_y=7.5)
+        provider.sketch_rectangle.assert_called_once_with(10.0, 7.5, 0.0, 2.5)
+        assert result["success"] is True
+
+    def test_unknown_mode(self):
+        provider = _make_mock_provider()
+        result = skill_rect(provider, mode="rounded")
+        assert result["success"] is False
+
+    def test_skill_rect_registered(self):
+        fake_mcp, tools = _make_mcp()
+        provider = _make_mock_provider()
+        register_skills(fake_mcp, provider)
+        assert "skill_rect" in tools

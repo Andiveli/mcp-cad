@@ -22,6 +22,8 @@ from mcp_cad.core.protocol import CADProvider
 from mcp_cad.skills.sketch import skill_sketch as _skill_sketch
 from mcp_cad.skills.line import skill_line as _skill_line
 from mcp_cad.skills.circle import skill_circle as _skill_circle
+from mcp_cad.skills.arc import skill_arc as _skill_arc
+from mcp_cad.skills.rect import skill_rect as _skill_rect
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -123,4 +125,100 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             y2=y2,
             x3=x3,
             y3=y3,
+        )
+
+    @mcp_instance.tool()
+    def skill_arc(
+        mode: str = "center",
+        cx: float = 0.0,
+        cy: float = 0.0,
+        sx: float = 1.0,
+        sy: float = 0.0,
+        ex: float = 0.0,
+        ey: float = 1.0,
+        ccw: bool = True,
+        radius: float = 1.0,
+        start_angle: float = 0.0,
+        sweep_angle: float = 90.0,
+        x1: float = 0.0,
+        y1: float = 0.0,
+        x_mid: float = 0.0,
+        y_mid: float = 0.0,
+        x_end: float = 0.0,
+        y_end: float = 0.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw an arc.
+
+        Modes:
+            center — center + start + end points (cx,cy, sx,sy, ex,ey)
+            sweep  — radius + angles in degrees (cx,cy, radius, start_angle, sweep_angle)
+            3point — three points (x1,y1, x_mid,y_mid, x_end,y_end)
+
+        Examples:
+            # Center arc from right to top around origin
+            skill_arc(cx=0, cy=0, sx=10, sy=0, ex=0, ey=10)
+
+            # Semicircle radius 5
+            skill_arc(mode="sweep", cx=0, cy=0, radius=5, start_angle=0, sweep_angle=180)
+
+            # 3-point arc
+            skill_arc(mode="3point", x1=0, y1=0, x_mid=5, y_mid=5, x_end=10, y_end=0)
+        """
+        return _skill_arc(
+            provider,
+            mode=mode,
+            cx=cx,
+            cy=cy,
+            sx=sx,
+            sy=sy,
+            ex=ex,
+            ey=ey,
+            ccw=ccw,
+            radius=radius,
+            start_angle=start_angle,
+            sweep_angle=sweep_angle,
+            x1=x1,
+            y1=y1,
+            x_mid=x_mid,
+            y_mid=y_mid,
+            x_end=x_end,
+            y_end=y_end,
+        )
+
+    @mcp_instance.tool()
+    def skill_rect(
+        mode: str = "diagonal",
+        x1: float = 0.0,
+        y1: float = 0.0,
+        x2: float = 10.0,
+        y2: float = 10.0,
+        cx: float = 0.0,
+        cy: float = 0.0,
+        corner_x: float = 5.0,
+        corner_y: float = 5.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw a rectangle.
+
+        Modes:
+            diagonal — two opposite corners (x1,y1, x2,y2)
+            center   — center + one corner (cx,cy, corner_x, corner_y)
+
+        Examples:
+            # Rectangle 10x5 from origin
+            skill_rect(x1=0, y1=0, x2=10, y2=5)
+
+            # Centered 20x10 rectangle at (10,5)
+            skill_rect(mode="center", cx=10, cy=5, corner_x=20, corner_y=10)
+        """
+        return _skill_rect(
+            provider,
+            mode=mode,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
+            cx=cx,
+            cy=cy,
+            corner_x=corner_x,
+            corner_y=corner_y,
         )
