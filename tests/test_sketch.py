@@ -175,7 +175,7 @@ class TestSketchLine:
         assert result["entity_type"] == "line"
         assert result["start"] == [0.0, 0.0]
         assert result["end"] == [10.0, 5.0]
-        sketch.SketchLines.AddAsTwoPoint.assert_called_once()
+        sketch.SketchLines.AddByTwoPoints.assert_called_once()
         # Verify CreatePoint2d was called for both points
         tg = mock_inventor.TransientGeometry
         tg.CreatePoint2d.assert_any_call(0.0, 0.0)
@@ -191,7 +191,7 @@ class TestSketchLine:
         """Should raise InventorCOMError when COM call fails."""
         mgr = _make_sketch_manager(mock_inventor)
         sketch = _setup_active_document_with_sketch(mock_inventor)
-        sketch.SketchLines.AddAsTwoPoint.side_effect = Exception("COM error")
+        sketch.SketchLines.AddByTwoPoints.side_effect = Exception("COM error")
         mgr.sketch_create()
 
         with pytest.raises(InventorCOMError, match="Failed to draw line"):

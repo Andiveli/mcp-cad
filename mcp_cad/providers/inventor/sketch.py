@@ -127,7 +127,7 @@ class SketchManager:
             tg = self._transient_geometry()
             start = tg.CreatePoint2d(x1, y1)
             end = tg.CreatePoint2d(x2, y2)
-            sketch.SketchLines.AddAsTwoPoint(start, end)
+            sketch.SketchLines.AddByTwoPoints(start, end)
             return {
                 "success": True,
                 "entity_type": "line",
