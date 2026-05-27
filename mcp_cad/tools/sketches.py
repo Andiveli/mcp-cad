@@ -250,3 +250,20 @@ def sketch_delete(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_constraint(
+    provider: CADProvider,
+    mode: str,
+    entity1: str,
+    entity2: str = "",
+    sym_line: str = "",
+    axis: str = "major",
+) -> dict[str, Any]:
+    """Add a geometric constraint between sketch entities."""
+    try:
+        return provider.sketch_constraint(mode, entity1, entity2, sym_line, axis)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

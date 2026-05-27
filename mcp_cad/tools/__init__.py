@@ -68,6 +68,7 @@ from mcp_cad.tools.sketches import (
     sketch_move as tool_sketch_move,
     sketch_rotate as tool_sketch_rotate,
     sketch_delete as tool_sketch_delete,
+    sketch_constraint as tool_sketch_constraint,
 )
 
 
@@ -301,6 +302,24 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     def sketch_delete() -> dict[str, Any]:
         """Delete the active sketch (must not be used by a feature)."""
         return tool_sketch_delete(provider)
+
+    @mcp_instance.tool()
+    def sketch_constraint(
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        sym_line: str = "",
+        axis: str = "major",
+    ) -> dict[str, Any]:
+        """Add a geometric constraint between sketch entities.
+
+        Modes: coincident, collinear, concentric, parallel, perpendicular,
+        tangent, horizontal, vertical, equal, midpoint, symmetric, smooth.
+        entity1/entity2: 1-based entity indices.
+        sym_line: Symmetry line index (symmetric mode only).
+        axis: "major" (default) or "minor" for ellipse constraints.
+        """
+        return tool_sketch_constraint(provider, mode, entity1, entity2, sym_line, axis)
 
     # ------------------------------------------------------------------
     # Feature tools

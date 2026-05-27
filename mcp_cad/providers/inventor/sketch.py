@@ -648,3 +648,79 @@ class SketchManager:
             raise
         except Exception as exc:
             raise InventorCOMError(f"Failed to delete sketch: {exc}") from exc
+
+    def _resolve_entity(self, sketch: Any, ref: str) -> Any:
+        """Resolve a sketch entity from a 1-based index string."""
+        ent = sketch.SketchEntities.Item(int(ref.strip()))
+        if _CAST_TO is not None:
+            ent = _CAST_TO(ent, "Object")
+        return ent
+
+    def sketch_constraint(
+        self,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        sym_line: str = "",
+        axis: str = "major",
+    ) -> dict[str, Any]:
+        """Add a geometric constraint between sketch entities.
+
+        Parameters
+        ----------
+        mode:
+            Constraint type: coincident, collinear, concentric, parallel,
+            perpendicular, tangent, horizontal, vertical, equal,
+            midpoint, symmetric, smooth.
+        entity1:
+            First entity index (1-based).
+        entity2:
+            Second entity index (for two-entity constraints).
+        axis:
+            For ellipses: "major" (default) or "minor".
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            gc = sketch.GeometricConstraints
+            e1 = self._resolve_entity(sketch, entity1)
+            e2 = None
+            if entity2:
+                e2 = self._resolve_entity(sketch, entity2)
+
+            use_major = axis.lower() != "minor"
+
+            if mode == "coincident":
+                gc.AddCoincident(e1, e2)
+            elif mode == "collinear":
+                gc.AddCollinear(e1, e2, use_major, use_major)
+            elif mode == "concentric":
+                gc.AddConcentric(e1, e2)
+            elif mode == "parallel":
+                gc.AddParallel(e1, e2, use_major, use_major)
+            elif mode == "perpendicular":
+                gc.AddPerpendicular(e1, e2, use_major, use_major)
+            elif mode == "tangent":
+                gc.AddTangent(e1, e2)
+            elif mode == "equal":
+                gc.AddEqualLength(e1, e2)
+            elif mode == "midpoint":
+                gc.AddMidpoint(e1, e2)
+            elif mode == "symmetric":
+                if not sym_line:
+                    return {"success": False, "error": "Symmetric constraint needs sym_line parameter"}
+                sym_entity = self._resolve_entity(sketch, sym_line)
+                gc.AddSymmetry(e1, e2, sym_entity)
+            elif mode == "smooth":
+                gc.AddSmooth(e1, e2)
+            elif mode == "horizontal":
+                gc.AddHorizontal(e1, use_major)
+            elif mode == "vertical":
+                gc.AddVertical(e1, use_major)
+            else:
+                return {"success": False, "error": f"Unknown constraint mode '{mode}'"}
+
+            return {"success": True, "constraint": mode}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to add {mode} constraint: {exc}") from exc

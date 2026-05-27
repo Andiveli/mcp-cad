@@ -226,6 +226,13 @@ class InventorProvider:
         """Delete the active sketch."""
         return self._sketch.sketch_delete()
 
+    def sketch_constraint(
+        self, mode: str, entity1: str, entity2: str = "",
+        sym_line: str = "", axis: str = "major",
+    ) -> dict[str, Any]:
+        """Add a geometric constraint."""
+        return self._sketch.sketch_constraint(mode, entity1, entity2, sym_line, axis)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

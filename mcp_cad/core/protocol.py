@@ -230,6 +230,17 @@ class CADProvider(Protocol):
         """Delete the active sketch (must not be used by a feature)."""
         ...
 
+    def sketch_constraint(
+        self,
+        mode: str,
+        entity1: str,
+        entity2: str = "",
+        sym_line: str = "",
+        axis: str = "major",
+    ) -> dict[str, Any]:
+        """Add a geometric constraint between sketch entities."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

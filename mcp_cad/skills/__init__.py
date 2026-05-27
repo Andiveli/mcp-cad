@@ -33,6 +33,7 @@ from mcp_cad.skills.modify import skill_offset as _skill_offset
 from mcp_cad.skills.modify import skill_move as _skill_move
 from mcp_cad.skills.modify import skill_rotate as _skill_rotate
 from mcp_cad.skills.modify import skill_delete_sketch as _skill_delete_sketch
+from mcp_cad.skills.constrain import skill_constraint as _skill_constraint
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -405,3 +406,23 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_delete_sketch()
         """
         return _skill_delete_sketch(provider)
+
+    @mcp_instance.tool()
+    def skill_constraint(
+        mode: str = "parallel",
+        entity1: str = "1",
+        entity2: str = "",
+        sym_line: str = "",
+        axis: str = "major",
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Constrain — Add geometric constraints.
+
+        Modes: coincident, collinear, concentric, parallel, perpendicular,
+        tangent, horizontal, vertical, equal, midpoint, symmetric, smooth.
+
+        Examples:
+            skill_constraint(mode="parallel", entity1="1", entity2="2")
+            skill_constraint(mode="horizontal", entity1="1")
+            skill_constraint(mode="symmetric", entity1="1", entity2="2", sym_line="3")
+        """
+        return _skill_constraint(provider, mode, entity1, entity2, sym_line, axis)
