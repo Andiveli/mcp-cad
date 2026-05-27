@@ -286,7 +286,14 @@ class SketchManager:
         try:
             dc = sketch.DimensionConstraints
             tg = self._transient_geometry()
-            e1 = self._resolve_entity(sketch, entity1)
+
+            # Resolve entity with correct type based on mode
+            if mode in ("radius", "diameter"):
+                e1 = self._resolve_entity(sketch, entity1, "SketchCircle")
+            elif mode == "angle":
+                e1 = self._resolve_entity(sketch, entity1, "SketchLine")
+            else:
+                e1 = self._resolve_entity(sketch, entity1)
 
             # Determine text position
             if position_x is not None and position_y is not None:
@@ -459,21 +466,28 @@ class SketchManager:
         try:
             col = self._build_entity_collection(sketch, entities)
 
-            # Resolve center point
+            # Resolve center point with Dispatch
             try:
                 axis_index = int(axis)
                 center_pt = sketch.SketchPoints.Item(axis_index)
             except ValueError:
                 center_pt = sketch.SketchPoints.Item(axis)
+            try:
+                import win32com.client
+                center_pt = win32com.client.Dispatch(center_pt)
+            except Exception:
+                pass
 
-            # Get Point2d geometry for center
-            cg = center_pt.Geometry
-            tg = self._transient_geometry()
-            cpt = tg.CreatePoint2d(cg.X, cg.Y)
-
-            sketch.CreateCircularPattern(
-                col, cpt, count, angle, fitted, symmetric,
-            )
+            # Use CircularPatterns.CreateDefinition + Add
+            cp = sketch.CircularPatterns
+            definition = cp.CreateDefinition()
+            definition.Geometries = col
+            definition.AxisEntity = center_pt
+            definition.Count = count
+            definition.Angle = angle
+            definition.Fitted = fitted
+            definition.Symmetric = symmetric
+            cp.Add(definition)
 
             return {
                 "success": True,
@@ -606,9 +620,8 @@ class SketchManager:
             col = self._build_entity_collection(sketch, entities)
 
             # Use first entity's geometry midpoint as base point
-            first = sketch.SketchEntities.Item(
-                int(entities.split(",")[0].strip())
-            )
+            first_idx = entities.split(",")[0].strip()
+            first = self._resolve_entity(sketch, first_idx, "SketchLine")
             g = first.Geometry
             mid_x = (g.StartPoint.X + g.EndPoint.X) / 2.0
             mid_y = (g.StartPoint.Y + g.EndPoint.Y) / 2.0
@@ -843,17 +856,18 @@ class SketchManager:
         except Exception as exc:
             raise InventorCOMError(f"Failed to mirror: {exc}") from exc
 
-    def _resolve_entity(self, sketch: Any, ref: str) -> Any:
+    def _resolve_entity(self, sketch: Any, ref: str, entity_type: str = "") -> Any:
         """Resolve a sketch entity from a 1-based index string.
 
-        Wraps in ``win32com.client.Dispatch()`` to force a fresh
-        late-bound wrapper, then casts to ``SketchEntity``.
+        Wraps in ``Dispatch()`` then ``CastTo(entity_type)`` for proper
+        COM interface matching. If ``entity_type`` is empty, skips the cast.
         """
         ent = sketch.SketchEntities.Item(int(ref.strip()))
         try:
             import win32com.client
             ent = win32com.client.Dispatch(ent)
-            ent = win32com.client.CastTo(ent, "SketchEntity")
+            if entity_type:
+                ent = win32com.client.CastTo(ent, entity_type)
         except Exception:
             pass
         return ent
@@ -884,10 +898,10 @@ class SketchManager:
         sketch = self._ensure_active_sketch()
         try:
             gc = sketch.GeometricConstraints
-            e1 = self._resolve_entity(sketch, entity1)
+            e1 = self._resolve_entity(sketch, entity1, "SketchEntity")
             e2 = None
             if entity2:
-                e2 = self._resolve_entity(sketch, entity2)
+                e2 = self._resolve_entity(sketch, entity2, "SketchEntity")
 
             use_major = axis.lower() != "minor"
 
