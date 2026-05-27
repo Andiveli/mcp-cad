@@ -100,9 +100,9 @@
 
 ## Phase 6: COM Bridge Investigation
 
-- [ ] 6.1 Create `docs/com-bridge-investigation.md` — document HoleFeatures API limitations
-- [ ] 6.2 Document CircularPatternFeatures API limitations
-- [ ] 6.3 Document ThreadFeatures API limitations
-- [ ] 6.4 Add `create_hole_via_extrude_cut()` helper in investigation doc (workaround using existing protocol ops)
+- [x] 6.1 Create `docs/com-bridge-investigation.md` — document HoleFeatures API limitations
+- [x] 6.2 Document CircularPatternFeatures API limitations
+- [x] 6.3 Document ThreadFeatures API limitations
+- [x] 6.4 Add `create_hole_via_extrude_cut()` helper in investigation doc (workaround using existing protocol ops)
 
 **Verification**: Document exists covering all three feature APIs with workaround feasibility. Dependencies: none (can be done in parallel with any phase).
