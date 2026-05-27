@@ -1,5 +1,6 @@
 """Inventor provider package — manager classes and protocol adapter."""
 
+from mcp_cad.providers.inventor.adapter import InventorProvider, create_inventor_provider
 from mcp_cad.providers.inventor.client import InventorDriver, RealInventorDriver
 from mcp_cad.providers.inventor.document import DocumentManager
 from mcp_cad.providers.inventor.export import ExportManager
@@ -13,8 +14,10 @@ __all__ = [
     "ExportManager",
     "FeatureManager",
     "InventorDriver",
+    "InventorProvider",
     "ParameterManager",
     "PropertyManager",
     "RealInventorDriver",
     "SketchManager",
+    "create_inventor_provider",
 ]

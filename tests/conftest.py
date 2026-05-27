@@ -181,3 +181,51 @@ def driver():
     from mcp_cad.providers.inventor.client import RealInventorDriver
 
     return RealInventorDriver()
+
+
+# ------------------------------------------------------------------
+# Mock provider factory
+# ------------------------------------------------------------------
+
+
+def make_mock_provider() -> tuple:
+    """Build an InventorProvider with all mocked managers.
+
+    Returns (provider, mocks) where mocks is a dict with keys:
+        driver, doc, sketch, feature, param, prop, export
+    Each value is a MagicMock set up with sensible return values.
+    """
+    from unittest.mock import PropertyMock as _PropertyMock
+
+    from mcp_cad.providers.inventor.adapter import InventorProvider
+
+    mock_driver = MagicMock()
+    type(mock_driver).inventor = _PropertyMock(return_value=None)
+
+    provider = InventorProvider(mock_driver)
+
+    mock_doc = MagicMock()
+    mock_sketch = MagicMock()
+    mock_feature = MagicMock()
+    mock_param = MagicMock()
+    mock_prop = MagicMock()
+    mock_export = MagicMock()
+
+    provider._doc = mock_doc
+    provider._sketch = mock_sketch
+    provider._feature = mock_feature
+    provider._param = mock_param
+    provider._prop = mock_prop
+    provider._export = mock_export
+
+    mocks = {
+        "driver": mock_driver,
+        "doc": mock_doc,
+        "sketch": mock_sketch,
+        "feature": mock_feature,
+        "param": mock_param,
+        "prop": mock_prop,
+        "export": mock_export,
+    }
+
+    return provider, mocks
