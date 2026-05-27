@@ -241,6 +241,15 @@ class CADProvider(Protocol):
         """Add a geometric constraint between sketch entities."""
         ...
 
+    def sketch_trim(
+        self,
+        entity: str,
+        cutting_entity: str,
+        side: str = "end",
+    ) -> dict[str, Any]:
+        """Trim a sketch entity to its intersection with another."""
+        ...
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

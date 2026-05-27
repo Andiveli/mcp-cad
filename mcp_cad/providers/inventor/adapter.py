@@ -233,6 +233,12 @@ class InventorProvider:
         """Add a geometric constraint."""
         return self._sketch.sketch_constraint(mode, entity1, entity2, sym_line, axis)
 
+    def sketch_trim(
+        self, entity: str, cutting_entity: str, side: str = "end",
+    ) -> dict[str, Any]:
+        """Trim a sketch entity."""
+        return self._sketch.sketch_trim(entity, cutting_entity, side)
+
     # ------------------------------------------------------------------
     # 3D feature operations
     # ------------------------------------------------------------------

@@ -69,6 +69,7 @@ from mcp_cad.tools.sketches import (
     sketch_rotate as tool_sketch_rotate,
     sketch_delete as tool_sketch_delete,
     sketch_constraint as tool_sketch_constraint,
+    sketch_trim as tool_sketch_trim,
 )
 
 
@@ -320,6 +321,21 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         axis: "major" (default) or "minor" for ellipse constraints.
         """
         return tool_sketch_constraint(provider, mode, entity1, entity2, sym_line, axis)
+
+    @mcp_instance.tool()
+    def sketch_trim(
+        entity: str,
+        cutting_entity: str,
+        side: str = "end",
+    ) -> dict[str, Any]:
+        """Trim a sketch entity to its intersection with another.
+
+        Args:
+            entity: Entity index to trim.
+            cutting_entity: Entity to trim against.
+            side: "start" or "end" — which endpoint to move.
+        """
+        return tool_sketch_trim(provider, entity, cutting_entity, side)
 
     # ------------------------------------------------------------------
     # Feature tools

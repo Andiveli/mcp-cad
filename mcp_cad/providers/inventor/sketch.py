@@ -649,6 +649,55 @@ class SketchManager:
         except Exception as exc:
             raise InventorCOMError(f"Failed to delete sketch: {exc}") from exc
 
+    def sketch_trim(
+        self,
+        entity: str,
+        cutting_entity: str,
+        side: str = "end",
+    ) -> dict[str, Any]:
+        """Trim a sketch entity to its intersection with another entity.
+
+        Uses ``Geometry.Intersect()`` to find the intersection point,
+        then moves the specified endpoint to that point.
+
+        Parameters
+        ----------
+        entity:
+            Index of the entity to trim (1-based sketch entity).
+        cutting_entity:
+            Index of the entity to trim against.
+        side:
+            Which endpoint to move — ``"start"`` or ``"end"``.
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            ent = sketch.SketchEntities.Item(int(entity))
+            cut = sketch.SketchEntities.Item(int(cutting_entity))
+
+            # Get 2D geometries and intersect
+            geo1 = ent.Geometry
+            geo2 = cut.Geometry
+            pts = geo1.Intersect(geo2)
+
+            if pts is None or pts.Count == 0:
+                return {"success": False, "error": "Entities do not intersect"}
+
+            pt = pts.Item(1)
+            tg = self._transient_geometry()
+            target = tg.CreatePoint2d(pt.X, pt.Y)
+
+            # Move the specified endpoint
+            if side == "start":
+                ent.StartSketchPoint.MoveTo(target)
+            else:
+                ent.EndSketchPoint.MoveTo(target)
+
+            return {"success": True, "operation": "trim", "side": side}
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to trim: {exc}") from exc
+
     def _resolve_entity(self, sketch: Any, ref: str) -> Any:
         """Resolve a sketch entity from a 1-based index string."""
         ent = sketch.SketchEntities.Item(int(ref.strip()))

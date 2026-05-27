@@ -116,3 +116,34 @@ def skill_delete_sketch(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def skill_trim(
+    provider: CADProvider,
+    entity: str = "1",
+    cutting_entity: str = "2",
+    side: str = "end",
+) -> dict[str, Any]:
+    """Trim a sketch entity to its intersection with another.
+
+    Uses Geometry.Intersect() to find the intersection point,
+    then moves the specified endpoint to that point.
+
+    Args:
+        entity: Entity index to trim (1-based).
+        cutting_entity: Entity to trim against.
+        side: "start" or "end" — which endpoint of entity to move.
+
+    Examples:
+        # Trim the end of entity 1 to where it meets entity 2
+        skill_trim(entity="1", cutting_entity="2")
+
+        # Trim the start of entity 3 to entity 1
+        skill_trim(entity="3", cutting_entity="1", side="start")
+    """
+    try:
+        return provider.sketch_trim(entity, cutting_entity, side)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}

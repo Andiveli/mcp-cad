@@ -33,6 +33,7 @@ from mcp_cad.skills.modify import skill_offset as _skill_offset
 from mcp_cad.skills.modify import skill_move as _skill_move
 from mcp_cad.skills.modify import skill_rotate as _skill_rotate
 from mcp_cad.skills.modify import skill_delete_sketch as _skill_delete_sketch
+from mcp_cad.skills.modify import skill_trim as _skill_trim
 from mcp_cad.skills.constrain import skill_constraint as _skill_constraint
 from mcp_cad.skills.dimension import skill_dimension as _skill_dimension
 
@@ -407,6 +408,25 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_delete_sketch()
         """
         return _skill_delete_sketch(provider)
+
+    @mcp_instance.tool()
+    def skill_trim(
+        entity: str = "1",
+        cutting_entity: str = "2",
+        side: str = "end",
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Modify — Trim entity to intersection.
+
+        Args:
+            entity: Entity index to trim (1-based).
+            cutting_entity: Entity to trim against.
+            side: "start" or "end" — which endpoint to move.
+
+        Examples:
+            skill_trim(entity="1", cutting_entity="2")
+            skill_trim(entity="3", cutting_entity="1", side="start")
+        """
+        return _skill_trim(provider, entity, cutting_entity, side)
 
     @mcp_instance.tool()
     def skill_constraint(

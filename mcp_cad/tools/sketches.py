@@ -267,3 +267,18 @@ def sketch_constraint(
         return {"success": False, "error": str(exc)}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
+
+
+def sketch_trim(
+    provider: CADProvider,
+    entity: str,
+    cutting_entity: str,
+    side: str = "end",
+) -> dict[str, Any]:
+    """Trim a sketch entity to its intersection with another."""
+    try:
+        return provider.sketch_trim(entity, cutting_entity, side)
+    except (InventorDisconnectedError, InventorCOMError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
