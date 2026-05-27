@@ -15,10 +15,16 @@ MCP server for CAD automation. Give AI agents direct parametric control over you
 ```powershell
 git clone https://github.com/Andiveli/mcp-cad.git
 cd mcp-cad
-.\scripts\install.ps1
+
+# Interactive installation (recommended)
+.\scripts\install.ps1                # creates venv, installs dependencies, runs tests
+python -m scripts.tui                # TUI menu — select agents to register
+
+# Or: non-interactive (OpenCode only)
+.\scripts\install.ps1 -RegisterIn OpenCode
 ```
 
-The installer creates a virtual environment, installs dependencies, runs the test suite, and auto-configures OpenCode. Open the folder in OpenCode and the server starts automatically.
+The installer creates a virtual environment, installs dependencies, and runs the test suite. The **TUI** lets you choose which MCP clients to register (OpenCode, Claude Desktop, Pi) via an interactive terminal menu. Open the folder in your agent and the server starts automatically.
 
 ## Tools
 
@@ -166,7 +172,9 @@ python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
 
 ## Configuration
 
-### OpenCode (auto-configured by installer)
+The **TUI** (`python -m scripts.tui`) registers mcp-cad in one or more agents with a single interactive menu. Manual configs below for reference.
+
+### OpenCode
 
 ```json
 {
@@ -179,7 +187,7 @@ python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
 }
 ```
 
-### Claude Desktop (manual)
+### Claude Desktop
 
 ```json
 {
@@ -191,6 +199,23 @@ python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
   }
 }
 ```
+
+### Pi (IntelliJ agent)
+
+```json
+{
+  "mcpServers": {
+    "mcp-cad": {
+      "command": "C:\\path\\to\\mcp-cad\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "mcp_cad"],
+      "directTools": true,
+      "lifecycle": "lazy"
+    }
+  }
+}
+```
+
+Config location: `~/.pi/agent/mcp.json`
 
 ## Limitations
 
