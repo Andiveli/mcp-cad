@@ -201,10 +201,10 @@ class InventorProvider:
 
     def sketch_offset(
         self, entities: str, distance: float,
-        natural_direction: bool = True, include_connected: bool = False,
+        natural_direction: bool = True,
     ) -> dict[str, Any]:
         """Offset sketch entities."""
-        return self._sketch.sketch_offset(entities, distance, natural_direction, include_connected)
+        return self._sketch.sketch_offset(entities, distance, natural_direction)
 
     def sketch_move(
         self, entities: str, dx: float, dy: float, copy: bool = False,

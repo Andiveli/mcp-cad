@@ -24,22 +24,22 @@ def skill_offset(
     entities: str = "1",
     distance: float = 1.0,
     natural_direction: bool = True,
-    include_connected: bool = False,
 ) -> dict[str, Any]:
     """Offset sketch entities by a distance.
+
+    Uses the first entity's midpoint as the base point for direction.
 
     Args:
         entities: Comma-separated entity indices.
         distance: Offset distance in cm.
         natural_direction: True → offset in natural normal direction. False → reverse.
-        include_connected: Offset all connected loop entities.
 
     Examples:
         skill_offset(entities="2", distance=5)
         skill_offset(entities="1", distance=3, natural_direction=False)
     """
     try:
-        return provider.sketch_offset(entities, distance, natural_direction, include_connected)
+        return provider.sketch_offset(entities, distance, natural_direction)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

@@ -459,28 +459,21 @@ class SketchManager:
         try:
             col = self._build_entity_collection(sketch, entities)
 
-            # Resolve axis point with Dispatch
+            # Resolve center point
             try:
                 axis_index = int(axis)
-                axis_entity = sketch.SketchPoints.Item(axis_index)
+                center_pt = sketch.SketchPoints.Item(axis_index)
             except ValueError:
-                axis_entity = sketch.SketchPoints.Item(axis)
-            try:
-                import win32com.client
-                axis_entity = win32com.client.Dispatch(axis_entity)
-            except Exception:
-                pass
+                center_pt = sketch.SketchPoints.Item(axis)
 
-            # Create definition, set properties, add
-            cp = sketch.CircularPatterns
-            definition = cp.CreateDefinition()
-            definition.Geometries = col
-            definition.AxisEntity = axis_entity
-            definition.Count = count
-            definition.Angle = angle
-            definition.Fitted = fitted
-            definition.Symmetric = symmetric
-            cp.Add(definition)
+            # Get Point2d geometry for center
+            cg = center_pt.Geometry
+            tg = self._transient_geometry()
+            cpt = tg.CreatePoint2d(cg.X, cg.Y)
+
+            sketch.CreateCircularPattern(
+                col, cpt, count, angle, fitted, symmetric,
+            )
 
             return {
                 "success": True,
@@ -602,14 +595,28 @@ class SketchManager:
         entities: str,
         distance: float,
         natural_direction: bool = True,
-        include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Offset sketch entities by a distance."""
+        """Offset sketch entities using a point for direction.
+
+        Uses ``OffsetSketchEntitiesUsingPoint`` — the first entity's
+        geometry midpoint serves as the base point.
+        """
         sketch = self._ensure_active_sketch()
         try:
             col = self._build_entity_collection(sketch, entities)
-            sketch.OffsetSketchEntitiesUsingDistance(
-                col, distance, natural_direction, include_connected, True,
+
+            # Use first entity's geometry midpoint as base point
+            first = sketch.SketchEntities.Item(
+                int(entities.split(",")[0].strip())
+            )
+            g = first.Geometry
+            mid_x = (g.StartPoint.X + g.EndPoint.X) / 2.0
+            mid_y = (g.StartPoint.Y + g.EndPoint.Y) / 2.0
+            tg = self._transient_geometry()
+            base_pt = tg.CreatePoint2d(mid_x, mid_y)
+
+            sketch.OffsetSketchEntitiesUsingPoint(
+                col, base_pt, distance, natural_direction,
             )
             return {"success": True, "operation": "offset", "distance": distance}
         except (InventorDisconnectedError, InventorCOMError):
@@ -840,12 +847,13 @@ class SketchManager:
         """Resolve a sketch entity from a 1-based index string.
 
         Wraps in ``win32com.client.Dispatch()`` to force a fresh
-        late-bound wrapper, avoiding gen_py cache corruption.
+        late-bound wrapper, then casts to ``SketchEntity``.
         """
         ent = sketch.SketchEntities.Item(int(ref.strip()))
         try:
             import win32com.client
             ent = win32com.client.Dispatch(ent)
+            ent = win32com.client.CastTo(ent, "SketchEntity")
         except Exception:
             pass
         return ent

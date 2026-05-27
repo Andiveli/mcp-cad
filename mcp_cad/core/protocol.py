@@ -203,9 +203,8 @@ class CADProvider(Protocol):
         entities: str,
         distance: float,
         natural_direction: bool = True,
-        include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Offset sketch entities by a distance."""
+        """Offset sketch entities."""
         ...
 
     def sketch_move(

@@ -199,11 +199,10 @@ def sketch_offset(
     entities: str,
     distance: float,
     natural_direction: bool = True,
-    include_connected: bool = False,
 ) -> dict[str, Any]:
     """Offset sketch entities by a distance."""
     try:
-        return provider.sketch_offset(entities, distance, natural_direction, include_connected)
+        return provider.sketch_offset(entities, distance, natural_direction)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:
