@@ -22,24 +22,25 @@ from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 def skill_offset(
     provider: CADProvider,
     entities: str = "1",
-    distance: float = 1.0,
-    natural_direction: bool = True,
+    offset_x: float = 0.0,
+    offset_y: float = 1.0,
+    include_connected: bool = False,
 ) -> dict[str, Any]:
-    """Offset sketch entities by a distance.
+    """Offset sketch entities through a point.
 
-    Uses the first entity's midpoint as the base point for direction.
+    The shortest distance from the offset point to the base entity
+    determines the offset distance.
 
     Args:
         entities: Comma-separated entity indices.
-        distance: Offset distance in cm.
-        natural_direction: True → offset in natural normal direction. False → reverse.
+        offset_x, offset_y: Point through which the offset passes.
+        include_connected: Also offset connected loop entities.
 
     Examples:
-        skill_offset(entities="2", distance=5)
-        skill_offset(entities="1", distance=3, natural_direction=False)
+        skill_offset(entities="2", offset_x=0, offset_y=5)
     """
     try:
-        return provider.sketch_offset(entities, distance, natural_direction)
+        return provider.sketch_offset(entities, offset_x, offset_y, include_connected)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

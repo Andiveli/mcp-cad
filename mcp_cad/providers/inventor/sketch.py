@@ -287,25 +287,31 @@ class SketchManager:
             dc = sketch.DimensionConstraints
             tg = self._transient_geometry()
 
-            # Resolve entity with correct type based on mode
+            # Resolve entity directly from typed collection
             if mode in ("radius", "diameter"):
-                e1 = self._resolve_entity(sketch, entity1, "SketchCircle")
+                e1 = sketch.SketchCircles.Item(int(entity1))
             elif mode == "angle":
-                e1 = self._resolve_entity(sketch, entity1, "SketchLine")
+                e1 = sketch.SketchLines.Item(int(entity1))
             else:
-                e1 = self._resolve_entity(sketch, entity1)
+                e1 = sketch.SketchEntities.Item(int(entity1))
 
             # Determine text position
             if position_x is not None and position_y is not None:
                 text_pt = tg.CreatePoint2d(position_x, position_y)
             else:
-                # Default: use entity1's geometry midpoint
+                # Default: use entity1's geometry midpoint or center
                 g = e1.Geometry
                 try:
+                    # Try line-style geometry (StartPoint/EndPoint)
                     mx = (g.StartPoint.X + g.EndPoint.X) / 2.0 + 2.0
                     my = (g.StartPoint.Y + g.EndPoint.Y) / 2.0 + 2.0
                 except Exception:
-                    mx, my = 5.0, 5.0
+                    # Circle-style geometry (Center/Radius)
+                    try:
+                        mx = g.Center.X + 2.0
+                        my = g.Center.Y + 2.0
+                    except Exception:
+                        mx, my = 5.0, 5.0
                 text_pt = tg.CreatePoint2d(mx, my)
 
             if mode == "linear":
@@ -478,15 +484,19 @@ class SketchManager:
             except Exception:
                 pass
 
-            # Use CircularPatterns.CreateDefinition + Add
+            # Use CircularPatterns.CreateDefinition with args (like rectangular)
+            import math
             cp = sketch.CircularPatterns
-            definition = cp.CreateDefinition()
-            definition.Geometries = col
-            definition.AxisEntity = center_pt
-            definition.Count = count
-            definition.Angle = angle
-            definition.Fitted = fitted
-            definition.Symmetric = symmetric
+            definition = cp.CreateDefinition(
+                col,           # Geometries
+                center_pt,     # AxisEntity
+                None,          # NaturalAxisDirection (default True)
+                count,         # Count
+                math.radians(angle),  # Angle (radians!)
+                symmetric,     # Symmetric
+                None,          # Associative
+                fitted,        # Fitted
+            )
             cp.Add(definition)
 
             return {
@@ -607,31 +617,35 @@ class SketchManager:
     def sketch_offset(
         self,
         entities: str,
-        distance: float,
-        natural_direction: bool = True,
+        offset_x: float,
+        offset_y: float,
+        include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Offset sketch entities using a point for direction.
+        """Offset sketch entities through a point.
 
-        Uses ``OffsetSketchEntitiesUsingPoint`` — the first entity's
-        geometry midpoint serves as the base point.
+        Uses ``OffsetSketchEntitiesUsingPoint`` — the shortest distance
+        from the offset point to the base entity determines the offset
+        distance.
+
+        Parameters
+        ----------
+        entities:
+            Comma-separated entity indices. First entity is the base.
+        offset_x, offset_y:
+            Point through which the offset should pass.
+        include_connected:
+            Also offset all connected loop entities.
         """
         sketch = self._ensure_active_sketch()
         try:
             col = self._build_entity_collection(sketch, entities)
-
-            # Use first entity's geometry midpoint as base point
-            first_idx = entities.split(",")[0].strip()
-            first = self._resolve_entity(sketch, first_idx, "SketchLine")
-            g = first.Geometry
-            mid_x = (g.StartPoint.X + g.EndPoint.X) / 2.0
-            mid_y = (g.StartPoint.Y + g.EndPoint.Y) / 2.0
             tg = self._transient_geometry()
-            base_pt = tg.CreatePoint2d(mid_x, mid_y)
+            offset_pt = tg.CreatePoint2d(offset_x, offset_y)
 
             sketch.OffsetSketchEntitiesUsingPoint(
-                col, base_pt, distance, natural_direction,
+                col, offset_pt, include_connected, True,
             )
-            return {"success": True, "operation": "offset", "distance": distance}
+            return {"success": True, "operation": "offset"}
         except (InventorDisconnectedError, InventorCOMError):
             raise
         except Exception as exc:
@@ -712,8 +726,8 @@ class SketchManager:
         """
         sketch = self._ensure_active_sketch()
         try:
-            ent = sketch.SketchEntities.Item(int(entity))
-            cut = sketch.SketchEntities.Item(int(cutting_entity))
+            ent = sketch.SketchLines.Item(int(entity))
+            cut = sketch.SketchLines.Item(int(cutting_entity))
 
             # Get 2D geometries and intersect
             geo1 = ent.Geometry
@@ -767,7 +781,7 @@ class SketchManager:
                 idx_str = idx_str.strip()
                 if not idx_str:
                     continue
-                ent = sketch.SketchEntities.Item(int(idx_str))
+                ent = sketch.SketchLines.Item(int(idx_str))  # scale
                 start = ent.StartSketchPoint
                 end = ent.EndSketchPoint
 
@@ -807,7 +821,7 @@ class SketchManager:
         """
         sketch = self._ensure_active_sketch()
         try:
-            mirror_line = sketch.SketchEntities.Item(int(mirror_entity))
+            mirror_line = sketch.SketchLines.Item(int(mirror_entity))
 
             # Get mirror axis line endpoints
             mg = mirror_line.Geometry  # LineSegment2d
@@ -828,7 +842,7 @@ class SketchManager:
                 idx_str = idx_str.strip()
                 if not idx_str:
                     continue
-                ent = sketch.SketchEntities.Item(int(idx_str))
+                ent = sketch.SketchLines.Item(int(idx_str))  # mirror
                 start = ent.StartSketchPoint
                 end = ent.EndSketchPoint
 
@@ -898,10 +912,24 @@ class SketchManager:
         sketch = self._ensure_active_sketch()
         try:
             gc = sketch.GeometricConstraints
-            e1 = self._resolve_entity(sketch, entity1, "SketchEntity")
-            e2 = None
-            if entity2:
-                e2 = self._resolve_entity(sketch, entity2, "SketchEntity")
+
+            # Use typed collections to get gen_py objects (not CDispatch)
+            line_modes = {"parallel", "perpendicular", "collinear", "horizontal", "vertical", "equal"}
+            circle_modes = {"concentric", "tangent"}
+            point_modes = {"coincident", "midpoint"}
+
+            if mode in line_modes:
+                e1 = sketch.SketchLines.Item(int(entity1))
+                e2 = sketch.SketchLines.Item(int(entity2)) if entity2 else None
+            elif mode in circle_modes:
+                e1 = sketch.SketchCircles.Item(int(entity1))
+                e2 = sketch.SketchCircles.Item(int(entity2)) if entity2 else None
+            elif mode in point_modes:
+                e1 = sketch.SketchPoints.Item(int(entity1))
+                e2 = sketch.SketchPoints.Item(int(entity2)) if entity2 else None
+            else:
+                e1 = sketch.SketchEntities.Item(int(entity1))
+                e2 = sketch.SketchEntities.Item(int(entity2)) if entity2 else None
 
             use_major = axis.lower() != "minor"
 

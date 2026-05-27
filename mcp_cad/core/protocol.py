@@ -201,10 +201,11 @@ class CADProvider(Protocol):
     def sketch_offset(
         self,
         entities: str,
-        distance: float,
-        natural_direction: bool = True,
+        offset_x: float,
+        offset_y: float,
+        include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Offset sketch entities."""
+        """Offset sketch entities through a point."""
         ...
 
     def sketch_move(

@@ -197,12 +197,13 @@ def sketch_rectangular_pattern(
 def sketch_offset(
     provider: CADProvider,
     entities: str,
-    distance: float,
-    natural_direction: bool = True,
+    offset_x: float,
+    offset_y: float,
+    include_connected: bool = False,
 ) -> dict[str, Any]:
-    """Offset sketch entities by a distance."""
+    """Offset sketch entities through a point."""
     try:
-        return provider.sketch_offset(entities, distance, natural_direction)
+        return provider.sketch_offset(entities, offset_x, offset_y, include_connected)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

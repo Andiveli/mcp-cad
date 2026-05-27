@@ -357,17 +357,16 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
     @mcp_instance.tool()
     def skill_offset(
         entities: str = "1",
-        distance: float = 1.0,
-        natural_direction: bool = True,
+        offset_x: float = 0.0,
+        offset_y: float = 1.0,
         include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Tab: Sketch → Panel: Modify — Offset sketch entities.
+        """Tab: Sketch → Panel: Modify — Offset through a point.
 
         Examples:
-            skill_offset(entities="2", distance=5)
-            skill_offset(entities="1", distance=3, natural_direction=False)
+            skill_offset(entities="2", offset_x=0, offset_y=5)
         """
-        return _skill_offset(provider, entities, distance, natural_direction, include_connected)
+        return _skill_offset(provider, entities, offset_x, offset_y, include_connected)
 
     @mcp_instance.tool()
     def skill_move(

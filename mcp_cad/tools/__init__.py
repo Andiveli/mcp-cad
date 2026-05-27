@@ -277,11 +277,12 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
     @mcp_instance.tool()
     def sketch_offset(
         entities: str,
-        distance: float,
-        natural_direction: bool = True,
+        offset_x: float,
+        offset_y: float,
+        include_connected: bool = False,
     ) -> dict[str, Any]:
-        """Offset sketch entities by a distance (cm)."""
-        return tool_sketch_offset(provider, entities, distance, natural_direction)
+        """Offset sketch entities through a point (cm)."""
+        return tool_sketch_offset(provider, entities, offset_x, offset_y, include_connected)
 
     @mcp_instance.tool()
     def sketch_move(
