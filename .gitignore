@@ -22,5 +22,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Coverage
+.coverage
+htmlcov/
+
 # Local Pi runtime state
 .atl/
