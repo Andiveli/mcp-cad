@@ -35,11 +35,12 @@ def revolve(
     profile: str,
     axis: str,
     angle: float = 360.0,
+    direction: str = "positive",
     operation: str = "join",
 ) -> dict[str, Any]:
     """Revolve a profile around an axis to create a 3D feature."""
     try:
-        return provider.revolve(profile, axis, angle, operation)
+        return provider.revolve(profile, axis, angle, direction, operation)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

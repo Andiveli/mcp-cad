@@ -288,6 +288,7 @@ class CADProvider(Protocol):
         profile: str,
         axis: str,
         angle: float = 360.0,
+        direction: str = "positive",
         operation: str = "join",
     ) -> dict[str, Any]:
         """Revolve a profile around an axis to create a 3D feature."""

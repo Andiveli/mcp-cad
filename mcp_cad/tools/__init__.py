@@ -388,10 +388,11 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         profile: str,
         axis: str,
         angle: float = 360.0,
+        direction: str = "positive",
         operation: str = "join",
     ) -> dict[str, Any]:
         """Revolve a profile around an axis to create a 3D feature."""
-        return tool_revolve(provider, profile, axis, angle, operation)
+        return tool_revolve(provider, profile, axis, angle, direction, operation)
 
     @mcp_instance.tool()
     def fillet(

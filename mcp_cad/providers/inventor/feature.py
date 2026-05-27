@@ -303,25 +303,33 @@ class FeatureManager:
         profile: Any,
         axis: Any,
         angle: float = 360.0,
+        direction: str = "positive",
         operation: str = "join",
     ) -> dict[str, Any]:
         """Revolve a profile around an axis to create a 3D feature.
+
+        Inventor 2025+ uses ``AddFull`` (360° sweep) or ``AddByAngle``
+        (partial sweep) instead of the old ``CreateRevolveDefinition``.
 
         Parameters
         ----------
         profile:
             Sketch profile name (str) or COM profile reference.
         axis:
-            Axis of revolution — a sketch line name (str) or COM object.
+            Axis of revolution — sketch line index (str) or COM object.
         angle:
             Revolution angle in degrees (default: 360 for full revolve).
+        direction:
+            "positive", "negative", or "both" (AddByAngle only).
         operation:
-            "join", "cut", or "intersect" (default: "join").
+            "join", "cut", "intersect", or "new_body" (default: "join").
 
         Returns
         -------
         dict with feature metadata.
         """
+        import math
+
         self._ensure_connected()
 
         op_value = _OPERATION_MAP.get(operation.lower())
@@ -333,16 +341,26 @@ class FeatureManager:
 
         resolved = self._resolve_profile(profile)
         doc = self._ensure_active_document()
+        comp_def = doc.ComponentDefinition
+
+        # Resolve axis entity (sketch line in the same sketch as the profile)
+        resolved_axis = self._resolve_axis(axis, comp_def)
 
         try:
-            comp_def = doc.ComponentDefinition
-            features = comp_def.Features
-            revolve_def = features.RevolveFeatures.CreateRevolveDefinition(
-                resolved, axis
-            )
-            revolve_def.Angle = angle
-            revolve_def.Operation = op_value
-            feature = features.RevolveFeatures.Add(revolve_def)
+            rf = comp_def.Features.RevolveFeatures
+
+            if angle >= 360.0 - 0.001:
+                rf.AddFull(resolved, resolved_axis, op_value)
+            else:
+                dir_value = _DIRECTION_MAP.get(direction.lower())
+                if dir_value is None:
+                    raise InventorCOMError(
+                        f"Invalid direction '{direction}'."
+                    )
+                # AddByAngle angle is in radians
+                angle_rad = math.radians(angle)
+                rf.AddByAngle(resolved, resolved_axis, angle_rad, dir_value, op_value)
+
             return {
                 "success": True,
                 "feature_type": "revolve",

@@ -449,8 +449,8 @@ class TestFeatureTools:
         provider = _make_mock_provider()
         register_tools(fake_mcp, provider)
 
-        tools["revolve"](profile="p1", axis="axis1", angle=180.0, operation="cut")
-        provider.revolve.assert_called_once_with("p1", "axis1", 180.0, "cut")
+        tools["revolve"](profile="p1", axis="axis1", angle=180.0, direction="positive", operation="cut")
+        provider.revolve.assert_called_once_with("p1", "axis1", 180.0, "positive", "cut")
 
 
 # ==================================================================

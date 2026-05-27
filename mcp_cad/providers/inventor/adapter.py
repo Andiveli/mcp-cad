@@ -271,10 +271,11 @@ class InventorProvider:
         profile: str,
         axis: str,
         angle: float = 360.0,
+        direction: str = "positive",
         operation: str = "join",
     ) -> dict[str, Any]:
         """Revolve a profile around an axis to create a 3D feature."""
-        return self._feature.revolve(profile, axis, angle, operation)
+        return self._feature.revolve(profile, axis, angle, direction, operation)
 
     def fillet(
         self,

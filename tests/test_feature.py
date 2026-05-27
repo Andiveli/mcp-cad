@@ -258,14 +258,12 @@ class TestRevolve:
     """Tests for revolve()."""
 
     def test_revolve_success(self, mock_inventor: MagicMock):
-        """Should create a revolve feature and return metadata."""
+        """Should create a partial revolve via AddByAngle."""
         mgr = _make_feature_manager(mock_inventor)
         mocks = _setup_active_document_with_features(mock_inventor)
 
         mock_profile = MagicMock()
         mock_axis = MagicMock()
-        mock_revolve_def = MagicMock()
-        mocks["revolve_features"].CreateRevolveDefinition.return_value = mock_revolve_def
 
         result = mgr.revolve(mock_profile, axis=mock_axis, angle=270.0)
 
@@ -273,27 +271,20 @@ class TestRevolve:
         assert result["feature_type"] == "revolve"
         assert result["angle"] == 270.0
         assert result["operation"] == "join"
-        mocks["revolve_features"].CreateRevolveDefinition.assert_called_once_with(
-            mock_profile, mock_axis
-        )
-        mocks["revolve_features"].Add.assert_called_once_with(mock_revolve_def)
-        mock_revolve_def.Angle = 270.0
-        mock_revolve_def.Operation = 0  # join
+        mocks["revolve_features"].AddByAngle.assert_called_once()
 
     def test_revolve_default_full_angle(self, mock_inventor: MagicMock):
-        """Should default to 360 degrees (full revolution)."""
+        """Should use AddFull for 360-degree revolve."""
         mgr = _make_feature_manager(mock_inventor)
         mocks = _setup_active_document_with_features(mock_inventor)
 
         mock_profile = MagicMock()
         mock_axis = MagicMock()
-        mock_revolve_def = MagicMock()
-        mocks["revolve_features"].CreateRevolveDefinition.return_value = mock_revolve_def
 
         result = mgr.revolve(mock_profile, axis=mock_axis)
 
         assert result["angle"] == 360.0
-        mock_revolve_def.Angle = 360.0
+        mocks["revolve_features"].AddFull.assert_called_once()
 
     def test_revolve_cut_operation(self, mock_inventor: MagicMock):
         """Should accept cut operation."""
@@ -302,13 +293,10 @@ class TestRevolve:
 
         mock_profile = MagicMock()
         mock_axis = MagicMock()
-        mock_revolve_def = MagicMock()
-        mocks["revolve_features"].CreateRevolveDefinition.return_value = mock_revolve_def
 
         result = mgr.revolve(mock_profile, axis=mock_axis, operation="cut")
 
         assert result["operation"] == "cut"
-        mock_revolve_def.Operation = 1  # cut
 
     def test_revolve_invalid_operation(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError for invalid operation."""
@@ -322,11 +310,9 @@ class TestRevolve:
     def test_revolve_com_error(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError when COM call fails."""
         mgr = _make_feature_manager(mock_inventor)
-        _setup_active_document_with_features(mock_inventor)
+        mocks = _setup_active_document_with_features(mock_inventor)
 
-        mock_inventor.ActiveDocument.ComponentDefinition.Features.RevolveFeatures.CreateRevolveDefinition.side_effect = (
-            Exception("COM error")
-        )
+        mocks["revolve_features"].AddFull.side_effect = Exception("COM error")
 
         mock_profile = MagicMock()
         mock_axis = MagicMock()

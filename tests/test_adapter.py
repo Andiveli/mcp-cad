@@ -250,14 +250,14 @@ class TestFeatureDelegation:
         provider, mocks = _make_mock_provider()
         provider.revolve("profile1", "axis1")
         mocks["feature"].revolve.assert_called_once_with(
-            "profile1", "axis1", 360.0, "join"
+            "profile1", "axis1", 360.0, "positive", "join"
         )
 
     def test_revolve_with_all_params(self):
         provider, mocks = _make_mock_provider()
-        provider.revolve("p1", "a1", angle=180.0, operation="cut")
+        provider.revolve("p1", "a1", angle=180.0, direction="negative", operation="cut")
         mocks["feature"].revolve.assert_called_once_with(
-            "p1", "a1", 180.0, "cut"
+            "p1", "a1", 180.0, "negative", "cut"
         )
 
     def test_fillet_defaults(self):
