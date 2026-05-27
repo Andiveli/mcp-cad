@@ -21,6 +21,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp_cad.core.protocol import CADProvider
 from mcp_cad.skills.sketch import skill_sketch as _skill_sketch
 from mcp_cad.skills.line import skill_line as _skill_line
+from mcp_cad.skills.circle import skill_circle as _skill_circle
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -82,4 +83,44 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             start_y=start_y,
             mid_x=mid_x,
             mid_y=mid_y,
+        )
+
+    @mcp_instance.tool()
+    def skill_circle(
+        mode: str = "center",
+        cx: float = 0.0,
+        cy: float = 0.0,
+        radius: float = 1.0,
+        x1: float = 0.0,
+        y1: float = 0.0,
+        x2: float = 0.0,
+        y2: float = 0.0,
+        x3: float = 0.0,
+        y3: float = 0.0,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Draw — Draw a circle.
+
+        Modes:
+            center — center point + radius (cx, cy, radius)
+            3point — three perimeter points (x1,y1, x2,y2, x3,y3)
+
+        Examples:
+            # Center-radius circle
+            skill_circle(cx=5, cy=5, radius=3)
+
+            # 3-point circle
+            skill_circle(mode="3point", x1=0, y1=0, x2=10, y2=10, x3=20, y3=0)
+        """
+        return _skill_circle(
+            provider,
+            mode=mode,
+            cx=cx,
+            cy=cy,
+            radius=radius,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
+            x3=x3,
+            y3=y3,
         )
