@@ -34,6 +34,7 @@ from mcp_cad.skills.modify import skill_move as _skill_move
 from mcp_cad.skills.modify import skill_rotate as _skill_rotate
 from mcp_cad.skills.modify import skill_delete_sketch as _skill_delete_sketch
 from mcp_cad.skills.constrain import skill_constraint as _skill_constraint
+from mcp_cad.skills.dimension import skill_dimension as _skill_dimension
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -426,3 +427,23 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
             skill_constraint(mode="symmetric", entity1="1", entity2="2", sym_line="3")
         """
         return _skill_constraint(provider, mode, entity1, entity2, sym_line, axis)
+
+    @mcp_instance.tool()
+    def skill_dimension(
+        entity: str = "1",
+        value: float = 10.0,
+        position_x: float | None = None,
+        position_y: float | None = None,
+    ) -> dict[str, Any]:
+        """Tab: Sketch → Panel: Constrain — Add a dimension constraint.
+
+        Args:
+            entity: 1-based entity index.
+            value: Dimension value in cm.
+            position_x, position_y: Optional text placement.
+
+        Examples:
+            skill_dimension(entity="1", value=25)
+            skill_dimension(entity="2", value=15, position_x=5, position_y=5)
+        """
+        return _skill_dimension(provider, entity, value, position_x, position_y)
