@@ -93,12 +93,12 @@ class TestExtrude:
         assert result["direction"] == "positive"
         assert result["operation"] == "new_body"
         assert result["taper"] == 0.0
-        # Second argument is PartFeatureOperationEnum (0 = kNewBodyOperation),
+        # Second argument is PartFeatureOperationEnum (20485 = kNewBodyOperation),
         # NOT the distance — distance goes through SetDistanceExtent.
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 0
+            mock_profile, 20485
         )
-        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20929)
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20993)
         mock_extrude_def.TaperAngle = "0.0 rad"
         mocks["extrude_features"].Add.assert_called_once_with(mock_extrude_def)
 
@@ -139,7 +139,7 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=10.0, direction="negative")
 
         assert result["direction"] == "negative"
-        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20930)
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(10.0, 20994)
 
     def test_extrude_both_directions(self, mock_inventor: MagicMock):
         """Should accept both directions."""
@@ -153,7 +153,7 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=5.0, direction="both")
 
         assert result["direction"] == "both"
-        mock_extrude_def.SetDistanceExtent.assert_called_once_with(5.0, 20931)
+        mock_extrude_def.SetDistanceExtent.assert_called_once_with(5.0, 20995)
 
     def test_extrude_cut_operation(self, mock_inventor: MagicMock):
         """Should accept cut operation."""
@@ -167,9 +167,9 @@ class TestExtrude:
         result = mgr.extrude(mock_profile, distance=5.0, operation="cut")
 
         assert result["operation"] == "cut"
-        # kCutOperation = 2, passed to CreateExtrudeDefinition
+        # kCutOperation = 20482, passed to CreateExtrudeDefinition
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 2
+            mock_profile, 20482
         )
 
     def test_extrude_with_taper(self, mock_inventor: MagicMock):
@@ -216,7 +216,7 @@ class TestExtrude:
 
         assert result["operation"] == "new_body"
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 0  # kNewBodyOperation
+            mock_profile, 20485  # kNewBodyOperation
         )
 
     def test_extrude_com_error(self, mock_inventor: MagicMock):
@@ -362,8 +362,9 @@ class TestFillet:
         mgr = _make_feature_manager(mock_inventor)
         mocks = _setup_active_document_with_features(mock_inventor)
 
-        mock_fillet_def = MagicMock()
-        mocks["fillet_features"].CreateFilletDefinition.return_value = mock_fillet_def
+        # Set up TransientObjects for EdgeCollection creation
+        mock_edge_col = MagicMock()
+        mock_inventor.TransientObjects.CreateEdgeCollection.return_value = mock_edge_col
 
         result = mgr.fillet(edges=MagicMock(), radius=2.5)
 
@@ -371,21 +372,8 @@ class TestFillet:
         assert result["feature_type"] == "fillet"
         assert result["radius"] == 2.5
         assert result["mode"] == "constant"
-        mocks["fillet_features"].Add.assert_called_once_with(mock_fillet_def)
-        mock_fillet_def.Radius = 2.5
-
-    def test_fillet_variable_mode(self, mock_inventor: MagicMock):
-        """Should accept variable fillet mode."""
-        mgr = _make_feature_manager(mock_inventor)
-        mocks = _setup_active_document_with_features(mock_inventor)
-
-        mock_fillet_def = MagicMock()
-        mocks["fillet_features"].CreateFilletDefinition.return_value = mock_fillet_def
-
-        result = mgr.fillet(edges=MagicMock(), radius=3.0, mode="variable")
-
-        assert result["mode"] == "variable"
-        mocks["fillet_features"].CreateFilletDefinition.assert_called_once()
+        mock_inventor.TransientObjects.CreateEdgeCollection.assert_called_once()
+        mocks["fillet_features"].AddSimple.assert_called_once_with(mock_edge_col, 2.5)
 
     def test_fillet_invalid_mode(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError for invalid fillet mode."""
@@ -394,12 +382,20 @@ class TestFillet:
         with pytest.raises(InventorCOMError, match="Invalid fillet mode"):
             mgr.fillet(edges=MagicMock(), radius=2.0, mode="weird")
 
+    def test_fillet_variable_mode_rejected(self, mock_inventor: MagicMock):
+        """Should reject variable mode — not supported in Inventor 2025+ API."""
+        mgr = _make_feature_manager(mock_inventor)
+
+        with pytest.raises(InventorCOMError, match="Invalid fillet mode"):
+            mgr.fillet(edges=MagicMock(), radius=3.0, mode="variable")
+
     def test_fillet_com_error(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError when COM call fails."""
         mgr = _make_feature_manager(mock_inventor)
         _setup_active_document_with_features(mock_inventor)
 
-        mock_inventor.ActiveDocument.ComponentDefinition.Features.FilletFeatures.CreateFilletDefinition.side_effect = (
+        mock_inventor.TransientObjects.CreateEdgeCollection.return_value = MagicMock()
+        mock_inventor.ActiveDocument.ComponentDefinition.Features.FilletFeatures.AddSimple.side_effect = (
             Exception("COM error")
         )
 
@@ -435,8 +431,8 @@ class TestChamfer:
         mgr = _make_feature_manager(mock_inventor)
         mocks = _setup_active_document_with_features(mock_inventor)
 
-        mock_chamfer_def = MagicMock()
-        mocks["chamfer_features"].CreateChamferDefinition.return_value = mock_chamfer_def
+        mock_edge_col = MagicMock()
+        mock_inventor.TransientObjects.CreateEdgeCollection.return_value = mock_edge_col
 
         result = mgr.chamfer(edges=MagicMock(), distance=1.5)
 
@@ -444,20 +440,21 @@ class TestChamfer:
         assert result["feature_type"] == "chamfer"
         assert result["distance"] == 1.5
         assert result["mode"] == "equal_distance"
-        mocks["chamfer_features"].Add.assert_called_once_with(mock_chamfer_def)
+        mock_inventor.TransientObjects.CreateEdgeCollection.assert_called_once()
+        mocks["chamfer_features"].AddUsingDistance.assert_called_once_with(mock_edge_col, 1.5)
 
     def test_chamfer_two_distances_mode(self, mock_inventor: MagicMock):
         """Should accept two_distances chamfer mode."""
         mgr = _make_feature_manager(mock_inventor)
         mocks = _setup_active_document_with_features(mock_inventor)
 
-        mock_chamfer_def = MagicMock()
-        mocks["chamfer_features"].CreateChamferDefinition.return_value = mock_chamfer_def
+        mock_edge_col = MagicMock()
+        mock_inventor.TransientObjects.CreateEdgeCollection.return_value = mock_edge_col
 
         result = mgr.chamfer(edges=MagicMock(), distance=2.0, mode="two_distances")
 
         assert result["mode"] == "two_distances"
-        mocks["chamfer_features"].CreateChamferDefinition.assert_called_once()
+        mocks["chamfer_features"].AddUsingTwoDistances.assert_called_once_with(mock_edge_col, 2.0, 2.0)
 
     def test_chamfer_invalid_mode(self, mock_inventor: MagicMock):
         """Should raise InventorCOMError for invalid chamfer mode."""
@@ -471,11 +468,27 @@ class TestChamfer:
         mgr = _make_feature_manager(mock_inventor)
         _setup_active_document_with_features(mock_inventor)
 
-        mock_inventor.ActiveDocument.ComponentDefinition.Features.ChamferFeatures.CreateChamferDefinition.side_effect = (
+        mock_inventor.TransientObjects.CreateEdgeCollection.return_value = MagicMock()
+        mock_inventor.ActiveDocument.ComponentDefinition.Features.ChamferFeatures.AddUsingDistance.side_effect = (
             Exception("COM error")
         )
 
         with pytest.raises(InventorCOMError, match="Failed to create chamfer"):
+            mgr.chamfer(edges=MagicMock(), distance=1.0)
+
+    def test_chamfer_no_active_document(self, mock_inventor: MagicMock):
+        """Should raise InventorCOMError when no active document."""
+        mgr = _make_feature_manager(mock_inventor)
+        mock_inventor.ActiveDocument = None
+
+        with pytest.raises(InventorCOMError, match="No active document"):
+            mgr.chamfer(edges=MagicMock(), distance=1.0)
+
+    def test_chamfer_not_connected(self):
+        """Should raise InventorDisconnectedError when not connected."""
+        driver = make_mock_driver(None)
+        mgr = FeatureManager(driver)
+        with pytest.raises(InventorDisconnectedError):
             mgr.chamfer(edges=MagicMock(), distance=1.0)
 
     def test_chamfer_no_active_document(self, mock_inventor: MagicMock):
@@ -551,7 +564,7 @@ class TestFeatureProfileResolution:
         result = mgr.extrude(mock_profile, distance=10.0)
         assert result["success"] is True
         # Verify CreateExtrudeDefinition was called with the mock_profile
-        # and the operation enum (kNewBodyOperation = 0), not the distance.
+        # and the operation enum (kNewBodyOperation = 20485), not the distance.
         mocks["extrude_features"].CreateExtrudeDefinition.assert_called_once_with(
-            mock_profile, 0
+            mock_profile, 20485
         )

@@ -91,22 +91,25 @@ class TestDocNewPart:
         """Should create a part document and return metadata."""
         mock_doc = _make_mock_doc(doc_type=12290)
         mock_inventor.Documents.Add.return_value = mock_doc
+        mock_inventor.FileManager.GetTemplateFile.return_value = r"C:\Templates\Standard.ipt"
         mgr = _make_doc_manager(mock_inventor)
         result = mgr.doc_new_part()
 
         assert result["success"] is True
         assert result["document_type"] == 12290
-        mock_inventor.Documents.Add.assert_called_once_with(12290, "Standard")
+        mock_inventor.FileManager.GetTemplateFile.assert_called_once_with(12290)
+        mock_inventor.Documents.Add.assert_called_once_with(12290, r"C:\Templates\Standard.ipt", True)
 
     def test_new_part_with_template(self, mock_inventor: MagicMock):
-        """Should pass the template name to Documents.Add."""
+        """Should pass custom template path to Documents.Add."""
         mock_doc = _make_mock_doc()
         mock_inventor.Documents.Add.return_value = mock_doc
         mgr = _make_doc_manager(mock_inventor)
-        mgr.doc_new_part(template="Sheet Metal")
+        mgr.doc_new_part(template=r"C:\Templates\SheetMetal.ipt")
 
+        mock_inventor.FileManager.GetTemplateFile.assert_not_called()
         mock_inventor.Documents.Add.assert_called_once_with(
-            12290, "Sheet Metal"
+            12290, r"C:\Templates\SheetMetal.ipt", True
         )
 
     def test_new_part_com_error(self, mock_inventor: MagicMock):
@@ -135,22 +138,25 @@ class TestDocNewAssembly:
         """Should create an assembly document and return metadata."""
         mock_doc = _make_mock_doc(doc_type=12291)
         mock_inventor.Documents.Add.return_value = mock_doc
+        mock_inventor.FileManager.GetTemplateFile.return_value = r"C:\Templates\Standard.iam"
         mgr = _make_doc_manager(mock_inventor)
         result = mgr.doc_new_assembly()
 
         assert result["success"] is True
         assert result["document_type"] == 12291
-        mock_inventor.Documents.Add.assert_called_once_with(12291, "Standard")
+        mock_inventor.FileManager.GetTemplateFile.assert_called_once_with(12291)
+        mock_inventor.Documents.Add.assert_called_once_with(12291, r"C:\Templates\Standard.iam", True)
 
     def test_new_assembly_with_template(self, mock_inventor: MagicMock):
-        """Should pass the template name to Documents.Add."""
+        """Should pass custom template path to Documents.Add."""
         mock_doc = _make_mock_doc()
         mock_inventor.Documents.Add.return_value = mock_doc
         mgr = _make_doc_manager(mock_inventor)
-        mgr.doc_new_assembly(template="Weldment")
+        mgr.doc_new_assembly(template=r"C:\Templates\Weldment.iam")
 
+        mock_inventor.FileManager.GetTemplateFile.assert_not_called()
         mock_inventor.Documents.Add.assert_called_once_with(
-            12291, "Weldment"
+            12291, r"C:\Templates\Weldment.iam", True
         )
 
     def test_new_assembly_com_error(self, mock_inventor: MagicMock):
