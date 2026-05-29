@@ -238,7 +238,7 @@ Config location: `~/.pi/agent/mcp.json`
 
 ```json
 {
-  "mcpServers": {
+  "github.copilot.chat.mcp.servers": {
     "mcp-cad": {
       "command": "C:\\path\\to\\mcp-cad\\.venv\\Scripts\\python.exe",
       "args": ["-m", "mcp_cad"]
@@ -247,7 +247,7 @@ Config location: `~/.pi/agent/mcp.json`
 }
 ```
 
-Config location: `.vscode/mcp.json` (workspace-level)
+Config location: `%APPDATA%/Code/User/settings.json` (user-level) — the TUI registers it here automatically so VS Code sees mcp-cad globally, not just in one workspace.
 
 ## Limitations
 

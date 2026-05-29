@@ -56,10 +56,11 @@ PI_SCHEMA: dict = {
 }
 
 # ---------------------------------------------------------------------------
-# VS Code / GitHub Copilot format — workspace-level .vscode/mcp.json
+# VS Code / GitHub Copilot format — user-level settings.json
+# Key: github.copilot.chat.mcp.servers
 # ---------------------------------------------------------------------------
 VSCODE_SCHEMA: dict = {
-    "mcpServers": {
+    "github.copilot.chat.mcp.servers": {
         "mcp-cad": {
             "command": "{python_exe}",
             "args": ["-m", "mcp_cad"],

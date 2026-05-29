@@ -1,9 +1,9 @@
 {
-  "mcpServers": {
+  "github.copilot.chat.mcp.servers": {
     "mcp-cad": {
       "command": ".venv\\Scripts\\python.exe",
       "args": ["-m", "mcp_cad"],
-      "_comment": "For VS Code / GitHub Copilot Chat. Place in .vscode/mcp.json or VS Code user settings under 'github.copilot.chat.mcp.servers'. On Windows with venv, use '.venv\\Scripts\\python.exe'. If using system Python, just 'python'."
+      "_comment": "Add this block to VS Code User settings.json (%APPDATA%/Code/User/settings.json) under 'github.copilot.chat.mcp.servers'. The TUI does this automatically. Reload VS Code window after adding."
     }
   }
 }

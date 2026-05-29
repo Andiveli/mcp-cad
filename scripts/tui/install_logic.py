@@ -5,19 +5,22 @@ Testable with ``tmp_path`` pytest fixtures.
 
 Public API
 ----------
-- :func:`read_config`   — read and parse a JSON config file
-- :func:`write_config`  — atomic write via temp file + ``os.replace``
-- :func:`deep_merge`    — recursively merge two dicts
-- :func:`merge_entry`   — merge an entry into a config dict under a key
-- :func:`register_opencode` — register mcp-cad in OpenCode config
-- :func:`register_claude`   — register mcp-cad in Claude Desktop config
-- :func:`register_pi`       — register mcp-cad in Pi settings
+- :func:`read_config`        — read and parse a JSON config file
+- :func:`read_config_jsonc`  — read JSON with ``//`` comment support
+- :func:`write_config`       — atomic write via temp file + ``os.replace``
+- :func:`deep_merge`         — recursively merge two dicts
+- :func:`merge_entry`        — merge an entry into a config dict under a key
+- :func:`register_opencode`  — register mcp-cad in OpenCode config
+- :func:`register_claude`    — register mcp-cad in Claude Desktop config
+- :func:`register_pi`        — register mcp-cad in Pi settings
+- :func:`register_vscode`    — register mcp-cad in VS Code settings.json
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 from scripts.tui.config_schemas import (
@@ -54,6 +57,37 @@ def read_config(path: str | Path) -> dict | None:
         return None
     with p.open(encoding="utf-8") as f:
         return json.load(f)
+
+
+def read_config_jsonc(path: str | Path) -> dict | None:
+    """Read and parse a JSONC (JSON with ``//`` comments) config file.
+
+    Strips single-line ``//`` comments before parsing.
+    Does **not** support block comments (``/* */``).
+
+    Returns
+    -------
+    dict | None
+        Parsed configuration, or ``None`` if the file does not exist.
+
+    Raises
+    ------
+    json.JSONDecodeError
+        If the file exists but contains invalid JSON after comment stripping.
+    OSError
+        If the file cannot be read due to a filesystem error.
+    """
+    p = Path(path)
+    if not p.exists():
+        return None
+    with p.open(encoding="utf-8") as f:
+        text = f.read()
+    # Remove // comments (but not inside strings — simple regex is sufficient
+    # for VS Code settings.json which only uses line comments)
+    text = re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE)
+    # Also handle trailing // comments on lines with data
+    text = re.sub(r'("[^"\\]*(?:\\.[^"\\]*)*")\s*//.*$', r"\1", text, flags=re.MULTILINE)
+    return json.loads(text)
 
 
 def write_config(path: str | Path, data: dict) -> None:
@@ -229,17 +263,19 @@ def register_pi(venv_python: str, settings_path: str | None = None) -> str:
     return str(config_path)
 
 
-def register_vscode(project_dir: str | Path, venv_python: str) -> str:
-    """Register mcp-cad in the workspace ``.vscode/mcp.json``.
+def register_vscode(venv_python: str, settings_path: str | None = None) -> str:
+    """Register mcp-cad in VS Code's user ``settings.json``.
 
-    This config is read by VS Code's GitHub Copilot Chat agent.
+    Writes under ``github.copilot.chat.mcp.servers`` so that GitHub Copilot
+    Chat discovers the server globally — not just in a single workspace.
 
     Parameters
     ----------
-    project_dir:
-        Workspace directory containing (or to create) ``.vscode/mcp.json``.
     venv_python:
         Absolute path to the venv Python executable.
+    settings_path:
+        Explicit path to VS Code's ``settings.json``.
+        If ``None``, defaults to ``%APPDATA%\\Code\\User\\settings.json``.
 
     Returns
     -------
@@ -251,14 +287,20 @@ def register_vscode(project_dir: str | Path, venv_python: str) -> str:
     PermissionError
         If the config file cannot be written.
     json.JSONDecodeError
-        If an existing config file contains invalid JSON.
+        If an existing config file contains invalid JSON (even after
+        comment stripping).
     """
-    config_path = Path(project_dir) / ".vscode" / "mcp.json"
+    if settings_path:
+        config_path = Path(settings_path)
+    else:
+        appdata = os.environ.get("APPDATA", "")
+        config_path = Path(appdata) / "Code" / "User" / "settings.json"
+
     entry = format_schema(VSCODE_SCHEMA, venv_python)
 
-    data = read_config(config_path) or {}
-    mcp_servers = entry.get("mcpServers", {})
-    data = merge_entry(data, "mcpServers", mcp_servers)
+    data = read_config_jsonc(config_path) or {}
+    servers = entry.get("github.copilot.chat.mcp.servers", {})
+    data = merge_entry(data, "github.copilot.chat.mcp.servers", servers)
 
     write_config(config_path, data)
     return str(config_path)
