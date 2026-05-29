@@ -515,6 +515,7 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
     @mcp_instance.tool()
     def skill_revolve(
         plane: str = "XY",
+        profile: str = "",
         profile_cx: float = 3.0,
         profile_cy: float = 0.0,
         profile_radius: float = 1.0,
@@ -524,7 +525,7 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
         angle: float = 360.0,
         operation: str = "join",
     ) -> dict[str, Any]:
-        """Tab: 3D — Revolve a circular profile around a vertical axis.
+        """Tab: 3D — Revolve a profile around a vertical axis.
 
         Composes sketch_create + sketch_circle + sketch_line + revolve.
         Defaults produce a torus (circle at x=3 revolved around x=0).
@@ -532,8 +533,9 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
 
         Args:
             plane: Work plane ("XY", "XZ", "YZ").
-            profile_cx, profile_cy: Profile center (cm).
-            profile_radius: Profile radius (cm).
+            profile: Existing profile index (e.g. "1"). If empty, draws circle.
+            profile_cx, profile_cy: Auto-drawn circle center (cm).
+            profile_radius: Auto-drawn circle radius (cm).
             axis_x: X position of vertical axis line.
             axis_y1, axis_y2: Start/end Y of axis line.
             angle: Revolve angle in degrees (360 = full).
@@ -541,17 +543,18 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
 
         Examples:
             # Torus (donut)
-            skill_revolve(plane="XY", profile_cx=5, profile_radius=2)
+            skill_revolve(profile_cx=5, profile_radius=2)
 
-            # Solid cylinder
-            skill_revolve(plane="XY", profile_cx=0, profile_radius=3)
+            # Custom profile — draw shape first, then revolve
+            skill_revolve(profile="1", axis_x=0)
 
-            # Half torus
-            skill_revolve(plane="XY", profile_cx=4, profile_radius=1.5, angle=180)
+            # Cut a groove
+            skill_revolve(profile_cx=2, profile_radius=0.5, operation="cut")
         """
         return _skill_revolve(
             provider,
             plane=plane,
+            profile=profile,
             profile_cx=profile_cx,
             profile_cy=profile_cy,
             profile_radius=profile_radius,
