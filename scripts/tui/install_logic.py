@@ -265,18 +265,18 @@ def register_pi(venv_python: str, settings_path: str | None = None) -> str:
 
 
 def register_vscode(venv_python: str, settings_path: str | None = None) -> str:
-    """Register mcp-cad in VS Code's user ``settings.json``.
+    """Register mcp-cad in VS Code's user ``mcp.json``.
 
-    Writes under ``github.copilot.chat.mcp.servers`` so that GitHub Copilot
-    Chat discovers the server globally — not just in a single workspace.
+    Writes under ``servers`` in ``%APPDATA%/Code/User/mcp.json`` so that
+    GitHub Copilot Chat discovers the server globally.
 
     Parameters
     ----------
     venv_python:
         Absolute path to the venv Python executable.
     settings_path:
-        Explicit path to VS Code's ``settings.json``.
-        If ``None``, defaults to ``%APPDATA%\\Code\\User\\settings.json``.
+        Explicit path to VS Code's ``mcp.json``.
+        If ``None``, defaults to ``%APPDATA%\\Code\\User\\mcp.json``.
 
     Returns
     -------
@@ -288,20 +288,19 @@ def register_vscode(venv_python: str, settings_path: str | None = None) -> str:
     PermissionError
         If the config file cannot be written.
     json.JSONDecodeError
-        If an existing config file contains invalid JSON (even after
-        comment stripping).
+        If an existing config file contains invalid JSON.
     """
     if settings_path:
         config_path = Path(settings_path)
     else:
         appdata = os.environ.get("APPDATA", "")
-        config_path = Path(appdata) / "Code" / "User" / "settings.json"
+        config_path = Path(appdata) / "Code" / "User" / "mcp.json"
 
     entry = format_schema(VSCODE_SCHEMA, venv_python)
 
-    data = read_config_jsonc(config_path) or {}
-    servers = entry.get("github.copilot.chat.mcp.servers", {})
-    data = merge_entry(data, "github.copilot.chat.mcp.servers", servers)
+    data = read_config(config_path) or {}
+    servers = entry.get("servers", {})
+    data = merge_entry(data, "servers", servers)
 
     write_config(config_path, data)
     return str(config_path)

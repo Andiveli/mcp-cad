@@ -16,7 +16,6 @@ from scripts.tui.install_logic import (
     deep_merge,
     merge_entry,
     read_config,
-    read_config_jsonc,
     register_claude,
     register_opencode,
     register_pi,
@@ -281,7 +280,7 @@ class TestRegisterVSCode:
     """Tests for :func:`register_vscode`."""
 
     def test_creates_config_in_appdata(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Creates/updates settings.json under %APPDATA%/Code/User/."""
+        """Creates/updates mcp.json under %APPDATA%/Code/User/."""
         monkeypatch.setenv("APPDATA", str(tmp_path))
         python_exe = r"C:\venv\Scripts\python.exe"
 
@@ -291,86 +290,31 @@ class TestRegisterVSCode:
         assert config_path.exists()
         assert "Code" in str(config_path)
         assert "User" in str(config_path)
-        assert config_path.name == "settings.json"
+        assert config_path.name == "mcp.json"
 
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        servers = config["github.copilot.chat.mcp.servers"]
-        assert "mcp-cad" in servers
-        assert servers["mcp-cad"]["command"] == python_exe
-        assert servers["mcp-cad"]["args"] == ["-m", "mcp_cad"]
+        assert "servers" in config
+        assert "mcp-cad" in config["servers"]
+        assert config["servers"]["mcp-cad"]["command"] == python_exe
+        assert config["servers"]["mcp-cad"]["args"] == ["-m", "mcp_cad"]
 
     def test_merges_with_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Preserves existing settings when merging."""
+        """Preserves existing servers when merging."""
         monkeypatch.setenv("APPDATA", str(tmp_path))
         code_dir = tmp_path / "Code" / "User"
         code_dir.mkdir(parents=True)
-        config_path = code_dir / "settings.json"
+        config_path = code_dir / "mcp.json"
         config_path.write_text(
-            json.dumps({
-                "workbench.iconTheme": "vscode-icons",
-                "github.copilot.chat.mcp.servers": {"other": {"command": "old"}},
-            }),
+            json.dumps({"servers": {"other": {"command": "old"}}}),
             encoding="utf-8",
         )
 
         register_vscode(r"C:\venv\Scripts\python.exe")
 
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        assert config["workbench.iconTheme"] == "vscode-icons"
-        servers = config["github.copilot.chat.mcp.servers"]
+        servers = config["servers"]
         assert "other" in servers
         assert "mcp-cad" in servers
-
-    def test_handles_jsonc_comments(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Parses settings.json with // comments correctly."""
-        monkeypatch.setenv("APPDATA", str(tmp_path))
-        code_dir = tmp_path / "Code" / "User"
-        code_dir.mkdir(parents=True)
-        config_path = code_dir / "settings.json"
-        config_path.write_text(
-            '{\n'
-            '  "workbench.iconTheme": "vscode-icons",\n'
-            '  // this is a comment\n'
-            '  "editor.fontSize": 16\n'
-            '}\n',
-            encoding="utf-8",
-        )
-
-        result = register_vscode(r"C:\venv\Scripts\python.exe")
-
-        config = json.loads(Path(result).read_text(encoding="utf-8"))
-        assert config["workbench.iconTheme"] == "vscode-icons"
-        assert config["editor.fontSize"] == 16
-        assert "mcp-cad" in config["github.copilot.chat.mcp.servers"]
-
-    def test_handles_trailing_commas(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Parses settings.json with trailing commas (valid JSONC, invalid JSON)."""
-        monkeypatch.setenv("APPDATA", str(tmp_path))
-        code_dir = tmp_path / "Code" / "User"
-        code_dir.mkdir(parents=True)
-        config_path = code_dir / "settings.json"
-        config_path.write_text(
-            '{\n'
-            '  "editor.fontSize": 16,\n'
-            '  "editor.tokenColorCustomizations": {\n'
-            '    "textMateRules": [\n'
-            '      {\n'
-            '        "scope": "source",\n'
-            '        "settings": {\n'
-            '          "foreground": "#FF0000",\n'
-            '        }\n'
-            '      }\n'
-            '    ],\n'
-            '  },\n'
-            '}\n',
-            encoding="utf-8",
-        )
-
-        result = register_vscode(r"C:\venv\Scripts\python.exe")
-
-        config = json.loads(Path(result).read_text(encoding="utf-8"))
-        assert config["editor.fontSize"] == 16
-        assert "mcp-cad" in config["github.copilot.chat.mcp.servers"]
 
     def test_no_directtools_in_schema(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """VS Code schema must NOT include directTools or lifecycle flags."""
@@ -379,18 +323,17 @@ class TestRegisterVSCode:
         result = register_vscode(r"C:\venv\Scripts\python.exe")
 
         config = json.loads(Path(result).read_text(encoding="utf-8"))
-        servers = config["github.copilot.chat.mcp.servers"]
-        entry = servers["mcp-cad"]
+        entry = config["servers"]["mcp-cad"]
         assert "directTools" not in entry
         assert "lifecycle" not in entry
 
     def test_uses_custom_path(self, tmp_path: Path) -> None:
         """Explicit ``settings_path`` takes precedence over APPDATA."""
-        custom = tmp_path / "custom" / "settings.json"
+        custom = tmp_path / "custom" / "mcp.json"
 
         result = register_vscode(r"C:\venv\Scripts\python.exe", settings_path=str(custom))
 
         config_path = Path(result)
         assert config_path == custom
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        assert "mcp-cad" in config["github.copilot.chat.mcp.servers"]
+        assert "mcp-cad" in config["servers"]

@@ -1,9 +1,9 @@
 {
-  "github.copilot.chat.mcp.servers": {
+  "servers": {
     "mcp-cad": {
       "command": ".venv\\Scripts\\python.exe",
       "args": ["-m", "mcp_cad"],
-      "_comment": "Add this block to VS Code User settings.json (%APPDATA%/Code/User/settings.json) under 'github.copilot.chat.mcp.servers'. The TUI does this automatically. Reload VS Code window after adding."
+      "_comment": "Add this to %APPDATA%/Code/User/mcp.json under 'servers'. The TUI does this automatically. Reload VS Code window after adding."
     }
   }
 }

@@ -56,11 +56,11 @@ PI_SCHEMA: dict = {
 }
 
 # ---------------------------------------------------------------------------
-# VS Code / GitHub Copilot format — user-level settings.json
-# Key: github.copilot.chat.mcp.servers
+# VS Code / GitHub Copilot format — user-level mcp.json
+# Path: %APPDATA%/Code/User/mcp.json
 # ---------------------------------------------------------------------------
 VSCODE_SCHEMA: dict = {
-    "github.copilot.chat.mcp.servers": {
+    "servers": {
         "mcp-cad": {
             "command": "{python_exe}",
             "args": ["-m", "mcp_cad"],

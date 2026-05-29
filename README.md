@@ -4,6 +4,8 @@ MCP server for CAD automation. Give AI agents direct parametric control over you
 
 **46 atomic tools** + **19 composable skills** across 8 domains. Provider-based architecture: add a new CAD backend by implementing one protocol. No VBA, no macros.
 
+Works with OpenCode, Claude Desktop, VS Code (Copilot Chat), and Pi.
+
 ## Requirements
 
 - **Windows** with Autodesk Inventor installed (any recent version)
@@ -238,7 +240,7 @@ Config location: `~/.pi/agent/mcp.json`
 
 ```json
 {
-  "github.copilot.chat.mcp.servers": {
+  "servers": {
     "mcp-cad": {
       "command": "C:\\path\\to\\mcp-cad\\.venv\\Scripts\\python.exe",
       "args": ["-m", "mcp_cad"]
@@ -247,7 +249,7 @@ Config location: `~/.pi/agent/mcp.json`
 }
 ```
 
-Config location: `%APPDATA%/Code/User/settings.json` (user-level) — the TUI registers it here automatically so VS Code sees mcp-cad globally, not just in one workspace.
+Config location: `%APPDATA%/Code/User/mcp.json` — the TUI registers it here automatically so VS Code sees mcp-cad globally.
 
 ## Limitations
 

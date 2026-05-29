@@ -1,8 +1,7 @@
 """VS Code agent registration item.
 
-Registers mcp-cad in VS Code's user ``settings.json`` under
-``github.copilot.chat.mcp.servers`` so that GitHub Copilot Chat
-discovers the server globally.
+Registers mcp-cad in VS Code's user ``mcp.json`` under ``servers``
+so that GitHub Copilot Chat discovers the server globally.
 """
 
 from __future__ import annotations
@@ -14,9 +13,9 @@ from scripts.tui.items.base import MenuItem
 from scripts.tui.registry import register
 
 
-@register(name="vscode", description="Register mcp-cad in VS Code settings.json (Copilot Chat)", category="agent")
+@register(name="vscode", description="Register mcp-cad in VS Code mcp.json (Copilot Chat)", category="agent")
 class _VSCodeItem(MenuItem):
-    """Register mcp-cad in VS Code user ``settings.json``."""
+    """Register mcp-cad in VS Code user ``mcp.json``."""
 
     def __init__(self, register_fn: Callable[[], str] | None = None) -> None:
         self._register_fn = register_fn
@@ -27,14 +26,14 @@ class _VSCodeItem(MenuItem):
 
     @property
     def description(self) -> str:  # noqa: D102
-        return "Register mcp-cad in VS Code settings.json (Copilot Chat)"
+        return "Register mcp-cad in VS Code mcp.json (Copilot Chat)"
 
     @property
     def is_enabled(self) -> bool:  # noqa: D102
         return True
 
     def run(self) -> str:
-        """Register mcp-cad in VS Code user settings.
+        """Register mcp-cad in VS Code user mcp.json.
 
         Uses the provided *register_fn* (for testing) or falls back to
         :func:`~scripts.tui.install_logic.register_vscode` with
