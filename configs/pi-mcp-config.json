@@ -1,11 +1,10 @@
 {
   "mcpServers": {
     "mcp-cad": {
-      "command": "python",
+      "command": ".venv\\Scripts\\python.exe",
       "args": ["-m", "mcp_cad"],
-      "directTools": true,
-      "lifecycle": "lazy",
-      "_comment": "On Windows with venv, replace 'python' with '.venv\\Scripts\\python.exe'. 'lifecycle: lazy' means the server starts on first tool call. 'directTools: true' means tools are called directly without MCP protocol wrapper."
+      "_troubleshooting": "If 'Connection closed' error persists: (1) verify venv has mcp_cad installed: '.venv\\Scripts\\pip show mcp-cad'. (2) Try absolute path: 'C:\\Users\\andyv\\mcp-cad\\.venv\\Scripts\\python.exe'. (3) Run manually to check for errors: '.venv\\Scripts\\python.exe -m mcp_cad --version'.",
+      "_pi_note": "Pi may use a different config format. If this doesn't work, try the format from configs/pi-mcp-config-alt.json (without mcpServers wrapper)."
     }
   }
 }
