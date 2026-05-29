@@ -143,9 +143,14 @@ class FeatureManager:
         return feature_ref
 
     def _resolve_axis(self, axis_ref: Any, comp_def: Any = None) -> Any:
-        """Resolve an axis reference from name string.
+        """Resolve an axis reference from name string or index.
 
-        Tries: WorkAxes, then edges from SurfaceBodies.
+        Resolution order (revolve axis is a sketch line, not a 3D edge):
+        1. Sketch line in the most recent sketch (revolve use case)
+        2. 3D edge from SurfaceBodies (circular_pattern use case)
+        3. WorkAxes
+        4. Features
+
         If already a COM object, return unchanged.
         """
         if isinstance(axis_ref, str):
@@ -153,14 +158,30 @@ class FeatureManager:
             if comp_def is None:
                 comp_def = doc.ComponentDefinition
             try:
-                # Try integer index as edge
+                # Try integer index as a SketchLine (revolve axis).
+                # AddFull/AddByAngle require a SketchLine, not a generic
+                # SketchEntity.  Use SketchLines index, not entity index.
+                try:
+                    index = int(axis_ref)
+                    sketches = comp_def.Sketches
+                    sketch = sketches.Item(sketches.Count)
+                    ent = sketch.SketchLines.Item(index)
+                    try:
+                        import win32com.client
+                        ent = win32com.client.Dispatch(ent)
+                    except Exception:
+                        pass
+                    return ent
+                except ValueError:
+                    pass
+                # Try integer index as 3D edge (circular_pattern use case)
                 try:
                     index = int(axis_ref)
                     sb = comp_def.SurfaceBodies.Item(1)
                     return sb.Edges.Item(index)
-                except ValueError:
+                except (ValueError, Exception):
                     pass
-                # Try WorkAxes
+                # Try WorkAxes by name
                 try:
                     return comp_def.WorkAxes.Item(axis_ref)
                 except Exception:
@@ -313,8 +334,10 @@ class FeatureManager:
     ) -> dict[str, Any]:
         """Revolve a profile around an axis to create a 3D feature.
 
-        Inventor 2025+ uses ``AddFull`` (360° sweep) or ``AddByAngle``
-        (partial sweep) instead of the old ``CreateRevolveDefinition``.
+        Uses ``AddFull`` (360°) or ``AddByAngle`` (partial).  The axis
+        **must** be a sketch line in the same sketch that generated the
+        profile.  Valid operations: ``join``, ``cut``, ``intersect``
+        (``new_body`` is not supported by RevolveFeatures).
 
         Parameters
         ----------
@@ -327,7 +350,9 @@ class FeatureManager:
         direction:
             "positive", "negative", or "both" (AddByAngle only).
         operation:
-            "join", "cut", "intersect", or "new_body" (default: "join").
+            "join", "cut", or "intersect" (default: "join").
+            Note: ``new_body`` is not valid for revolve — use ``join``
+            for the first feature on a part.
 
         Returns
         -------
@@ -348,11 +373,16 @@ class FeatureManager:
         doc = self._ensure_active_document()
         comp_def = doc.ComponentDefinition
 
-        # Resolve axis entity (sketch line in the same sketch as the profile)
+        # Resolve axis entity — must be a SketchLine from the same sketch
         resolved_axis = self._resolve_axis(axis, comp_def)
 
         try:
             rf = comp_def.Features.RevolveFeatures
+            try:
+                import win32com.client
+                rf = win32com.client.Dispatch(rf)
+            except Exception:
+                pass
 
             if angle >= 360.0 - 0.001:
                 rf.AddFull(resolved, resolved_axis, op_value)
@@ -362,7 +392,6 @@ class FeatureManager:
                     raise InventorCOMError(
                         f"Invalid direction '{direction}'."
                     )
-                # AddByAngle angle is in radians
                 angle_rad = math.radians(angle)
                 rf.AddByAngle(resolved, resolved_axis, angle_rad, dir_value, op_value)
 

@@ -395,7 +395,12 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         direction: str = "positive",
         operation: str = "join",
     ) -> dict[str, Any]:
-        """Revolve a profile around an axis to create a 3D feature."""
+        """Revolve a profile around a sketch line axis (360° torus or partial sweep).
+
+        axis is the 1-based SketchLine index (e.g. \"1\" for the first line
+        drawn in the sketch). Not the sketch entity index.
+        Valid operations: join, cut, intersect (new_body not supported).
+        """
         return tool_revolve(provider, profile, axis, angle, direction, operation)
 
     @mcp_instance.tool()

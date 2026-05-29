@@ -6,7 +6,7 @@ Follows the same patterns as test_document.py and test_sketch.py.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -65,7 +65,15 @@ def _setup_active_document_with_features(
         "fillet_features": mock_fillet_features,
         "chamfer_features": mock_chamfer_features,
         "edges": mock_edges,
+        "surface_body": mock_surface_body,
     }
+
+
+@pytest.fixture(autouse=True)
+def _mock_dispatch() -> None:
+    """Make win32com.client.Dispatch a no-op so mocks survive COM wrapping."""
+    with patch("win32com.client.Dispatch", side_effect=lambda x: x):
+        yield
 
 
 # ==================================================================
