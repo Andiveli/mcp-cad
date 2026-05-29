@@ -38,6 +38,7 @@ from mcp_cad.skills.modify import skill_scale as _skill_scale
 from mcp_cad.skills.modify import skill_mirror as _skill_mirror
 from mcp_cad.skills.constrain import skill_constraint as _skill_constraint
 from mcp_cad.skills.dimension import skill_dimension as _skill_dimension
+from mcp_cad.skills.revolve import skill_revolve as _skill_revolve
 
 
 def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
@@ -506,3 +507,57 @@ def register_skills(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """
         return _skill_dimension(
             provider, mode, entity1, entity2, value, orientation, position_x, position_y)
+
+    # ------------------------------------------------------------------
+    # Tab: 3D
+    # ------------------------------------------------------------------
+
+    @mcp_instance.tool()
+    def skill_revolve(
+        plane: str = "XY",
+        profile_cx: float = 3.0,
+        profile_cy: float = 0.0,
+        profile_radius: float = 1.0,
+        axis_x: float = 0.0,
+        axis_y1: float = -1.0,
+        axis_y2: float = 5.0,
+        angle: float = 360.0,
+        operation: str = "join",
+    ) -> dict[str, Any]:
+        """Tab: 3D — Revolve a circular profile around a vertical axis.
+
+        Composes sketch_create + sketch_circle + sketch_line + revolve.
+        Defaults produce a torus (circle at x=3 revolved around x=0).
+        For a solid cylinder set profile_cx=0.
+
+        Args:
+            plane: Work plane ("XY", "XZ", "YZ").
+            profile_cx, profile_cy: Profile center (cm).
+            profile_radius: Profile radius (cm).
+            axis_x: X position of vertical axis line.
+            axis_y1, axis_y2: Start/end Y of axis line.
+            angle: Revolve angle in degrees (360 = full).
+            operation: "join", "cut", or "intersect".
+
+        Examples:
+            # Torus (donut)
+            skill_revolve(plane="XY", profile_cx=5, profile_radius=2)
+
+            # Solid cylinder
+            skill_revolve(plane="XY", profile_cx=0, profile_radius=3)
+
+            # Half torus
+            skill_revolve(plane="XY", profile_cx=4, profile_radius=1.5, angle=180)
+        """
+        return _skill_revolve(
+            provider,
+            plane=plane,
+            profile_cx=profile_cx,
+            profile_cy=profile_cy,
+            profile_radius=profile_radius,
+            axis_x=axis_x,
+            axis_y1=axis_y1,
+            axis_y2=axis_y2,
+            angle=angle,
+            operation=operation,
+        )
