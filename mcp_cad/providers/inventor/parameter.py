@@ -41,6 +41,11 @@ class ParameterManager:
         doc = self._driver.inventor.ActiveDocument
         if doc is None:
             raise InventorCOMError("No active document.")
+        try:
+            import win32com.client
+            doc = win32com.client.Dispatch(doc)
+        except Exception:
+            pass
         return doc
 
     # ------------------------------------------------------------------

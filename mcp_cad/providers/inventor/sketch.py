@@ -61,6 +61,21 @@ class SketchManager:
             )
         return self._active_sketch
 
+    def _ensure_active_document(self) -> Any:
+        """Return the active document wrapped in Dispatch for COM late binding."""
+        self._ensure_connected()
+        doc = self._driver.inventor.ActiveDocument
+        if doc is None:
+            raise InventorCOMError(
+                "No active document. Open or create a document first."
+            )
+        try:
+            import win32com.client
+            doc = win32com.client.Dispatch(doc)
+        except Exception:
+            pass
+        return doc
+
     def _transient_geometry(self) -> Any:
         """Return the TransientGeometry COM object for creating 2D points."""
         return self._driver.inventor.TransientGeometry
@@ -81,7 +96,6 @@ class SketchManager:
         -------
         dict with sketch metadata.
         """
-        self._ensure_connected()
         plane_upper = plane.upper()
         plane_index = _PLANE_MAP.get(plane_upper)
         if plane_index is None:
@@ -91,11 +105,7 @@ class SketchManager:
             )
 
         try:
-            doc = self._driver.inventor.ActiveDocument
-            if doc is None:
-                raise InventorCOMError(
-                    "No active document. Open or create a document first."
-                )
+            doc = self._ensure_active_document()
             comp_def = doc.ComponentDefinition
             work_plane = comp_def.WorkPlanes.Item(plane_index)
             sketch = comp_def.Sketches.Add(work_plane)
