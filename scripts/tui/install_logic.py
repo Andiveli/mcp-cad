@@ -62,7 +62,7 @@ def read_config(path: str | Path) -> dict | None:
 def read_config_jsonc(path: str | Path) -> dict | None:
     """Read and parse a JSONC (JSON with ``//`` comments) config file.
 
-    Strips single-line ``//`` comments before parsing.
+    Strips single-line ``//`` comments and trailing commas before parsing.
     Does **not** support block comments (``/* */``).
 
     Returns
@@ -82,11 +82,12 @@ def read_config_jsonc(path: str | Path) -> dict | None:
         return None
     with p.open(encoding="utf-8") as f:
         text = f.read()
-    # Remove // comments (but not inside strings — simple regex is sufficient
-    # for VS Code settings.json which only uses line comments)
+    # Remove // comments (but not inside strings)
     text = re.sub(r"^\s*//.*$", "", text, flags=re.MULTILINE)
-    # Also handle trailing // comments on lines with data
+    # Handle trailing // comments on lines with data
     text = re.sub(r'("[^"\\]*(?:\\.[^"\\]*)*")\s*//.*$', r"\1", text, flags=re.MULTILINE)
+    # Remove trailing commas before } or ] (JSONC permits them, JSON does not)
+    text = re.sub(r",(\s*[}\]])", r"\1", text)
     return json.loads(text)
 
 

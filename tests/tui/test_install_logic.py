@@ -343,6 +343,35 @@ class TestRegisterVSCode:
         assert config["editor.fontSize"] == 16
         assert "mcp-cad" in config["github.copilot.chat.mcp.servers"]
 
+    def test_handles_trailing_commas(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Parses settings.json with trailing commas (valid JSONC, invalid JSON)."""
+        monkeypatch.setenv("APPDATA", str(tmp_path))
+        code_dir = tmp_path / "Code" / "User"
+        code_dir.mkdir(parents=True)
+        config_path = code_dir / "settings.json"
+        config_path.write_text(
+            '{\n'
+            '  "editor.fontSize": 16,\n'
+            '  "editor.tokenColorCustomizations": {\n'
+            '    "textMateRules": [\n'
+            '      {\n'
+            '        "scope": "source",\n'
+            '        "settings": {\n'
+            '          "foreground": "#FF0000",\n'
+            '        }\n'
+            '      }\n'
+            '    ],\n'
+            '  },\n'
+            '}\n',
+            encoding="utf-8",
+        )
+
+        result = register_vscode(r"C:\venv\Scripts\python.exe")
+
+        config = json.loads(Path(result).read_text(encoding="utf-8"))
+        assert config["editor.fontSize"] == 16
+        assert "mcp-cad" in config["github.copilot.chat.mcp.servers"]
+
     def test_no_directtools_in_schema(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """VS Code schema must NOT include directTools or lifecycle flags."""
         monkeypatch.setenv("APPDATA", str(tmp_path))
