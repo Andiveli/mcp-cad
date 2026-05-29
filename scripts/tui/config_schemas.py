@@ -44,15 +44,25 @@ CLAUDE_SCHEMA: dict = {
 }
 
 # ---------------------------------------------------------------------------
-# Pi (IntelliJ) format — mcpServers with directTools and lifecycle
+# Pi (IntelliJ) format — standard MCP via mcpServers
 # ---------------------------------------------------------------------------
 PI_SCHEMA: dict = {
     "mcpServers": {
         "mcp-cad": {
             "command": "{python_exe}",
             "args": ["-m", "mcp_cad"],
-            "directTools": True,
-            "lifecycle": "lazy",
+        }
+    },
+}
+
+# ---------------------------------------------------------------------------
+# VS Code / GitHub Copilot format — workspace-level .vscode/mcp.json
+# ---------------------------------------------------------------------------
+VSCODE_SCHEMA: dict = {
+    "mcpServers": {
+        "mcp-cad": {
+            "command": "{python_exe}",
+            "args": ["-m", "mcp_cad"],
         }
     },
 }

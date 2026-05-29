@@ -24,6 +24,7 @@ from scripts.tui.config_schemas import (
     CLAUDE_SCHEMA,
     OPENCODE_SCHEMA,
     PI_SCHEMA,
+    VSCODE_SCHEMA,
     format_schema,
 )
 
@@ -219,6 +220,41 @@ def register_pi(venv_python: str, settings_path: str | None = None) -> str:
         config_path = Path.home() / ".pi" / "agent" / "mcp.json"
 
     entry = format_schema(PI_SCHEMA, venv_python)
+
+    data = read_config(config_path) or {}
+    mcp_servers = entry.get("mcpServers", {})
+    data = merge_entry(data, "mcpServers", mcp_servers)
+
+    write_config(config_path, data)
+    return str(config_path)
+
+
+def register_vscode(project_dir: str | Path, venv_python: str) -> str:
+    """Register mcp-cad in the workspace ``.vscode/mcp.json``.
+
+    This config is read by VS Code's GitHub Copilot Chat agent.
+
+    Parameters
+    ----------
+    project_dir:
+        Workspace directory containing (or to create) ``.vscode/mcp.json``.
+    venv_python:
+        Absolute path to the venv Python executable.
+
+    Returns
+    -------
+    str
+        Path to the written config file.
+
+    Raises
+    ------
+    PermissionError
+        If the config file cannot be written.
+    json.JSONDecodeError
+        If an existing config file contains invalid JSON.
+    """
+    config_path = Path(project_dir) / ".vscode" / "mcp.json"
+    entry = format_schema(VSCODE_SCHEMA, venv_python)
 
     data = read_config(config_path) or {}
     mcp_servers = entry.get("mcpServers", {})

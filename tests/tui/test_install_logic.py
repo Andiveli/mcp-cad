@@ -19,6 +19,7 @@ from scripts.tui.install_logic import (
     register_claude,
     register_opencode,
     register_pi,
+    register_vscode,
     write_config,
 )
 
@@ -250,15 +251,16 @@ class TestRegisterClaude:
 class TestRegisterPi:
     """Tests for :func:`register_pi`."""
 
-    def test_uses_appdata_default(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Default path is %APPDATA%/Pi/settings.json."""
-        monkeypatch.setenv("APPDATA", str(tmp_path))
+    def test_uses_home_default(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Default path is ~/.pi/agent/mcp.json."""
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
         result = register_pi(r"C:\venv\Scripts\python.exe")
 
         config_path = Path(result)
         assert config_path.exists()
-        assert "Pi" in str(config_path)
+        assert ".pi" in str(config_path)
+        assert config_path.name == "mcp.json"
 
     def test_uses_custom_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Explicit ``settings_path`` takes precedence over APPDATA."""
@@ -272,3 +274,47 @@ class TestRegisterPi:
         config = json.loads(config_path.read_text(encoding="utf-8"))
         assert "mcpServers" in config
         assert "mcp-cad" in config["mcpServers"]
+
+
+class TestRegisterVSCode:
+    """Tests for :func:`register_vscode`."""
+
+    def test_creates_config_in_vscode_dir(self, tmp_path: Path) -> None:
+        """Creates .vscode/mcp.json in the project directory."""
+        python_exe = r"C:\venv\Scripts\python.exe"
+        result = register_vscode(str(tmp_path), python_exe)
+
+        config_path = Path(result)
+        assert config_path.parent.name == ".vscode"
+        assert config_path.name == "mcp.json"
+
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        assert "mcpServers" in config
+        assert "mcp-cad" in config["mcpServers"]
+        assert config["mcpServers"]["mcp-cad"]["command"] == python_exe
+        assert config["mcpServers"]["mcp-cad"]["args"] == ["-m", "mcp_cad"]
+
+    def test_merges_with_existing(self, tmp_path: Path) -> None:
+        """Preserves existing mcpServers when merging."""
+        vscode_dir = tmp_path / ".vscode"
+        vscode_dir.mkdir()
+        config_path = vscode_dir / "mcp.json"
+        config_path.write_text(
+            json.dumps({"mcpServers": {"other": {"command": "old"}}}),
+            encoding="utf-8",
+        )
+
+        register_vscode(str(tmp_path), r"C:\venv\Scripts\python.exe")
+
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        assert "other" in config["mcpServers"]
+        assert "mcp-cad" in config["mcpServers"]
+
+    def test_no_directtools_in_schema(self, tmp_path: Path) -> None:
+        """VS Code schema must NOT include directTools or lifecycle flags."""
+        result = register_vscode(str(tmp_path), r"C:\venv\Scripts\python.exe")
+
+        config = json.loads(Path(result).read_text(encoding="utf-8"))
+        entry = config["mcpServers"]["mcp-cad"]
+        assert "directTools" not in entry
+        assert "lifecycle" not in entry
