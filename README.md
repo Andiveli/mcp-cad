@@ -8,7 +8,7 @@ MCP server for CAD automation. Give AI agents direct parametric control over you
 
 - **Windows** with Autodesk Inventor installed (any recent version)
 - Python 3.10+
-- OpenCode, Claude Desktop, or any MCP-compatible client
+- OpenCode, Claude Desktop, VS Code (Copilot Chat), Pi, or any MCP-compatible client
 
 ## Quick start
 
@@ -24,7 +24,7 @@ python -m scripts.tui                # TUI menu — select agents to register
 .\scripts\install.ps1 -RegisterIn OpenCode
 ```
 
-The installer creates a virtual environment, installs dependencies, and runs the test suite. The **TUI** lets you choose which MCP clients to register (OpenCode, Claude Desktop, Pi) via an interactive terminal menu. Open the folder in your agent and the server starts automatically.
+The installer creates a virtual environment, installs dependencies, and runs the test suite. The **TUI** lets you choose which MCP clients to register (OpenCode, Claude Desktop, Pi, VS Code) via an interactive terminal menu. Open the folder in your agent and the server starts automatically.
 
 ## Tools
 
@@ -182,6 +182,9 @@ python -m pytest tests/ -v
 
 # Run with coverage
 python -m pytest tests/ --cov=mcp_cad --cov-report=term-missing
+
+# Verify server starts correctly (cross-client diagnostic)
+python -m mcp_cad --version
 ```
 
 394 tests covering happy paths, error scenarios, delegation verification, skills composition, and disconnected guards. Entire COM layer is mocked — cross-platform development.
@@ -223,15 +226,28 @@ The **TUI** (`python -m scripts.tui`) registers mcp-cad in one or more agents wi
   "mcpServers": {
     "mcp-cad": {
       "command": "C:\\path\\to\\mcp-cad\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "mcp_cad"],
-      "directTools": true,
-      "lifecycle": "lazy"
+      "args": ["-m", "mcp_cad"]
     }
   }
 }
 ```
 
 Config location: `~/.pi/agent/mcp.json`
+
+### VS Code (GitHub Copilot Chat)
+
+```json
+{
+  "mcpServers": {
+    "mcp-cad": {
+      "command": "C:\\path\\to\\mcp-cad\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "mcp_cad"]
+    }
+  }
+}
+```
+
+Config location: `.vscode/mcp.json` (workspace-level)
 
 ## Limitations
 
