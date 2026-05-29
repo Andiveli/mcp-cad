@@ -16,6 +16,8 @@ except ImportError:
     _CAST_TO = None
 
 from mcp_cad.providers.inventor.client import InventorDriver
+from mcp_cad.providers.inventor.attributes import TagStore
+from mcp_cad.providers.inventor.attributes import inspect_sketch as _inspect_sketch
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
 log = logging.getLogger(__name__)
@@ -40,6 +42,10 @@ class SketchManager:
     def __init__(self, driver: InventorDriver) -> None:
         self._driver = driver
         self._active_sketch: Any = None
+        self._active_sketch_index: int = 0
+        # Last drawn endpoint and first startpoint — for chaining
+        self._last_endpoint: Any = None
+        self._first_startpoint: Any = None
 
     # ------------------------------------------------------------------
     # Internal guards
@@ -110,6 +116,8 @@ class SketchManager:
             work_plane = comp_def.WorkPlanes.Item(plane_index)
             sketch = comp_def.Sketches.Add(work_plane)
             self._active_sketch = sketch
+            self._active_sketch_index = comp_def.Sketches.Count
+            self._active_sketch = sketch
             return {
                 "success": True,
                 "sketch_name": sketch.Name,
@@ -122,17 +130,49 @@ class SketchManager:
                 f"Failed to create sketch on plane '{plane}': {exc}"
             ) from exc
 
+    def sketch_line_close(self) -> dict[str, Any]:
+        """Close the connected profile by linking the last endpoint to the first.
+
+        Call after a chain of ``sketch_line(..., connect=True)`` to seal
+        the profile loop.  Uses shared SketchPoints so Inventor recognizes
+        the closed region without constraints.
+        """
+        sketch = self._ensure_active_sketch()
+        try:
+            if self._last_endpoint is None or self._first_startpoint is None:
+                return {"success": False, "error": "No open profile to close"}
+            line = sketch.SketchLines.AddByTwoPoints(
+                self._last_endpoint, self._first_startpoint
+            )
+            self._last_endpoint = None
+            self._first_startpoint = None
+            return {
+                "success": True,
+                "entity_type": "line",
+                "operation": "close_profile",
+            }
+        except (InventorDisconnectedError, InventorCOMError):
+            raise
+        except Exception as exc:
+            raise InventorCOMError(f"Failed to close profile: {exc}") from exc
+
     def sketch_line(
-        self, x1: float, y1: float, x2: float, y2: float
+        self, x1: float, y1: float, x2: float, y2: float,
+        tag: str = "",
+        connect: bool = False,
     ) -> dict[str, Any]:
         """Draw a line segment in the active sketch.
 
         Parameters
         ----------
-        x1, y1:
-            Start point coordinates.
-        x2, y2:
-            End point coordinates.
+        x1, y1, x2, y2:
+            Start/end coordinates.
+        tag:
+            Optional semantic tag (e.g. ``"eje"``).
+        connect:
+            If True, reuse the last line's endpoint as this line's start,
+            creating a **connected** chain.  Connected lines form valid
+            profiles for revolve/extrude without needing constraints.
 
         Returns
         -------
@@ -141,9 +181,31 @@ class SketchManager:
         sketch = self._ensure_active_sketch()
         try:
             tg = self._transient_geometry()
-            start = tg.CreatePoint2d(x1, y1)
-            end = tg.CreatePoint2d(x2, y2)
-            sketch.SketchLines.AddByTwoPoints(start, end)
+            if connect and self._last_endpoint is not None:
+                start = self._last_endpoint
+                # Auto-close: if end matches first start point, share the SketchPoint
+                if (self._first_startpoint is not None and
+                    abs(x2 - self._first_startpoint.Geometry.X) < 0.001 and
+                    abs(y2 - self._first_startpoint.Geometry.Y) < 0.001):
+                    end = self._first_startpoint
+                    self._last_endpoint = None
+                    self._first_startpoint = None
+                else:
+                    end = tg.CreatePoint2d(x2, y2)
+            else:
+                start = tg.CreatePoint2d(x1, y1)
+                end = tg.CreatePoint2d(x2, y2)
+            line = sketch.SketchLines.AddByTwoPoints(start, end)
+            if self._last_endpoint is None:
+                self._first_startpoint = line.StartSketchPoint
+            if connect:
+                self._last_endpoint = line.EndSketchPoint
+            else:
+                self._last_endpoint = line.EndSketchPoint
+                self._first_startpoint = line.StartSketchPoint
+            if tag:
+                entity_idx = sketch.SketchEntities.Count
+                TagStore.set_tag(self._active_sketch_index, entity_idx, tag)
             return {
                 "success": True,
                 "entity_type": "line",
@@ -156,7 +218,8 @@ class SketchManager:
             raise InventorCOMError(f"Failed to draw line: {exc}") from exc
 
     def sketch_circle(
-        self, cx: float, cy: float, radius: float
+        self, cx: float, cy: float, radius: float,
+        tag: str = "",
     ) -> dict[str, Any]:
         """Draw a circle in the active sketch.
 
@@ -166,6 +229,8 @@ class SketchManager:
             Center point coordinates.
         radius:
             Circle radius.
+        tag:
+            Optional semantic name to tag this circle with.
 
         Returns
         -------
@@ -175,7 +240,10 @@ class SketchManager:
         try:
             tg = self._transient_geometry()
             center = tg.CreatePoint2d(cx, cy)
-            sketch.SketchCircles.AddByCenterRadius(center, radius)
+            circle = sketch.SketchCircles.AddByCenterRadius(center, radius)
+            if tag:
+                entity_idx = sketch.SketchEntities.Count
+                TagStore.set_tag(self._active_sketch_index, entity_idx, tag)
             return {
                 "success": True,
                 "entity_type": "circle",

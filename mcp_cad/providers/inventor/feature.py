@@ -15,6 +15,9 @@ except ImportError:
     _CAST_TO = None
 
 from mcp_cad.providers.inventor.client import InventorDriver
+from mcp_cad.providers.inventor.attributes import TagStore
+from mcp_cad.providers.inventor.attributes import inspect_sketch as _inspect_sketch
+from mcp_cad.providers.inventor.attributes import bridge_revolve as _bridge_revolve
 from mcp_cad.errors import InventorCOMError, InventorDisconnectedError
 
 log = logging.getLogger(__name__)
@@ -92,8 +95,8 @@ class FeatureManager:
 
         If *profile* is a string that looks like an integer, convert it
         to int and use it as a 1-based index into the Profiles collection.
-        If profiles are empty, call AddForSolid() to force profile creation.
-        Otherwise, treat it as a profile name string.
+        If profiles are empty, auto-constrains sketch lines to close open
+        loops before calling AddForSolid().
         If it is already a COM object, return it unchanged.
         """
         if isinstance(profile, str):
@@ -106,7 +109,18 @@ class FeatureManager:
                 profiles = sketch.Profiles
                 # Force profile creation if the collection is empty
                 if profiles.Count == 0:
-                    profiles.AddForSolid()
+                    # Try auto-constraining first (close gaps from manual drawing)
+                    self._auto_constrain_sketch(sketch)
+                    # Try surface first — manual lines may form a surface profile
+                    # before AddForSolid can detect them.
+                    try:
+                        profiles.AddForSurface()
+                    except Exception:
+                        pass
+                    try:
+                        profiles.AddForSolid()
+                    except Exception:
+                        pass
                 # Try integer index first (most reliable for COM bridge)
                 try:
                     index = int(profile)
@@ -118,6 +132,38 @@ class FeatureManager:
                     f"Failed to resolve profile '{profile}': {exc}"
                 ) from exc
         return profile
+
+    @staticmethod
+    def _auto_constrain_sketch(sketch: Any) -> None:
+        """Add coincident constraints to close sketch lines into a profile.
+
+        Constrains each line's endpoint to the next line's start point
+        (sequential adjacency), then closes the loop.  Best-effort.
+        """
+        try:
+            lines = sketch.SketchLines
+            gc = sketch.GeometricConstraints
+            count = lines.Count
+
+            # Sequential adjacency: line[i].end → line[i+1].start
+            for i in range(1, count):
+                try:
+                    ei = lines.Item(i).EndSketchPoint
+                    sj = lines.Item(i + 1).StartSketchPoint
+                    gc.AddCoincident(ei, sj)
+                except Exception:
+                    pass
+
+            # Close the loop: line[1].start → line[count-1].end
+            if count >= 3:
+                try:
+                    s1 = lines.Item(1).StartSketchPoint
+                    en = lines.Item(count - 1).EndSketchPoint
+                    gc.AddCoincident(s1, en)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def _resolve_feature(self, feature_ref: Any, comp_def: Any = None) -> Any:
         """Resolve a feature reference from name string or pass through.
@@ -142,6 +188,34 @@ class FeatureManager:
                 ) from exc
         return feature_ref
 
+    @staticmethod
+    def _find_sketchline_by_entity(sketch: Any, entity_idx: int) -> Any:
+        """Find a SketchLine that matches a given SketchEntities index."""
+        try:
+            target = sketch.SketchEntities.Item(entity_idx)
+            # Check if it's a SketchLine directly
+            try:
+                import win32com.client
+                cast = getattr(win32com.client, "CastTo", None)
+                if cast is not None:
+                    return cast(target, "SketchLine")
+            except Exception:
+                pass
+            # Fallback: search SketchLines for matching geometry
+            count = sketch.SketchLines.Count
+            for i in range(1, count + 1):
+                line = sketch.SketchLines.Item(i)
+                # Compare by Dispatch identity — crude but effective
+                try:
+                    if line.StartSketchPoint.Geometry.X == target.StartSketchPoint.Geometry.X and \
+                       line.StartSketchPoint.Geometry.Y == target.StartSketchPoint.Geometry.Y:
+                        return line
+                except Exception:
+                    pass
+            return None
+        except Exception:
+            return None
+
     def _resolve_axis(self, axis_ref: Any, comp_def: Any = None) -> Any:
         """Resolve an axis reference from name string or index.
 
@@ -157,7 +231,42 @@ class FeatureManager:
             doc = self._ensure_active_document()
             if comp_def is None:
                 comp_def = doc.ComponentDefinition
+
+            # Tag-based resolution: @name → check in-memory store
+            if axis_ref.startswith("@"):
+                sketches = comp_def.Sketches
+                sketch_idx = sketches.Count
+                entity_idx = TagStore.resolve(sketch_idx, axis_ref[1:])
+                if entity_idx is not None:
+                    sketch = sketches.Item(sketch_idx)
+                    # Find the SketchLine that matches entity_idx
+                    # (entity index ≠ SketchLine index due to points etc.)
+                    ent = self._find_sketchline_by_entity(sketch, entity_idx)
+                    if ent is not None:
+                        try:
+                            import win32com.client
+                            ent = win32com.client.Dispatch(ent)
+                        except Exception:
+                            pass
+                        return ent
+                raise InventorCOMError(
+                    "No entity tagged '@" + axis_ref[1:] + "' found "
+                    "in the active sketch. Use sketch_line(tag=\"...\") "
+                    "or sketch_circle(tag=\"...\") to tag."
+                )
+
             try:
+                # "last" → last SketchLine in the most recent sketch
+                if axis_ref.lower() == "last":
+                    sketches = comp_def.Sketches
+                    sketch = sketches.Item(sketches.Count)
+                    ent = sketch.SketchLines.Item(sketch.SketchLines.Count)
+                    try:
+                        import win32com.client
+                        ent = win32com.client.Dispatch(ent)
+                    except Exception:
+                        pass
+                    return ent
                 # Try integer index as a SketchLine (revolve axis).
                 # AddFull/AddByAngle require a SketchLine, not a generic
                 # SketchEntity.  Use SketchLines index, not entity index.
@@ -377,6 +486,41 @@ class FeatureManager:
         resolved_axis = self._resolve_axis(axis, comp_def)
 
         try:
+            # Try C# bridge first — AddForSolid works correctly there
+            sketch_idx = comp_def.Sketches.Count
+            # Resolve axis as SketchLine index
+            axis_ref = axis
+            if isinstance(axis_ref, str) and axis_ref.startswith("@"):
+                ent_idx = TagStore.resolve(sketch_idx, axis_ref[1:])
+                if ent_idx is not None:
+                    try:
+                        # Use the matching SketchLine index
+                        sketch = comp_def.Sketches.Item(sketch_idx)
+                        for k in range(1, sketch.SketchLines.Count + 1):
+                            try:
+                                sl = sketch.SketchLines.Item(k)
+                                se = sketch.SketchEntities.Item(ent_idx)
+                                if (sl.StartSketchPoint.Geometry.X == se.StartSketchPoint.Geometry.X and
+                                    sl.StartSketchPoint.Geometry.Y == se.StartSketchPoint.Geometry.Y):
+                                    axis_ref = str(k)
+                                    break
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+            if isinstance(axis_ref, str):
+                try:
+                    axis_int = int(axis_ref)
+                    result = _bridge_revolve(
+                        sketch_idx, axis_int, angle, operation,
+                    )
+                    if result.get("ok") and result.get("data", {}).get("success"):
+                        return result["data"]
+                except Exception:
+                    pass  # Bridge unavailable — fall through to Python COM
+
+            # Python COM path (fallback)
             rf = comp_def.Features.RevolveFeatures
             try:
                 import win32com.client

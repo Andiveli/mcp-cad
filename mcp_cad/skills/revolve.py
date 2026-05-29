@@ -15,6 +15,7 @@ from mcp_cad.core.protocol import CADProvider
 def skill_revolve(
     provider: CADProvider,
     plane: str = "XY",
+    profile: str = "",
     profile_cx: float = 3.0,
     profile_cy: float = 0.0,
     profile_radius: float = 1.0,
@@ -70,11 +71,39 @@ def skill_revolve(
     """
     results: dict[str, Any] = {}
 
-    # 1. Create sketch
-    r = provider.sketch_create(plane)
-    results["sketch"] = r
+    # 1. Create sketch (only when auto-drawing the profile — if the
+    #    user provides a profile index, they already have a sketch)
+    if not profile:
+        r = provider.sketch_create(plane)
+        results["sketch"] = r
+        if not r.get("success"):
+            return results
+
+    # 2. Draw profile if none provided
+    profile_index = profile
+    if not profile:
+        r = provider.sketch_circle(profile_cx, profile_cy, profile_radius)
+        results["profile"] = r
+        if not r.get("success"):
+            return results
+        profile_index = "1"  # first entity is the circle
+
+    # 3. Draw axis line (vertical at axis_x), tagged as "eje"
+    r = provider.sketch_line(axis_x, axis_y1, axis_x, axis_y2, tag="eje")
+    results["axis"] = r
     if not r.get("success"):
         return results
+
+    # 4. Revolve using tag reference
+    r = provider.revolve(
+        profile=profile_index,
+        axis="@eje",
+        angle=angle,
+        operation=operation,
+    )
+    results["revolve"] = r
+
+    return results
 
     # 2. Draw circular profile
     r = provider.sketch_circle(profile_cx, profile_cy, profile_radius)

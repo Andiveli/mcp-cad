@@ -98,18 +98,21 @@ class InventorProvider:
         y1: float,
         x2: float,
         y2: float,
+        tag: str = "",
+        connect: bool = False,
     ) -> dict[str, Any]:
         """Draw a line segment in the active sketch."""
-        return self._sketch.sketch_line(x1, y1, x2, y2)
+        return self._sketch.sketch_line(x1, y1, x2, y2, tag=tag, connect=connect)
 
     def sketch_circle(
         self,
         cx: float,
         cy: float,
         radius: float,
+        tag: str = "",
     ) -> dict[str, Any]:
         """Draw a circle in the active sketch."""
-        return self._sketch.sketch_circle(cx, cy, radius)
+        return self._sketch.sketch_circle(cx, cy, radius, tag=tag)
 
     def sketch_arc(
         self,

@@ -153,14 +153,21 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         return tool_sketch_create(provider, plane)
 
     @mcp_instance.tool()
-    def sketch_line(x1: float, y1: float, x2: float, y2: float) -> dict[str, Any]:
-        """Draw a line segment in the active sketch."""
-        return tool_sketch_line(provider, x1, y1, x2, y2)
+    def sketch_line(
+        x1: float, y1: float, x2: float, y2: float,
+        tag: str = "",
+        connect: bool = False,
+    ) -> dict[str, Any]:
+        """Draw a line segment. Use connect=True to chain lines into a profile."""
+        return tool_sketch_line(provider, x1, y1, x2, y2, tag=tag, connect=connect)
 
     @mcp_instance.tool()
-    def sketch_circle(cx: float, cy: float, radius: float) -> dict[str, Any]:
-        """Draw a circle in the active sketch."""
-        return tool_sketch_circle(provider, cx, cy, radius)
+    def sketch_circle(
+        cx: float, cy: float, radius: float,
+        tag: str = "",
+    ) -> dict[str, Any]:
+        """Draw a circle. Use tag=\"perfil\" to tag for @name resolution."""
+        return tool_sketch_circle(provider, cx, cy, radius, tag=tag)
 
     @mcp_instance.tool()
     def sketch_arc(
@@ -398,7 +405,8 @@ def register_tools(mcp_instance: FastMCP, provider: CADProvider) -> None:
         """Revolve a profile around a sketch line axis (360° torus or partial sweep).
 
         axis is the 1-based SketchLine index (e.g. \"1\" for the first line
-        drawn in the sketch). Not the sketch entity index.
+        drawn in the sketch), or a tag reference like \"@eje\" if the line
+        was tagged with sketch_line(..., tag=\"eje\").
         Valid operations: join, cut, intersect (new_body not supported).
         """
         return tool_revolve(provider, profile, axis, angle, direction, operation)

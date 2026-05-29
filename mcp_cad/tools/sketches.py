@@ -29,10 +29,12 @@ def sketch_line(
     y1: float,
     x2: float,
     y2: float,
+    tag: str = "",
+    connect: bool = False,
 ) -> dict[str, Any]:
     """Draw a line segment in the active sketch."""
     try:
-        return provider.sketch_line(x1, y1, x2, y2)
+        return provider.sketch_line(x1, y1, x2, y2, tag=tag, connect=connect)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:
@@ -44,10 +46,11 @@ def sketch_circle(
     cx: float,
     cy: float,
     radius: float,
+    tag: str = "",
 ) -> dict[str, Any]:
     """Draw a circle in the active sketch."""
     try:
-        return provider.sketch_circle(cx, cy, radius)
+        return provider.sketch_circle(cx, cy, radius, tag=tag)
     except (InventorDisconnectedError, InventorCOMError) as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:
