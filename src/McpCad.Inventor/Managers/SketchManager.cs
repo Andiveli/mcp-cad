@@ -769,27 +769,44 @@ public class SketchManager
         try
         {
             var planarSketch = (global::Inventor.PlanarSketch)sketch;
-            dynamic ent = planarSketch.SketchLines[int.Parse(entity.Trim())];
-            dynamic cut = planarSketch.SketchLines[int.Parse(cuttingEntity.Trim())];
 
-            dynamic geo1 = ent.Geometry;
-            dynamic geo2 = cut.Geometry;
-            // Intersect is on geometry objects; keep dynamic since exact interop type may vary
-            dynamic pts = geo1.Intersect(geo2);
+            // Get entities via early-bound interop
+            var ent = (global::Inventor.SketchLine)planarSketch.SketchLines[int.Parse(entity.Trim())];
+            var cut = (global::Inventor.SketchLine)planarSketch.SketchLines[int.Parse(cuttingEntity.Trim())];
 
-            if (pts is null || pts.Count == 0)
-                return ErrorResult.Create("Entities do not intersect");
+            // Get endpoints as Point2d (early-bound)
+            double x1 = ent.StartSketchPoint.Geometry.X;
+            double y1 = ent.StartSketchPoint.Geometry.Y;
+            double x2 = ent.EndSketchPoint.Geometry.X;
+            double y2 = ent.EndSketchPoint.Geometry.Y;
 
-            dynamic pt = pts!.Item(1);
+            double x3 = cut.StartSketchPoint.Geometry.X;
+            double y3 = cut.StartSketchPoint.Geometry.Y;
+            double x4 = cut.EndSketchPoint.Geometry.X;
+            double y4 = cut.EndSketchPoint.Geometry.Y;
+
+            // Compute line-line intersection
+            double denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (Math.Abs(denom) < 1e-12)
+                return ErrorResult.Create("Entities are parallel — no intersection");
+
+            double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+            double ix = x1 + t * (x2 - x1);
+            double iy = y1 + t * (y2 - y1);
+
+            // Determine which side to keep
+            bool trimStart = side.Equals("start", StringComparison.OrdinalIgnoreCase);
+            double sx = trimStart ? ix : x1;
+            double sy = trimStart ? iy : y1;
+            double ex = trimStart ? x2 : ix;
+            double ey = trimStart ? y2 : iy;
+
+            // Delete original and recreate trimmed line
+            ent.Delete();
             var tg = TransientGeometry();
-            // MoveTo requires early-bound Point2d for SketchPoint
-            var target = (global::Inventor.Point2d)tg.CreatePoint2d(pt.X, pt.Y);
-
-            // Note: No direct Trim method in Inventor interop; using geometry intersection + point move
-            var sketchPoint = side.Equals("start", StringComparison.OrdinalIgnoreCase)
-                ? (global::Inventor.SketchPoint)ent.StartSketchPoint
-                : (global::Inventor.SketchPoint)ent.EndSketchPoint;
-            sketchPoint.MoveTo(target);
+            planarSketch.SketchLines.AddByTwoPoints(
+                (global::Inventor.Point2d)tg.CreatePoint2d(sx, sy),
+                (global::Inventor.Point2d)tg.CreatePoint2d(ex, ey));
 
             return new Dictionary<string, object?>
             {
