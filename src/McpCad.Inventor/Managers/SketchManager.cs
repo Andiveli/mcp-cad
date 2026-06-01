@@ -770,9 +770,10 @@ public class SketchManager
         {
             var planarSketch = (global::Inventor.PlanarSketch)sketch;
 
-            // Get entities via early-bound interop
-            var ent = (global::Inventor.SketchLine)planarSketch.SketchLines[int.Parse(entity.Trim())];
-            var cut = (global::Inventor.SketchLine)planarSketch.SketchLines[int.Parse(cuttingEntity.Trim())];
+            // Get entities via SketchEntities (user-facing indices), then cast
+            // to SketchLine. SketchLines has its own indexing (different from SketchEntities).
+            var ent = (global::Inventor.SketchLine)(dynamic)planarSketch.SketchEntities[int.Parse(entity.Trim())];
+            var cut = (global::Inventor.SketchLine)(dynamic)planarSketch.SketchEntities[int.Parse(cuttingEntity.Trim())];
 
             // Get endpoints as Point2d (early-bound)
             double x1 = ent.StartSketchPoint.Geometry.X;
