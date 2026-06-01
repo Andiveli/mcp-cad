@@ -153,8 +153,8 @@ public class FeatureManager
             if (!DirectionMap.TryGetValue(direction, out int dirEnum))
                 dirEnum = DirectionMap["positive"];
 
-            // Access RevolveFeatures via dynamic (late binding for COM)
-            dynamic revolveFeatures = compDef.Features.RevolveFeatures;
+            // Access RevolveFeatures via dynamic with Dispatch wrapper
+            dynamic revolveFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.RevolveFeatures);
 
             // 360° uses AddFull, other angles use AddByAngle
             dynamic revolveFeature;
@@ -283,21 +283,19 @@ public class FeatureManager
             // Calculate sweep angle
             double angleRad = angle * Math.PI / 180.0;
 
-            // Access CircularPatternFeatures via COM
-            dynamic cpFeatures = compDef.Features.CircularPatternFeatures;
+            // Access CircularPatternFeatures via COM with Dispatch wrapper
+            dynamic cpFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.CircularPatternFeatures);
 
-            // CreateDefinition features, axis, count, angle, fitWithinAngle, naturalDirection
-            // Inventor API: CreateDefinition(ObjectCollection, AxisEntity, Count, Angle, NaturalAxisDirection, Associative, FittedRotation)
-            dynamic cpDef = cpFeatures.CreateDefinition(
+            // Add(ParentFeatures, Axis, NaturalDir, Count, Angle, FitWithinAngle, ComputeType)
+            // Use Add directly (no separate CreateDefinition needed)
+            dynamic cpFeature = cpFeatures.Add(
                 objectCollection,
                 patternAxis,
+                naturalDirection,
                 count,
                 angleRad,
-                naturalDirection,
-                Type.Missing,
-                fitWithinAngle);
-
-            dynamic cpFeature = cpFeatures.Add(cpDef);
+                fitWithinAngle,
+                Type.Missing);  // ComputeType: default
 
             return new Dictionary<string, object?>
             {
@@ -344,25 +342,24 @@ public class FeatureManager
                 _ => 17921 // default to drilled
             };
 
-            // Access HoleFeatures via dynamic (late binding)
-            dynamic holeFeatures = compDef.Features.HoleFeatures;
+            // Access HoleFeatures via dynamic with Dispatch wrapper
+            dynamic holeFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.HoleFeatures);
 
-            // Create a point at (x, y) on the sketch plane
-            // We need a sketch point for the hole placement
+            // Create a point at (x, y) on the sketch plane for hole placement
             dynamic sketches = compDef.Sketches;
             dynamic sketch = sketches.Item(sketches.Count > 0 ? sketches.Count : 1);
             dynamic sketchPoints = sketch.SketchPoints;
             dynamic placementPoint = sketchPoints.Add(
                 App.TransientGeometry.CreatePoint2d(x, y));
 
-            // Create hole definition via dynamic
-            dynamic holeDef = holeFeatures.CreateDefinition(
-                placementPoint,
-                holeTypeEnum,
-                diameter,
-                depth);
-
-            dynamic holeFeature = holeFeatures.Add(holeDef);
+            // Inventor API: CreateSketchPlacementDefinition takes ObjectCollection of sketch points
+            dynamic pointCollection = TransientObjects().CreateObjectCollection();
+            pointCollection.Add(placementPoint);
+            dynamic placementDef = holeFeatures.CreateSketchPlacementDefinition(pointCollection);
+            dynamic holeFeature = holeFeatures.AddDrilledByDistanceExtent(
+                placementDef, diameter, depth,
+                (global::Inventor.PartFeatureExtentDirectionEnum)DirectionMap["positive"],
+                false, Type.Missing);
 
             return new Dictionary<string, object?>
             {
@@ -394,8 +391,8 @@ public class FeatureManager
         {
             var compDef = ComponentDefinition();
 
-            // Resolve the face — supports numeric index or name
-            dynamic surfaceBody = compDef.SurfaceBodies.Item(1);
+            // Access SurfaceBodies and ThreadFeatures with Dispatch wrapper
+            dynamic surfaceBody = ComDispatchHelper.WrapDispatch(compDef.SurfaceBodies.Item(1));
             dynamic faces = surfaceBody.Faces;
 
             // Try face as numeric index
@@ -410,23 +407,27 @@ public class FeatureManager
                 resolvedFace = faces.Item(1); // fallback to first face
             }
 
-            // Access ThreadFeatures via dynamic (late binding)
-            dynamic threadFeatures = compDef.Features.ThreadFeatures;
+            // Access ThreadFeatures via dynamic with Dispatch wrapper
+            dynamic threadFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.ThreadFeatures);
 
-            // Direction: kRightHandThread = 17930, kLeftHandThread = 17931
-            int directionEnum = direction.ToLowerInvariant() switch
-            {
-                "right" => 17930,
-                "left" => 17931,
-                _ => 17930
-            };
+            // Map direction to right/left handed
+            bool rightHanded = !direction.Equals("left", StringComparison.OrdinalIgnoreCase);
 
-            dynamic threadDef = threadFeatures.CreateDefinition(
-                resolvedFace,
-                specification,
-                directionEnum);
+            // CreateStandardThreadInfo returns StandardThreadInfo (required for cylindrical faces)
+            dynamic threadInfo = threadFeatures.CreateStandardThreadInfo(
+                false,           // Internal (false = external thread)
+                rightHanded,
+                "ANSI Metric M Profile",
+                specification,   // e.g. "M10"
+                "6g");           // tolerance class
 
-            dynamic threadFeature = threadFeatures.Add(threadDef);
+            // Get first edge of the face (required by Add)
+            dynamic startEdge = ComDispatchHelper.WrapDispatch(resolvedFace.Edges.Item(1));
+
+            // Add(Face, StartEdge, ThreadInfo, DirectionReversed, FullDepth, ThreadDepth, ThreadOffset)
+            dynamic threadFeature = threadFeatures.Add(
+                resolvedFace, startEdge, threadInfo,
+                false, true, Type.Missing, Type.Missing);
 
             return new Dictionary<string, object?>
             {
@@ -454,7 +455,7 @@ public class FeatureManager
         try
         {
             var compDef = ComponentDefinition();
-            dynamic surfaceBody = compDef.SurfaceBodies.Item(1);
+            dynamic surfaceBody = ComDispatchHelper.WrapDispatch(compDef.SurfaceBodies.Item(1));
             dynamic edges = surfaceBody.Edges;
 
             var edgeList = new List<Dictionary<string, object?>>();
@@ -462,13 +463,15 @@ public class FeatureManager
 
             for (int i = 1; i <= Math.Min(count, 200); i++) // Limit to 200 edges
             {
-                dynamic edge = edges.Item(i);
+                dynamic edge = ComDispatchHelper.WrapDispatch(edges.Item(i));
                 var edgeInfo = new Dictionary<string, object?>
                 {
                     ["index"] = i,
-                    ["edge_type"] = edge.EdgeType?.ToString(),
-                    ["length"] = edge.Length,
                 };
+
+                // Edge properties may fail if edge doesn't expose IDispatch
+                try { edgeInfo["edge_type"] = edge.EdgeType?.ToString(); } catch { }
+                try { edgeInfo["length"] = edge.Length; } catch { }
 
                 // Try to get geometry info
                 try
@@ -563,7 +566,7 @@ public class FeatureManager
             {
                 try
                 {
-                    dynamic features = compDef.Features.Item(typeName);
+                    dynamic features = ComDispatchHelper.WrapDispatch(compDef.Features.Item(typeName));
                     if (featureIdx >= 1 && featureIdx <= features.Count)
                         return features.Item(featureIdx);
                 }
@@ -576,14 +579,14 @@ public class FeatureManager
         {
             // Common approach: search across all feature collections
             // ExtrudeFeatures is most common
-            dynamic extrudeFeatures = compDef.Features.ExtrudeFeatures;
+            dynamic extrudeFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.ExtrudeFeatures);
             for (int i = 1; i <= extrudeFeatures.Count; i++)
             {
                 if (extrudeFeatures.Item(i).Name == featureRef)
                     return extrudeFeatures.Item(i);
             }
 
-            dynamic revolveFeatures = compDef.Features.RevolveFeatures;
+            dynamic revolveFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.RevolveFeatures);
             for (int i = 1; i <= revolveFeatures.Count; i++)
             {
                 if (revolveFeatures.Item(i).Name == featureRef)
@@ -627,7 +630,7 @@ public class FeatureManager
         if (axisRef.StartsWith("e", StringComparison.OrdinalIgnoreCase) &&
             int.TryParse(axisRef[1..], out int edgeIdx))
         {
-            dynamic surfaceBody = compDef.SurfaceBodies.Item(1);
+            dynamic surfaceBody = ComDispatchHelper.WrapDispatch(compDef.SurfaceBodies.Item(1));
             return surfaceBody.Edges.Item(edgeIdx);
         }
 
@@ -643,7 +646,7 @@ public class FeatureManager
                 // Not a valid work axis — try as edge
                 try
                 {
-                    dynamic surfaceBody = compDef.SurfaceBodies.Item(1);
+                    dynamic surfaceBody = ComDispatchHelper.WrapDispatch(compDef.SurfaceBodies.Item(1));
                     return surfaceBody.Edges.Item(axisIdx);
                 }
                 catch
