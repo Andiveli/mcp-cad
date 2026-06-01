@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.Tools", "McpCad.Tool
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.Tests", "..\tests\McpCad.Tests\McpCad.Tests.csproj", "{B0C7B746-DF01-4BCB-9193-4A2486618B26}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.Installer", "McpCad.Installer\McpCad.Installer.csproj", "{A915F059-886A-4D30-BD3D-2DD1844B4F45}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,5 +40,9 @@ Global
 		{B0C7B746-DF01-4BCB-9193-4A2486618B26}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B0C7B746-DF01-4BCB-9193-4A2486618B26}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B0C7B746-DF01-4BCB-9193-4A2486618B26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
