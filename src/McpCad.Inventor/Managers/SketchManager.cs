@@ -159,7 +159,9 @@ public class SketchManager
             if (!string.IsNullOrEmpty(tag))
             {
                 int entityIdx = sketch.SketchEntities.Count;
-                TagStore.SetTag(_activeSketchIndex, entityIdx, tag);
+                int typeIdx = sketch.SketchLines.Count;
+                TagStore.SetTag(_activeSketchIndex, entityIdx, tag,
+                    TagStore.EntityType.SketchLine, typeIdx);
             }
 
             return new Dictionary<string, object?>
@@ -209,7 +211,9 @@ public class SketchManager
             if (!string.IsNullOrEmpty(tag))
             {
                 int entityIdx = sketch.SketchEntities.Count;
-                TagStore.SetTag(_activeSketchIndex, entityIdx, tag);
+                int typeIdx = sketch.SketchCircles.Count;
+                TagStore.SetTag(_activeSketchIndex, entityIdx, tag,
+                    TagStore.EntityType.SketchCircle, typeIdx);
             }
             return new Dictionary<string, object?>
             {
