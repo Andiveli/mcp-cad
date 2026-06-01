@@ -1,9 +1,0 @@
-{
-  "servers": {
-    "mcp-cad": {
-      "command": ".venv\\Scripts\\python.exe",
-      "args": ["-m", "mcp_cad"],
-      "_comment": "Add this to %APPDATA%/Code/User/mcp.json under 'servers'. The TUI does this automatically. Reload VS Code window after adding."
-    }
-  }
-}

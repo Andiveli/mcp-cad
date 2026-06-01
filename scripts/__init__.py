@@ -1,1 +1,0 @@
-"""TUI installer package for mcp-cad agent registration."""

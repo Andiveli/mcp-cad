@@ -1,7 +1,0 @@
-{
-  "mcp-cad": {
-    "command": ".venv\\Scripts\\python.exe",
-    "args": ["-m", "mcp_cad"],
-    "_troubleshooting": "If 'Connection closed' error: (1) Run '.venv\\Scripts\\python.exe -m mcp_cad --version' to verify server starts. (2) If it hangs, the server is waiting for stdin — that's correct. (3) Remove 'directTools' and 'lifecycle' fields if present — they're Pi-specific and may interfere with stdio handshake."
-  }
-}
