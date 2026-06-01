@@ -770,21 +770,22 @@ public class SketchManager
         {
             var planarSketch = (global::Inventor.PlanarSketch)sketch;
 
-            // Get entities via SketchEntities (user-facing indices), then cast
-            // to SketchLine. SketchLines has its own indexing (different from SketchEntities).
-            var ent = (global::Inventor.SketchLine)(dynamic)planarSketch.SketchEntities[int.Parse(entity.Trim())];
-            var cut = (global::Inventor.SketchLine)(dynamic)planarSketch.SketchEntities[int.Parse(cuttingEntity.Trim())];
+            // SketchEntities.Item() returns SketchEntity (base type), not SketchLine.
+            // Use dynamic dispatch to access SketchLine-specific members (StartSketchPoint, etc.)
+            // without requiring a cast that would fail with E_NOINTERFACE.
+            dynamic ent = planarSketch.SketchEntities[int.Parse(entity.Trim())];
+            dynamic cut = planarSketch.SketchEntities[int.Parse(cuttingEntity.Trim())];
 
-            // Get endpoints as Point2d (early-bound)
-            double x1 = ent.StartSketchPoint.Geometry.X;
-            double y1 = ent.StartSketchPoint.Geometry.Y;
-            double x2 = ent.EndSketchPoint.Geometry.X;
-            double y2 = ent.EndSketchPoint.Geometry.Y;
+            // Get endpoints via dynamic dispatch
+            double x1 = (double)ent.StartSketchPoint.Geometry.X;
+            double y1 = (double)ent.StartSketchPoint.Geometry.Y;
+            double x2 = (double)ent.EndSketchPoint.Geometry.X;
+            double y2 = (double)ent.EndSketchPoint.Geometry.Y;
 
-            double x3 = cut.StartSketchPoint.Geometry.X;
-            double y3 = cut.StartSketchPoint.Geometry.Y;
-            double x4 = cut.EndSketchPoint.Geometry.X;
-            double y4 = cut.EndSketchPoint.Geometry.Y;
+            double x3 = (double)cut.StartSketchPoint.Geometry.X;
+            double y3 = (double)cut.StartSketchPoint.Geometry.Y;
+            double x4 = (double)cut.EndSketchPoint.Geometry.X;
+            double y4 = (double)cut.EndSketchPoint.Geometry.Y;
 
             // Compute line-line intersection
             double denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
