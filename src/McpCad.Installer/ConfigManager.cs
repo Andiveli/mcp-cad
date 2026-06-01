@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace McpCad.Installer;
 
 /// <summary>
-/// JSON config read/write/merge for MCP agent registration.
+/// JSON config read/write/deep-merge for MCP agent registration.
 /// Ported from scripts/tui/install_logic.py.
 /// </summary>
 public static class ConfigManager
@@ -14,27 +14,49 @@ public static class ConfigManager
         PropertyNameCaseInsensitive = true,
     };
 
-    /// <summary>Read and parse a JSON config file. Returns empty dict if missing.</summary>
-    public static Dictionary<string, JsonElement> Read(string path)
+    public static Dictionary<string, object?> Read(string path)
     {
         try
         {
             if (!File.Exists(path)) return new();
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json, JsonOpts) ?? new();
+            return JsonSerializer.Deserialize<Dictionary<string, object?>>(json, JsonOpts) ?? new();
         }
         catch { return new(); }
     }
 
-    /// <summary>Merge an MCP server entry under the given key.</summary>
-    public static void MergeEntry(Dictionary<string, JsonElement> config, string key, object entry)
+    /// <summary>
+    /// Deep merge a nested entry under parentKey (e.g. "mcpServers", "servers", "mcp").
+    /// Preserves existing entries in the parent object.
+    /// </summary>
+    public static void MergeEntry(Dictionary<string, object?> config, string parentKey, object value)
     {
-        var entryJson = JsonSerializer.Serialize(entry, JsonOpts);
-        config[key] = JsonSerializer.Deserialize<JsonElement>(entryJson);
+        if (config.TryGetValue(parentKey, out var existing) && existing is JsonElement je)
+        {
+            var existingDict = JsonSerializer.Deserialize<Dictionary<string, object?>>(je.GetRawText(), JsonOpts) ?? new();
+            var newDict = JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                JsonSerializer.Serialize(value, JsonOpts), JsonOpts) ?? new();
+            DeepMerge(existingDict, newDict);
+            config[parentKey] = existingDict;
+        }
+        else if (existing is Dictionary<string, object?> existingObj)
+        {
+            var newDict = value as Dictionary<string, object?> ?? new();
+            DeepMerge(existingObj, newDict);
+        }
+        else
+        {
+            config[parentKey] = value;
+        }
     }
 
-    /// <summary>Atomically write config to disk.</summary>
-    public static void Write(string path, Dictionary<string, JsonElement> config)
+    private static void DeepMerge(Dictionary<string, object?> target, Dictionary<string, object?> source)
+    {
+        foreach (var (key, value) in source)
+            target[key] = value;
+    }
+
+    public static void Write(string path, Dictionary<string, object?> config)
     {
         var dir = Path.GetDirectoryName(path);
         if (dir is not null) Directory.CreateDirectory(dir);

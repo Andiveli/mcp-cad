@@ -7,91 +7,69 @@ public class Program
     private const string StatePath = "scripts/tui/state.json";
     private static State _state = new();
     private static McpAgent[] _agents = [];
+    private static int _selectedIdx;
+    private static string _status = "";
 
     public static void Main(string[] args)
     {
         _state = State.Load(StatePath);
         _agents = McpAgents.All(_state);
 
-        AnsiConsole.Write(new FigletText("mcp-cad").Color(Color.Cyan));
-        AnsiConsole.MarkupLine("[grey]MCP server installer for Autodesk Inventor[/]");
-        AnsiConsole.WriteLine();
-
         while (true)
         {
-            var choice = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .Title("[bold]What do you want to do?[/]")
-                .AddChoices("Select MCP clients", "Run installation", "Quit"));
+            Console.Clear();
+            AnsiConsole.Write(new FigletText("mcp-cad").Color(Color.Cyan));
+            AnsiConsole.MarkupLine("[grey]MCP server installer — Autodesk Inventor[/]");
+            AnsiConsole.MarkupLine("[grey]j/k  move   Space  toggle   Enter  install   q  quit[/]");
+            AnsiConsole.WriteLine();
 
-            switch (choice)
+            for (int i = 0; i < _agents.Length; i++)
             {
-                case "Select MCP clients":
-                    SelectAgents();
+                var agent = _agents[i];
+                var check = agent.Selected ? "[green][[x]][/]" : "[[ ]]";
+                var cursor = i == _selectedIdx ? "[cyan]>[/]" : " ";
+                var name = i == _selectedIdx ? $"[bold cyan]{agent.Name}[/]" : agent.Name;
+                AnsiConsole.MarkupLine($"  {cursor} {check} {name,-12} [grey]{agent.Description}[/]");
+            }
+
+            AnsiConsole.WriteLine();
+            if (!string.IsNullOrEmpty(_status))
+                AnsiConsole.MarkupLine(_status);
+
+            var key = Console.ReadKey(intercept: true);
+            _status = "";
+            switch (key.Key)
+            {
+                case ConsoleKey.J or ConsoleKey.DownArrow:
+                    _selectedIdx = (_selectedIdx + 1) % _agents.Length;
                     break;
-                case "Run installation":
-                    RunInstallation();
-                    _state.LastAgent = "install";
-                    _state.Save(StatePath);
-                    return;
-                case "Quit":
+                case ConsoleKey.K or ConsoleKey.UpArrow:
+                    _selectedIdx = (_selectedIdx - 1 + _agents.Length) % _agents.Length;
+                    break;
+                case ConsoleKey.Spacebar:
+                    _agents[_selectedIdx].Selected = !_agents[_selectedIdx].Selected;
+                    break;
+                case ConsoleKey.Enter:
+                    RunAgent(_agents[_selectedIdx]);
+                    break;
+                case ConsoleKey.Q or ConsoleKey.Escape:
                     return;
             }
         }
     }
 
-    private static void SelectAgents()
+    private static void RunAgent(McpAgent agent)
     {
-        var choices = _agents.Select(a => a.Label).ToList();
-        choices.Add("Back");
-
-        while (true)
+        try
         {
-            var selected = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .Title("[bold]Toggle MCP clients to register[/] (Enter to toggle, Esc to go back)")
-                .AddChoices(choices)
-                .HighlightStyle(new Style(foreground: Color.Cyan)));
-
-            if (selected == "Back") break;
-
-            var idx = choices.IndexOf(selected);
-            if (idx >= 0 && idx < _agents.Length)
-            {
-                _agents[idx].Selected = !_agents[idx].Selected;
-                choices[idx] = _agents[idx].Label;
-            }
+            var path = agent.Run?.Invoke(_state, agent) ?? "unknown";
+            _status = $"[green]{agent.Name}: OK ({path})[/]";
+            _state.LastAgent = agent.Name;
+            _state.Save(StatePath);
         }
-    }
-
-    private static void RunInstallation()
-    {
-        var selected = _agents.Where(a => a.Selected).ToList();
-        if (selected.Count == 0)
+        catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("[red]No MCP clients selected.[/]");
-            return;
+            _status = $"[red]{agent.Name}: FAIL — {ex.Message}[/]";
         }
-
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"[bold]Registering mcp-cad in {selected.Count} client(s)...[/]");
-
-        foreach (var agent in selected)
-        {
-            AnsiConsole.Markup($"  {agent.Name}... ");
-            try
-            {
-                var path = agent.Run?.Invoke(_state, agent) ?? "unknown";
-                AnsiConsole.MarkupLine($"[green]OK[/] ({path})");
-                _state.LastAgent = agent.Name;
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]FAIL: {ex.Message}[/]");
-            }
-        }
-
-        _state.Save(StatePath);
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[green bold]Installation complete![/]");
-        AnsiConsole.MarkupLine("[grey]Restart your MCP client(s) to pick up the changes.[/]");
     }
 }

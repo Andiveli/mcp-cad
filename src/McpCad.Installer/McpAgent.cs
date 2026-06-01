@@ -1,9 +1,5 @@
 namespace McpCad.Installer;
 
-/// <summary>
-/// Represents a selectable MCP client agent in the TUI.
-/// Ported from scripts/tui/items/.
-/// </summary>
 public class McpAgent
 {
     public string Name { get; init; } = "";
@@ -12,100 +8,106 @@ public class McpAgent
     public string? ConfigPath { get; init; }
     public Func<State, McpAgent, string>? Run { get; init; }
 
-    /// <summary>Display label with checkbox indicator.</summary>
     public string Label => Selected ? $"[[x]] {Name}" : $"[[ ]] {Name}";
 }
 
-/// <summary>
-/// Factory for creating MCP agent registrations.
-/// Each agent knows how to write its MCP config.
-/// </summary>
 public static class McpAgents
 {
-    private static readonly string ServerExe = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..",
-        "McpCad.Server", "bin", "Release", "net8.0-windows", "McpCad.Server.exe");
-
     public static McpAgent[] All(State state)
     {
-        var serverPath = Path.GetFullPath(ServerExe);
-        // Fall back to dist directory if build output doesn't exist
-        if (!File.Exists(serverPath))
-            serverPath = FindDistServer();
+        var serverPath = FindServerPath();
 
         return new[]
         {
             new McpAgent
             {
                 Name = "OpenCode",
-                Description = "Register mcp-cad in OpenCode (opencode.json)",
+                Description = "Register in ~/.config/opencode/opencode.json",
                 ConfigPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".config", "opencode", "opencode.json"),
-                Run = (s, a) => RegisterMcpServer(a.ConfigPath!, serverPath, "mcp-cad", "local"),
+                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcp", "local"),
             },
             new McpAgent
             {
                 Name = "Claude",
-                Description = "Register mcp-cad in Claude Desktop (claude_desktop_config.json)",
+                Description = "Register in %APPDATA%/Claude/claude_desktop_config.json",
                 ConfigPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "Claude", "claude_desktop_config.json"),
                 Selected = false,
-                Run = (s, a) => RegisterMcpServer(a.ConfigPath!, serverPath, "mcp-cad", "stdio"),
+                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
             },
             new McpAgent
             {
                 Name = "Pi",
-                Description = "Register mcp-cad in Pi (settings.json)",
+                Description = "Register in ~/.pi/agent/mcp.json",
                 ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Pi", "settings.json"),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".pi", "agent", "mcp.json"),
                 Selected = false,
-                Run = (s, a) => RegisterMcpServer(a.ConfigPath!, serverPath, "mcp-cad", "stdio"),
+                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
             },
             new McpAgent
             {
                 Name = "VS Code",
-                Description = "Register mcp-cad in VS Code (mcp.json)",
+                Description = "Register in %APPDATA%/Code/User/mcp.json",
                 ConfigPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Code", "User", "globalStorage", "rooveterinaryinc.roo-cline",
-                    "settings", "cline_mcp_settings.json"),
+                    "Code", "User", "mcp.json"),
                 Selected = false,
-                Run = (s, a) => RegisterMcpServer(a.ConfigPath!, serverPath, "mcp-cad", "stdio"),
+                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio"),
             },
         };
     }
 
-    private static string FindDistServer()
+    private static string FindServerPath()
     {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        for (int i = 0; i < 6; i++)
+        // Walk up from assembly dir looking for dist/mcp-cad or dist/csharp-server-*
+        var dir = AppDomain.CurrentDomain.BaseDirectory;
+        for (int i = 0; i < 8; i++)
         {
-            var dist = Path.Combine(baseDir, "dist");
-            if (Directory.Exists(dist))
-            {
-                var dirs = Directory.GetDirectories(dist, "csharp-server-*")
-                    .OrderDescending()
-                    .FirstOrDefault();
-                if (dirs is not null)
-                    return Path.Combine(dirs, "McpCad.Server.exe");
-            }
-            baseDir = Path.GetDirectoryName(baseDir) ?? baseDir;
+            var found = FindInDist(dir);
+            if (found is not null) return found;
+            var parent = Path.GetDirectoryName(dir);
+            if (parent is null || parent == dir) break;
+            dir = parent;
         }
-        return "";
+        return FindInDist(Environment.CurrentDirectory) ?? "";
     }
 
-    private static string RegisterMcpServer(string configPath, string serverPath, string name, string type)
+    private static string? FindInDist(string baseDir)
+    {
+        var dist = Path.Combine(baseDir, "dist");
+        if (!Directory.Exists(dist)) return null;
+
+        // Prefer dist/mcp-cad/
+        var direct = Path.Combine(dist, "mcp-cad", "McpCad.Server.exe");
+        if (File.Exists(direct)) return direct;
+
+        // Fallback: latest csharp-server-vN
+        return Directory.GetDirectories(dist, "csharp-server-*")
+            .Select(d => new { Path = d, Ver = ExtractVersion(d) })
+            .Where(x => x.Ver >= 0)
+            .OrderByDescending(x => x.Ver)
+            .Select(x => Path.Combine(x.Path, "McpCad.Server.exe"))
+            .FirstOrDefault(File.Exists);
+    }
+
+    private static int ExtractVersion(string dirPath)
+    {
+        var name = Path.GetFileName(dirPath);
+        var idx = name.LastIndexOf('v');
+        return idx >= 0 && int.TryParse(name[(idx + 1)..], out var v) ? v : -1;
+    }
+
+    private static string RegisterWithSchema(string configPath, string serverPath, string parentKey, string type)
     {
         var config = ConfigManager.Read(configPath);
-        var entry = new Dictionary<string, object?>
-        {
-            ["command"] = new[] { serverPath },
-            ["type"] = type,
-        };
-        ConfigManager.MergeEntry(config, name, entry);
+        var entry = type == "local"
+            ? new Dictionary<string, object?> { ["type"] = "local", ["command"] = new[] { serverPath } }
+            : new Dictionary<string, object?> { ["command"] = serverPath, ["args"] = Array.Empty<string>() };
+        ConfigManager.MergeEntry(config, parentKey, new Dictionary<string, object?> { ["mcp-cad"] = entry });
         ConfigManager.Write(configPath, config);
         return configPath;
     }
