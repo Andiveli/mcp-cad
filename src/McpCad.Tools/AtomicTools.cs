@@ -12,7 +12,7 @@ namespace McpCad.Tools;
 /// Tool method names use snake_case to match Python tool names (S5.1).
 /// </summary>
 [McpServerToolType]
-public class AtomicTools(ICadProvider provider)
+public class AtomicTools(IMechanicalCadProvider provider)
 {
     // ── Connection (3) ────────────────────────────────────────────────
 

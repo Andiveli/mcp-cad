@@ -3,11 +3,11 @@ using McpCad.Core;
 namespace McpCad.Tests.Mocks;
 
 /// <summary>
-/// Mock implementation of ICadProvider that returns canned success results.
+/// Mock implementation of IMechanicalCadProvider that returns canned success results.
 /// Use <see cref="WithError"/> to create a provider where every method returns errors,
 /// or set individual method responses via <c>SetXxxResult</c> for fine-grained control.
 /// </summary>
-public class MockInventorProvider : ICadProvider
+public class MockInventorProvider : IMechanicalCadProvider
 {
     // ── Per-method overrides (null = use default success response) ──
 

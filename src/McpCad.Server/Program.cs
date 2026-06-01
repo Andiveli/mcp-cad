@@ -13,10 +13,11 @@ builder.Logging.AddConsole(consoleLogOptions =>
     consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
 });
 
-// Register the Inventor-backed ICadProvider as a singleton.
+// Register the Inventor-backed provider as a singleton.
 // The driver connects lazily — no Inventor required at startup.
 builder.Services.AddSingleton<InventorDriver>();
-builder.Services.AddSingleton<ICadProvider, InventorProvider>();
+builder.Services.AddSingleton<IMechanicalCadProvider, InventorProvider>();
+builder.Services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<IMechanicalCadProvider>());
 
 // Register MCP server with stdio transport.
 builder.Services

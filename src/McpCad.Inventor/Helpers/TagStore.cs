@@ -31,6 +31,10 @@ public static class TagStore
         };
     }
 
+    /// <summary>Get the tag for a sketch entity, or null.</summary>
+    public static string? GetTag(int sketchIdx, int entityIdx)
+        => _store.TryGetValue((sketchIdx, entityIdx), out var e) ? e.Tag : null;
+
     /// <summary>Resolve a tag to its entity index, or null.</summary>
     public static int? Resolve(int sketchIdx, string tag)
     {

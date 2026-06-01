@@ -4,11 +4,11 @@ using McpCad.Inventor.Managers;
 namespace McpCad.Inventor;
 
 /// <summary>
-/// Implements ICadProvider by delegating to the six managers.
+/// Implements IMechanicalCadProvider by delegating to the six managers.
 /// Each manager handles a domain (sketch, features, documents, etc.)
 /// and the driver handles COM connection lifecycle.
 /// </summary>
-public class InventorProvider : ICadProvider
+public class InventorProvider : IMechanicalCadProvider
 {
     private readonly InventorDriver _driver;
     private readonly SketchManager _sketch;

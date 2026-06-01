@@ -13,7 +13,7 @@ namespace McpCad.Tools;
 /// Tool method names use snake_case to match Python tool names (S5.1).
 /// </summary>
 [McpServerToolType]
-public class SkillTools(ICadProvider provider)
+public class SkillTools(IMechanicalCadProvider provider)
 {
     // ── Drawing skills (8) ──────────────────────────────────────────────
 

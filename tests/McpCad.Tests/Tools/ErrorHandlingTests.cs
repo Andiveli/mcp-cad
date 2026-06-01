@@ -134,7 +134,7 @@ public class ErrorHandlingTests
 /// A mock provider that throws a specified exception on every method call.
 /// Used for testing error handling paths in tool classes.
 /// </summary>
-internal class ThrowingMockProvider : ICadProvider
+internal class ThrowingMockProvider : IMechanicalCadProvider
 {
     private readonly Exception _exception;
 
