@@ -13,7 +13,7 @@ public class McpAgent
     public Func<State, McpAgent, string>? Run { get; init; }
 
     /// <summary>Display label with checkbox indicator.</summary>
-    public string Label => Selected ? $"[x] {Name}" : $"[ ] {Name}";
+    public string Label => Selected ? $"[[x]] {Name}" : $"[[ ]] {Name}";
 }
 
 /// <summary>
