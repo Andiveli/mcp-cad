@@ -213,7 +213,16 @@ public class SkillTools(ICadProvider provider)
         double? position_x = null, double? position_y = null)
         => Catch(() => provider.SketchDimension(mode, entity1, entity2, value, orientation, position_x, position_y));
 
-    // ── 3D skill (1) ────────────────────────────────────────────────────
+    // ── 3D skills (2) ───────────────────────────────────────────────────
+
+    [McpServerTool, Description("Extrude a sketch profile. Auto-defaults to profile=1.")]
+    public Dictionary<string, object?> skill_extrude(
+        double distance,
+        string direction = "positive",
+        double taper = 0.0,
+        string operation = "new_body",
+        string profile = "1")
+        => Catch(() => provider.Extrude(profile, distance, direction, taper, operation));
 
     [McpServerTool, Description("Revolve a profile around an axis. Auto-draws circle + axis if no profile provided.")]
     public Dictionary<string, object?> skill_revolve(
