@@ -437,23 +437,45 @@ public class SketchManager
         catch (Exception ex) { throw new InventorComException($"Failed to create sketch rectangular pattern: {ex.Message}", ex); }
     }
 
+    /// <summary>
+    /// Retrieves a sketch entity by index from the appropriate type-specific
+    /// collection. OffsetSketchEntitiesUsingPoint requires the concrete type
+    /// (SketchCircle, SketchLine, etc.), not the base SketchEntity that
+    /// SketchEntities.Item() returns. MoveSketchObjects/RotateSketchObjects
+    /// are more permissive and work with the base type.
+    /// </summary>
+    private static dynamic GetTypedEntity(dynamic sketch, int index)
+    {
+        // Try each type-specific collection; fall back to SketchEntities
+        try { return sketch.SketchCircles.Item(index); }    catch { }
+        try { return sketch.SketchLines.Item(index); }      catch { }
+        try { return sketch.SketchArcs.Item(index); }       catch { }
+        try { return sketch.SketchSplines.Item(index); }    catch { }
+        try { return sketch.SketchPoints.Item(index); }     catch { }
+        try { return sketch.SketchEllipses.Item(index); }   catch { }
+        return sketch.SketchEntities.Item(index);
+    }
+
     public Dictionary<string, object?> SketchOffset(
         string entities, double offsetX, double offsetY, bool includeConnected = false)
     {
         var sketch = EnsureActiveSketch();
         try
         {
-            // Python wraps entities with win32com.client.Dispatch(ent) before Add().
-            // In C#, use dynamic dispatch to avoid interop marshaling issues.
-            dynamic dynApp = App;
-            var col = dynApp.TransientObjects.CreateObjectCollection();
+            // OffsetSketchEntitiesUsingPoint needs type-specific entity
+            // references (SketchCircle, etc.), not base SketchEntity.
+            // Collection and point must be built via late-bound (dynamic)
+            // to preserve COM identity.
+            dynamic to = App.TransientObjects;
+            dynamic col = to.CreateObjectCollection();
             foreach (var idxStr in entities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                dynamic ent = sketch.SketchEntities.Item(int.Parse(idxStr));
-                col.Add(ent);
+                col.Add(GetTypedEntity(sketch, int.Parse(idxStr)));
             }
 
-            dynamic offsetPt = dynApp.TransientGeometry.CreatePoint2d(offsetX, offsetY);
+            var tg = TransientGeometry();
+            dynamic offsetPt = tg.CreatePoint2d(offsetX, offsetY);
+
             ((dynamic)sketch).OffsetSketchEntitiesUsingPoint(col, offsetPt, includeConnected, true);
             return new Dictionary<string, object?>
             {

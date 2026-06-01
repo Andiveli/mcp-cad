@@ -35,4 +35,11 @@
     <ProjectReference Include="..\..\src\McpCad.Inventor\McpCad.Inventor.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Autodesk.Inventor.Interop">
+      <HintPath>C:\Program Files\Autodesk\Inventor 2027\Bin\Public Assemblies\v30.0\Autodesk.Inventor.Interop.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
 </Project>

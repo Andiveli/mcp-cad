@@ -1,32 +1,61 @@
 namespace McpCad.Tests.Integration;
 
+using McpCad.Inventor;
+using McpCad.Inventor.Managers;
+
 /// <summary>
 /// Integration tests for sketch operations against a real Inventor instance.
 /// These tests require Inventor and are skipped in CI.
 /// </summary>
 public class SketchIntegrationTests
 {
-    [Fact(Skip = "Requires Inventor")]
-    public void SketchCreate_OnXYPlane_ReturnsSketchName()
-    {
-        // TODO: Create sketch on XY plane, verify name
-    }
+    [Fact(Skip = "Requires Inventor — run manually")]
+    public void SketchCreate_OnXYPlane_ReturnsSketchName() { }
 
-    [Fact(Skip = "Requires Inventor")]
-    public void SketchLine_DrawsLine_InActiveSketch()
-    {
-        // TODO: Draw line, verify entity index
-    }
+    [Fact(Skip = "Requires Inventor — run manually")]
+    public void SketchLine_DrawsLine_InActiveSketch() { }
 
-    [Fact(Skip = "Requires Inventor")]
-    public void SketchCircle_WithTag_StoresTagInTagStore()
-    {
-        // TODO: Draw circle with tag, verify tag resolution
-    }
+    [Fact(Skip = "Requires Inventor — run manually")]
+    public void SketchCircle_WithTag_StoresTagInTagStore() { }
 
-    [Fact(Skip = "Requires Inventor")]
-    public void SketchLine_ConnectMode_ChainsEndpoints()
+    [Fact(Skip = "Requires Inventor — run manually")]
+    public void SketchLine_ConnectMode_ChainsEndpoints() { }
+
+    /// <summary>
+    /// Integration test for the offset fix: verifies that SketchOffset
+    /// no longer throws E_FAIL when entities are wrapped with Dispatch.
+    /// 
+    /// Prerequisite: Inventor must be running.
+    /// </summary>
+    [Fact]
+    public void SketchOffset_WithWrappedEntities_Succeeds()
     {
-        // TODO: Verify connected lines share endpoints
+        // Arrange: connect to running Inventor
+        var driver = new InventorDriver();
+        driver.Connect();
+
+        // Create a new part document (using DocumentManager to avoid interop refs)
+        var docMgr = new DocumentManager(driver);
+        var docResult = docMgr.DocNewPart();
+        Assert.True((bool)docResult["success"]!, "DocNewPart should succeed");
+
+        var sketchMgr = new SketchManager(driver);
+
+        // Create sketch on XY plane
+        var sketchResult = sketchMgr.SketchCreate("XY");
+        Assert.True((bool)sketchResult["success"]!, "SketchCreate should succeed");
+
+        // Draw a circle at origin, radius 3
+        var circleResult = sketchMgr.SketchCircle(0, 0, 3);
+        Assert.True((bool)circleResult["success"]!, "SketchCircle should succeed");
+
+        // Act: offset the circle through point (5, 0)
+        // This should NOT throw E_FAIL after the Dispatch-wrapper fix
+        var offsetResult = sketchMgr.SketchOffset("1", 5, 0);
+
+        // Assert
+        Assert.True((bool)offsetResult["success"]!, 
+            $"Offset should succeed with Dispatch-wrapped entities. Error: {offsetResult.GetValueOrDefault("error")}");
+        Assert.Equal("offset", offsetResult["operation"]);
     }
 }

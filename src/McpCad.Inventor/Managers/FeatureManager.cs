@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 using McpCad.Inventor.Helpers;
@@ -51,26 +50,7 @@ public class FeatureManager
         var compDef = _driver.ComponentDefinition
             ?? throw new InventorComException("No component definition available.");
         // Wrap in Dispatch to ensure IDispatch support for chained dynamic access
-        return WrapDispatch(compDef);
-    }
-
-    /// <summary>
-    /// Wraps a COM object to ensure IDispatch support for late-bound dynamic access.
-    /// Some Inventor COM objects (like ExtrudeFeatures) only expose IUnknown,
-    /// which prevents the dynamic binder from resolving members.
-    /// </summary>
-    private static dynamic WrapDispatch(dynamic obj)
-    {
-        if (obj == null) return null!;
-        try
-        {
-            IntPtr dispatchPtr = Marshal.GetIDispatchForObject((object)obj);
-            return Marshal.GetObjectForIUnknown(dispatchPtr);
-        }
-        catch
-        {
-            return obj; // Fall back to original if IDispatch not available
-        }
+        return ComDispatchHelper.WrapDispatch(compDef);
     }
 
     private dynamic TransientObjects() => App.TransientObjects;

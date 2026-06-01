@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <Reference Include="Autodesk.Inventor.Interop">
-      <HintPath>C:\Windows\Microsoft.NET\assembly\GAC_MSIL\Autodesk.Inventor.Interop\v4.0_29.1.0.0__d84147f8b4276564\autodesk.inventor.interop.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\Inventor 2027\Bin\Public Assemblies\v30.0\Autodesk.Inventor.Interop.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
