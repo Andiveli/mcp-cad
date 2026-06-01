@@ -68,7 +68,7 @@ public class PropertyManager(InventorDriver driver)
     /// <summary>
     /// Set an iProperty value by name in the specified property set.
     /// </summary>
-    public Dictionary<string, object?> IPropertySet(string name, object value, string propSet = "Summary")
+    public Dictionary<string, object?> IPropertySet(string name, string? value, string propSet = "Summary")
     {
         try
         {
@@ -154,7 +154,7 @@ public class PropertyManager(InventorDriver driver)
     /// <summary>
     /// Set a custom iProperty. Creates it if it doesn't exist.
     /// </summary>
-    public Dictionary<string, object?> IPropertyCustomSet(string name, object value)
+    public Dictionary<string, object?> IPropertyCustomSet(string name, string? value)
     {
         try
         {

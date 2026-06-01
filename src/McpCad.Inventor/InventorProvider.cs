@@ -166,12 +166,12 @@ public Dictionary<string, object?> CircularPattern(
     public Dictionary<string, object?> IPropertyGet(string name, string propertySet = "Summary")
         => _property.IPropertyGet(name, propertySet);
 
-    public Dictionary<string, object?> IPropertySet(string name, object value, string propertySet = "Summary")
+    public Dictionary<string, object?> IPropertySet(string name, string? value, string propertySet = "Summary")
         => _property.IPropertySet(name, value, propertySet);
 
     public Dictionary<string, object?> IPropertySummary() => _property.IPropertySummary();
     public Dictionary<string, object?> IPropertyCustomGet(string name) => _property.IPropertyCustomGet(name);
-    public Dictionary<string, object?> IPropertyCustomSet(string name, object value) => _property.IPropertyCustomSet(name, value);
+    public Dictionary<string, object?> IPropertyCustomSet(string name, string? value) => _property.IPropertyCustomSet(name, value);
 
     // ── Export ─────────────────────────────────────────────────────────
 

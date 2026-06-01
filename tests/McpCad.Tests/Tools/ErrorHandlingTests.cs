@@ -187,10 +187,10 @@ internal class ThrowingMockProvider : ICadProvider
     public Dictionary<string, object?> ParamSet(string name, double value) => Throw();
     public Dictionary<string, object?> ParamSetExpression(string name, string expression) => Throw();
     public Dictionary<string, object?> IPropertyGet(string name, string propertySet = "Summary") => Throw();
-    public Dictionary<string, object?> IPropertySet(string name, object value, string propertySet = "Summary") => Throw();
+    public Dictionary<string, object?> IPropertySet(string name, string? value, string propertySet = "Summary") => Throw();
     public Dictionary<string, object?> IPropertySummary() => Throw();
     public Dictionary<string, object?> IPropertyCustomGet(string name) => Throw();
-    public Dictionary<string, object?> IPropertyCustomSet(string name, object value) => Throw();
+    public Dictionary<string, object?> IPropertyCustomSet(string name, string? value) => Throw();
     public Dictionary<string, object?> ExportStep(string path, Dictionary<string, object?>? options = null) => Throw();
     public Dictionary<string, object?> ExportStl(string path, Dictionary<string, object?>? options = null) => Throw();
     public Dictionary<string, object?> ExportPdf(string path, Dictionary<string, object?>? options = null) => Throw();

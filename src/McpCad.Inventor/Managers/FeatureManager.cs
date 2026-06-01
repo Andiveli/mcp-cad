@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 using McpCad.Inventor.Helpers;
@@ -14,21 +15,22 @@ public class FeatureManager
 {
     private readonly InventorDriver _driver;
 
-    // PartFeatureOperationEnum values (from Inventor interop)
+    // PartFeatureOperationEnum values (from Inventor interop documentation)
     private static readonly Dictionary<string, int> OperationMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["new_body"] = 0x00008070, // kNewBodyOperation
-        ["join"] = 0x00008071,      // kJoinOperation
-        ["cut"] = 0x00008072,       // kCutOperation
-        ["intersect"] = 0x00008073, // kIntersectOperation
+        ["new_body"] = 20485,  // kNewBodyOperation
+        ["join"] = 20481,       // kJoinOperation
+        ["cut"] = 20482,        // kCutOperation
+        ["intersect"] = 20483,  // kIntersectOperation
+        ["surface"] = 20484,    // kSurfaceOperation
     };
 
-    // PartFeatureExtentDirectionEnum values
+    // PartFeatureExtentDirectionEnum values (verified from interop)
     private static readonly Dictionary<string, int> DirectionMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["positive"] = 0x00008080, // kPositiveExtentDirection
-        ["negative"] = 0x00008081, // kNegativeExtentDirection
-        ["symmetric"] = 0x00008082, // kSymmetricExtentDirection
+        ["positive"] = 20993,   // kPositiveExtentDirection
+        ["negative"] = 20994,   // kNegativeExtentDirection
+        ["symmetric"] = 20995,  // kSymmetricExtentDirection
     };
 
     public FeatureManager(InventorDriver driver) => _driver = driver;
@@ -44,8 +46,32 @@ public class FeatureManager
         return doc;
     }
 
-    private dynamic ComponentDefinition() => _driver.ComponentDefinition
-        ?? throw new InventorComException("No component definition available.");
+    private dynamic ComponentDefinition()
+    {
+        var compDef = _driver.ComponentDefinition
+            ?? throw new InventorComException("No component definition available.");
+        // Wrap in Dispatch to ensure IDispatch support for chained dynamic access
+        return WrapDispatch(compDef);
+    }
+
+    /// <summary>
+    /// Wraps a COM object to ensure IDispatch support for late-bound dynamic access.
+    /// Some Inventor COM objects (like ExtrudeFeatures) only expose IUnknown,
+    /// which prevents the dynamic binder from resolving members.
+    /// </summary>
+    private static dynamic WrapDispatch(dynamic obj)
+    {
+        if (obj == null) return null!;
+        try
+        {
+            IntPtr dispatchPtr = Marshal.GetIDispatchForObject((object)obj);
+            return Marshal.GetObjectForIUnknown(dispatchPtr);
+        }
+        catch
+        {
+            return obj; // Fall back to original if IDispatch not available
+        }
+    }
 
     private dynamic TransientObjects() => App.TransientObjects;
 
@@ -75,9 +101,12 @@ public class FeatureManager
             if (!DirectionMap.TryGetValue(direction, out int dirEnum))
                 return ErrorResult.Create($"Invalid direction '{direction}'. Use: positive, negative, symmetric.");
 
-            // Create extrude definition
-            dynamic extrudeFeatures = compDef.Features.ExtrudeFeatures;
-            dynamic extrudeDef = extrudeFeatures.CreateDefinition(resolvedProfile, opEnum);
+            // Use early-bound interop types instead of dynamic for COM calls.
+            // Cast to concrete types from Autodesk.Inventor.Interop assembly.
+            // Use global:: prefix because McpCad.Inventor shadows the Inventor namespace.
+            var partCompDef = (global::Inventor.PartComponentDefinition)compDef;
+            var extrudeFeatures = partCompDef.Features.ExtrudeFeatures;
+            var extrudeDef = extrudeFeatures.CreateExtrudeDefinition(resolvedProfile, (global::Inventor.PartFeatureOperationEnum)opEnum);
 
             // Set distance extent
             // PartFeatureExtentDirectionEnum value for direction
@@ -185,50 +214,28 @@ public class FeatureManager
         try
         {
             var compDef = ComponentDefinition();
+            var partCompDef = (global::Inventor.PartComponentDefinition)compDef;
 
             // Resolve edge indices to EdgeCollection
-            dynamic edgeCollection = EdgeResolver.Resolve(compDef, edges);
+            dynamic edgeCollection = EdgeResolver.Resolve(partCompDef, edges);
 
-            // Get FilletFeatures via COM
-            dynamic filletFeatures = compDef.Features.FilletFeatures;
+            // Get FilletFeatures via early-bound COM
+            var filletFeatures = partCompDef.Features.FilletFeatures;
 
-            if (mode.Equals("constant", StringComparison.OrdinalIgnoreCase))
+            // AddSimple(EdgeCollection, Radius, AutoEdgeChain, TangentProp, PreserveFeat, Optimized, RollAlongEdge, RollWherePossible)
+            var filletFeature = filletFeatures.AddSimple(
+                edgeCollection, radius,
+                true, true, true, true, true, true);
+
+            return new Dictionary<string, object?>
             {
-                // Constant-radius fillet
-                dynamic filletDef = filletFeatures.CreateDefinition(edgeCollection, radius, 0x00008083 /* kSmoothRollover */);
-                dynamic filletFeature = filletFeatures.Add(filletDef);
-
-                return new Dictionary<string, object?>
-                {
-                    ["success"] = true,
-                    ["feature_type"] = "fillet",
-                    ["radius"] = radius,
-                    ["mode"] = "constant",
-                    ["edges"] = edges,
-                    ["feature_name"] = filletFeature.Name as string,
-                };
-            }
-            else
-            {
-                // Variable-radius fillet
-                // For variable mode, we apply the same start and end radius as a minimal variable fillet
-                dynamic startVertex = edgeCollection.Item(1).StartVertex;
-                dynamic endVertex = edgeCollection.Item(1).StartVertex; // reuse start vertex
-                dynamic filletDef = filletFeatures.CreateVariableDefinition(
-                    edgeCollection, 0x00008084 /* kSetback */);
-                filletDef.SetRadius(startVertex, radius);
-                dynamic filletFeature = filletFeatures.Add(filletDef);
-
-                return new Dictionary<string, object?>
-                {
-                    ["success"] = true,
-                    ["feature_type"] = "fillet",
-                    ["radius"] = radius,
-                    ["mode"] = "variable",
-                    ["edges"] = edges,
-                    ["feature_name"] = filletFeature.Name as string,
-                };
-            }
+                ["success"] = true,
+                ["feature_type"] = "fillet",
+                ["radius"] = radius,
+                ["mode"] = "constant",
+                ["edges"] = edges,
+                ["feature_name"] = filletFeature.Name,
+            };
         }
         catch (InventorConnectionException) { throw; }
         catch (InventorComException) { throw; }
@@ -243,33 +250,18 @@ public class FeatureManager
         try
         {
             var compDef = ComponentDefinition();
+            var partCompDef = (global::Inventor.PartComponentDefinition)compDef;
 
             // Resolve edge indices to EdgeCollection
-            dynamic edgeCollection = EdgeResolver.Resolve(compDef, edges);
+            dynamic edgeCollection = EdgeResolver.Resolve(partCompDef, edges);
 
-            // Get ChamferFeatures via COM
-            dynamic chamferFeatures = compDef.Features.ChamferFeatures;
+            // Get ChamferFeatures via early-bound COM
+            var chamferFeatures = partCompDef.Features.ChamferFeatures;
 
-            dynamic chamferFeature;
-
-            if (mode.Equals("equal_distance", StringComparison.OrdinalIgnoreCase))
-            {
-                // Equal-distance chamfer (both sides same distance)
-                // CreateDefinition(EdgeCollection, Distance, PartFeatureOperationEnum)
-                dynamic chamferDef = chamferFeatures.CreateDefinition(edgeCollection, distance, 0x00008070 /* kNewBodyOperation — default */);
-                // Overwrite with correct chamfer definition type
-                // kEqualDistanceChamferType = 17986
-                chamferDef.ChamferType = 17986;
-                chamferFeature = chamferFeatures.Add(chamferDef);
-            }
-            else
-            {
-                // Two-distances chamfer — use same distance for both as minimal spec
-                // kTwoDistancesChamferType = 17987
-                dynamic chamferDef = chamferFeatures.CreateDefinition(edgeCollection, distance, distance, 0x00008070);
-                chamferDef.ChamferType = 17987;
-                chamferFeature = chamferFeatures.Add(chamferDef);
-            }
+            // AddUsingDistance(EdgeCollection, Distance, AutoEdgeChain, PreserveFeat, Optimized)
+            var chamferFeature = chamferFeatures.AddUsingDistance(
+                edgeCollection, distance,
+                true, true, true);
 
             return new Dictionary<string, object?>
             {
@@ -278,7 +270,7 @@ public class FeatureManager
                 ["distance"] = distance,
                 ["mode"] = mode,
                 ["edges"] = edges,
-                ["feature_name"] = chamferFeature.Name as string,
+                ["feature_name"] = chamferFeature.Name,
             };
         }
         catch (InventorConnectionException) { throw; }

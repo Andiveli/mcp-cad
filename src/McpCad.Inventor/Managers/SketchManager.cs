@@ -87,10 +87,11 @@ public class SketchManager
         try
         {
             var compDef = ComponentDefinition();
-            dynamic workPlane = compDef.WorkPlanes.Item(planeIndex);
-            dynamic sketch = compDef.Sketches.Add(workPlane);
+            var partCompDef = (global::Inventor.PartComponentDefinition)compDef;
+            dynamic workPlane = partCompDef.WorkPlanes[planeIndex];
+            dynamic sketch = partCompDef.Sketches.Add(workPlane);
             _activeSketch = sketch;
-            _activeSketchIndex = compDef.Sketches.Count;
+            _activeSketchIndex = partCompDef.Sketches.Count;
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -229,8 +230,13 @@ public class SketchManager
         try
         {
             var tg = TransientGeometry();
-            dynamic center = tg.CreatePoint2d(cx, cy);
-            sketch.SketchArcs.AddByCenterStartEndAngle(center, radius, startAngle, endAngle);
+            var center = tg.CreatePoint2d(cx, cy);
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            // AddByCenterStartSweepAngle expects RADIANS, not degrees
+            double sweepAngle = endAngle - startAngle;
+            double startAngleRad = startAngle * Math.PI / 180.0;
+            double sweepAngleRad = sweepAngle * Math.PI / 180.0;
+            planarSketch.SketchArcs.AddByCenterStartSweepAngle(center, radius, startAngleRad, sweepAngleRad);
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -298,8 +304,7 @@ public class SketchManager
         try
         {
             var tg = TransientGeometry();
-            dynamic col = App.TransientObjects.CreateObjectCollection();
-
+            var col = App.TransientObjects.CreateObjectCollection();
             var parts = points.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (parts.Length < 4 || parts.Length % 2 != 0)
                 return ErrorResult.Create("points must be comma-separated x,y pairs with at least 3 points");
@@ -311,7 +316,8 @@ public class SketchManager
                 col.Add(tg.CreatePoint2d(px, py));
             }
 
-            sketch.SketchSplines.Add(col, methodEnum);
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            planarSketch.SketchSplines.Add(col, (global::Inventor.SplineFitMethodEnum)methodEnum);
             int pointCount = parts.Length / 2;
             return new Dictionary<string, object?>
             {
@@ -333,10 +339,11 @@ public class SketchManager
         try
         {
             var tg = TransientGeometry();
-            dynamic center = tg.CreatePoint2d(cx, cy);
+            var center = tg.CreatePoint2d(cx, cy);
             double rad = majorAxisAngle * Math.PI / 180.0;
-            dynamic axisVec = tg.CreateUnitVector2d(Math.Cos(rad), Math.Sin(rad));
-            sketch.SketchEllipses.Add(center, axisVec, majorRadius, minorRadius);
+            var axisVec = (global::Inventor.UnitVector2d)tg.CreateUnitVector2d(Math.Cos(rad), Math.Sin(rad));
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            planarSketch.SketchEllipses.Add(center, axisVec, majorRadius, minorRadius);
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -436,11 +443,18 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
-            var col = BuildEntityCollection(sketch, entities);
-            var tg = TransientGeometry();
-            dynamic offsetPt = tg.CreatePoint2d(offsetX, offsetY);
+            // Python wraps entities with win32com.client.Dispatch(ent) before Add().
+            // In C#, use dynamic dispatch to avoid interop marshaling issues.
+            dynamic dynApp = App;
+            var col = dynApp.TransientObjects.CreateObjectCollection();
+            foreach (var idxStr in entities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                dynamic ent = sketch.SketchEntities.Item(int.Parse(idxStr));
+                col.Add(ent);
+            }
 
-            sketch.OffsetSketchEntitiesUsingPoint(col, offsetPt, includeConnected, true);
+            dynamic offsetPt = dynApp.TransientGeometry.CreatePoint2d(offsetX, offsetY);
+            ((dynamic)sketch).OffsetSketchEntitiesUsingPoint(col, offsetPt, includeConnected, true);
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -457,10 +471,11 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
-            var col = BuildEntityCollection(sketch, entities);
+            var col = (global::Inventor.ObjectCollection)BuildEntityCollection(sketch, entities);
             var tg = TransientGeometry();
-            dynamic vec = tg.CreateVector2d(dx, dy);
-            sketch.MoveSketchObjects(col, vec, copy, false);
+            var vec = (global::Inventor.Vector2d)tg.CreateVector2d(dx, dy);
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            planarSketch.MoveSketchObjects(col, vec, copy, false);
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -481,11 +496,12 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
-            var col = BuildEntityCollection(sketch, entities);
+            var col = (global::Inventor.ObjectCollection)BuildEntityCollection(sketch, entities);
             var tg = TransientGeometry();
-            dynamic center = tg.CreatePoint2d(cx, cy);
+            var center = (global::Inventor.Point2d)tg.CreatePoint2d(cx, cy);
             double angleRad = angle * Math.PI / 180.0;
-            sketch.RotateSketchObjects(col, center, angleRad, copy, false);
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            planarSketch.RotateSketchObjects(col, center, angleRad, copy, false);
             return new Dictionary<string, object?>
             {
                 ["success"] = true,
@@ -730,11 +746,13 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
-            dynamic ent = sketch.SketchLines.Item(int.Parse(entity.Trim()));
-            dynamic cut = sketch.SketchLines.Item(int.Parse(cuttingEntity.Trim()));
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            dynamic ent = planarSketch.SketchLines[int.Parse(entity.Trim())];
+            dynamic cut = planarSketch.SketchLines[int.Parse(cuttingEntity.Trim())];
 
             dynamic geo1 = ent.Geometry;
             dynamic geo2 = cut.Geometry;
+            // Intersect is on geometry objects; keep dynamic since exact interop type may vary
             dynamic pts = geo1.Intersect(geo2);
 
             if (pts is null || pts.Count == 0)
@@ -742,12 +760,14 @@ public class SketchManager
 
             dynamic pt = pts!.Item(1);
             var tg = TransientGeometry();
-            dynamic target = tg.CreatePoint2d(pt.X, pt.Y);
+            // MoveTo requires early-bound Point2d for SketchPoint
+            var target = (global::Inventor.Point2d)tg.CreatePoint2d(pt.X, pt.Y);
 
-            if (side.Equals("start", StringComparison.OrdinalIgnoreCase))
-                ent.StartSketchPoint.MoveTo(target);
-            else
-                ent.EndSketchPoint.MoveTo(target);
+            // Note: No direct Trim method in Inventor interop; using geometry intersection + point move
+            var sketchPoint = side.Equals("start", StringComparison.OrdinalIgnoreCase)
+                ? (global::Inventor.SketchPoint)ent.StartSketchPoint
+                : (global::Inventor.SketchPoint)ent.EndSketchPoint;
+            sketchPoint.MoveTo(target);
 
             return new Dictionary<string, object?>
             {
@@ -766,12 +786,14 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
+            // Note: No ScaleSketchObjects method in Inventor interop; using manual point calculation
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
             var tg = TransientGeometry();
             foreach (var idxStr in entities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                dynamic ent = sketch.SketchLines.Item(int.Parse(idxStr));
-                dynamic start = ent.StartSketchPoint;
-                dynamic end = ent.EndSketchPoint;
+                dynamic ent = planarSketch.SketchLines[int.Parse(idxStr)];
+                var start = (global::Inventor.SketchPoint)ent.StartSketchPoint;
+                var end = (global::Inventor.SketchPoint)ent.EndSketchPoint;
 
                 double sgX = start.Geometry.X, sgY = start.Geometry.Y;
                 double egX = end.Geometry.X, egY = end.Geometry.Y;
@@ -781,8 +803,8 @@ public class SketchManager
                 double nx2 = cx + (egX - cx) * factor;
                 double ny2 = cy + (egY - cy) * factor;
 
-                start.MoveTo(tg.CreatePoint2d(nx1, ny1));
-                end.MoveTo(tg.CreatePoint2d(nx2, ny2));
+                start.MoveTo((global::Inventor.Point2d)tg.CreatePoint2d(nx1, ny1));
+                end.MoveTo((global::Inventor.Point2d)tg.CreatePoint2d(nx2, ny2));
             }
 
             return new Dictionary<string, object?>
@@ -804,7 +826,9 @@ public class SketchManager
         var sketch = EnsureActiveSketch();
         try
         {
-            dynamic mirrorLine = sketch.SketchLines.Item(int.Parse(mirrorEntity.Trim()));
+            // Note: No Mirror method on PlanarSketch in Inventor interop; using manual reflection math
+            var planarSketch = (global::Inventor.PlanarSketch)sketch;
+            dynamic mirrorLine = planarSketch.SketchLines[int.Parse(mirrorEntity.Trim())];
             dynamic mg = mirrorLine.Geometry;
 
             // Mirror axis line endpoints
@@ -820,9 +844,9 @@ public class SketchManager
 
             foreach (var idxStr in entities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                dynamic ent = sketch.SketchLines.Item(int.Parse(idxStr));
-                dynamic start = ent.StartSketchPoint;
-                dynamic end = ent.EndSketchPoint;
+                dynamic ent = planarSketch.SketchLines[int.Parse(idxStr)];
+                var start = (global::Inventor.SketchPoint)ent.StartSketchPoint;
+                var end = (global::Inventor.SketchPoint)ent.EndSketchPoint;
 
                 double sgX = start.Geometry.X, sgY = start.Geometry.Y;
                 double egX = end.Geometry.X, egY = end.Geometry.Y;
@@ -839,8 +863,8 @@ public class SketchManager
                 rcx = ax1 + t * vx; rcy = ay1 + t * vy;
                 double rx2 = 2.0 * rcx - egX, ry2 = 2.0 * rcy - egY;
 
-                start.MoveTo(tg.CreatePoint2d(rx1, ry1));
-                end.MoveTo(tg.CreatePoint2d(rx2, ry2));
+                start.MoveTo((global::Inventor.Point2d)tg.CreatePoint2d(rx1, ry1));
+                end.MoveTo((global::Inventor.Point2d)tg.CreatePoint2d(rx2, ry2));
             }
 
             return new Dictionary<string, object?>

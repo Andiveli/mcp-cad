@@ -213,7 +213,7 @@ public class AtomicTools(ICadProvider provider)
         => Catch(() => provider.IPropertyGet(name, property_set));
 
     [McpServerTool, Description("Set an iProperty value by name.")]
-    public Dictionary<string, object?> iproperty_set(string name, object value, string property_set = "Summary")
+    public Dictionary<string, object?> iproperty_set(string name, string? value, string property_set = "Summary")
         => Catch(() => provider.IPropertySet(name, value, property_set));
 
     [McpServerTool, Description("Get all Summary iProperties.")]
@@ -225,7 +225,7 @@ public class AtomicTools(ICadProvider provider)
         => Catch(() => provider.IPropertyCustomGet(name));
 
     [McpServerTool, Description("Set a custom iProperty. Creates it if it doesn't exist.")]
-    public Dictionary<string, object?> iproperty_custom_set(string name, object value)
+    public Dictionary<string, object?> iproperty_custom_set(string name, string? value)
         => Catch(() => provider.IPropertyCustomSet(name, value));
 
     // ── Export (4) ─────────────────────────────────────────────────────

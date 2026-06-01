@@ -666,7 +666,7 @@ public class MockInventorProvider : ICadProvider
         };
     }
 
-    public Dictionary<string, object?> IPropertySet(string name, object value, string propertySet = "Summary")
+    public Dictionary<string, object?> IPropertySet(string name, string? value, string propertySet = "Summary")
     {
         CallLog.Add(("IPropertySet", new Dictionary<string, object?> { ["name"] = name, ["value"] = value }));
         return _iPropertySetResult ?? new Dictionary<string, object?>
@@ -697,7 +697,7 @@ public class MockInventorProvider : ICadProvider
         };
     }
 
-    public Dictionary<string, object?> IPropertyCustomSet(string name, object value)
+    public Dictionary<string, object?> IPropertyCustomSet(string name, string? value)
     {
         CallLog.Add(("IPropertyCustomSet", new Dictionary<string, object?> { ["name"] = name, ["value"] = value }));
         return _iPropertyCustomSetResult ?? new Dictionary<string, object?>

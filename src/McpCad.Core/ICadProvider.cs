@@ -193,7 +193,7 @@ public interface ICadProvider
     Dictionary<string, object?> IPropertyGet(string name, string propertySet = "Summary");
 
     /// <summary>Set an iProperty value by name.</summary>
-    Dictionary<string, object?> IPropertySet(string name, object value, string propertySet = "Summary");
+    Dictionary<string, object?> IPropertySet(string name, string? value, string propertySet = "Summary");
 
     /// <summary>Get all Summary iProperties.</summary>
     Dictionary<string, object?> IPropertySummary();
@@ -202,7 +202,7 @@ public interface ICadProvider
     Dictionary<string, object?> IPropertyCustomGet(string name);
 
     /// <summary>Set a custom iProperty. Creates it if it doesn't exist.</summary>
-    Dictionary<string, object?> IPropertyCustomSet(string name, object value);
+    Dictionary<string, object?> IPropertyCustomSet(string name, string? value);
 
     #endregion
 

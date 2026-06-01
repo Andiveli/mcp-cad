@@ -1,5 +1,6 @@
 using McpCad.Core;
 using McpCad.Inventor;
+using McpCad.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,11 +19,10 @@ builder.Services.AddSingleton<InventorDriver>();
 builder.Services.AddSingleton<ICadProvider, InventorProvider>();
 
 // Register MCP server with stdio transport.
-// WithToolsFromAssembly() will discover [McpServerToolType] classes
-// from referenced projects automatically.
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
-    .WithToolsFromAssembly();
+    .WithTools<AtomicTools>()
+    .WithTools<SkillTools>();
 
 await builder.Build().RunAsync();

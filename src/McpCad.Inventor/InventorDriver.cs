@@ -17,7 +17,7 @@ public class InventorDriver
     [DllImport("ole32.dll")]
     private static extern int CLSIDFromProgID([MarshalAs(UnmanagedType.LPWStr)] string lpszProgID, out Guid lpclsid);
 
-    [DllImport("ole32.dll")]
+    [DllImport("oleaut32.dll")]
     private static extern int GetActiveObject(ref Guid rclsid, IntPtr pvReserved, [MarshalAs(UnmanagedType.IUnknown)] out object ppunk);
 
     private static object GetActiveComObject(string progId)
