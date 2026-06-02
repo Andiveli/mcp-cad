@@ -1,11 +1,5 @@
-# Python
-__pycache__/
-.pytest_cache/
-*.pyc
-*.pyo
-*.egg-info/
-dist/
-build/
+# Build output — ignore old versioned builds, keep dist/mcp-cad
+dist/csharp-server-*/
 
 # Virtual environment
 .venv/

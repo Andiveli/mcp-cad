@@ -128,9 +128,11 @@ src/
 ### Provider pattern
 
 ```
-MCP client → McpCad.Server → ICadProvider (protocol)
-                            → InventorProvider (COM via Interop)
-                            → MockInventorProvider (tests)
+MCP → McpCad.Server → ICadProvider (common: connection, docs, export)
+                     ├── IMechanicalCadProvider (sketch, 3D features, …)
+                     │   ├── InventorProvider (COM)
+                     │   └── SolidWorksProvider (future)
+                     └── IElectronicCadProvider (KiCad, future)
 ```
 
 ## Configuration
