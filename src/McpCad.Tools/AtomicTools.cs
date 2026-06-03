@@ -164,6 +164,13 @@ public class AtomicTools(IMechanicalCadProvider provider)
         string direction = "positive", string operation = "join")
         => Catch(() => provider.Revolve(profile, axis, angle, direction, operation));
 
+    [McpServerTool, Description("Sweep a profile along a path of connected sketch entities. Create profile sketch first, then path sketch. Use profile_sketch=\"last\" when profile is in the previous sketch.")]
+    public Dictionary<string, object?> sweep(
+        string profile, string path,
+        string sweep_type = "path", string operation = "new_body",
+        double taper = 0, string path_sketch = "", string profile_sketch = "")
+        => Catch(() => provider.Sweep(profile, path, sweep_type, operation, taper, path_sketch, profile_sketch));
+
     [McpServerTool, Description("Apply a fillet to the specified edges.")]
     public Dictionary<string, object?> fillet(string edges, double radius, string mode = "constant")
         => Catch(() => provider.Fillet(edges, radius, mode));

@@ -130,6 +130,12 @@ public class InventorProvider : IMechanicalCadProvider
         string direction = "positive", string operation = "join")
         => _feature.Revolve(profile, axis, angle, direction, operation);
 
+    public Dictionary<string, object?> Sweep(
+        string profile, string path, string sweepType = "path",
+        string operation = "new_body", double taper = 0,
+        string pathSketch = "", string profileSketch = "")
+        => _feature.Sweep(profile, path, sweepType, operation, taper, pathSketch, profileSketch);
+
     public Dictionary<string, object?> Fillet(string edges, double radius, string mode = "constant")
         => _feature.Fillet(edges, radius, mode);
 

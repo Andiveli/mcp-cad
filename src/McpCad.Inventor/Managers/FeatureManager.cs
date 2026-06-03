@@ -187,6 +187,156 @@ public class FeatureManager
     }
 
     /// <summary>
+    /// Sweep a profile along a path of connected sketch entities.
+    /// Path is specified as comma-separated entity indices. By default, path
+    /// entities come from the current sketch; use pathSketch to reference a
+    /// different sketch (1-based index or "last").
+    /// </summary>
+    public Dictionary<string, object?> Sweep(
+        string profile, string path,
+        string sweepType = "path", string operation = "new_body",
+        double taper = 0, string pathSketch = "", string profileSketch = "")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            var sketch = GetActiveSketch(compDef);
+
+            // Resolve profile sketch
+            dynamic profileSktch;
+            if (string.IsNullOrEmpty(profileSketch))
+            {
+                profileSktch = sketch;
+            }
+            else if (profileSketch.Equals("last", StringComparison.OrdinalIgnoreCase))
+            {
+                var sketches = compDef.Sketches;
+                if (sketches.Count < 2)
+                    throw new InventorComException("Need at least 2 sketches for profile_sketch='last'.");
+                profileSktch = sketches.Item(sketches.Count - 1); // previous
+            }
+            else if (int.TryParse(profileSketch, out int psIdx) && psIdx >= 1)
+            {
+                profileSktch = compDef.Sketches.Item(psIdx);
+            }
+            else
+            {
+                throw new InventorComException($"Invalid profile_sketch '{profileSketch}'.");
+            }
+
+            // Resolve profile — use simple resolution without intersection merging
+            dynamic profileObj;
+            try { profileObj = ProfileResolver.Resolve(profileSktch); }
+            catch (Exception ex) { throw new InventorComException($"Sweep: Profile resolve failed - {ex.Message}", ex); }
+
+            // Resolve path sketch (dynamic)
+            dynamic pathSketchObj;
+            if (string.IsNullOrEmpty(pathSketch))
+            {
+                pathSketchObj = sketch;
+            }
+            else if (pathSketch.Equals("last", StringComparison.OrdinalIgnoreCase))
+            {
+                var sketches = compDef.Sketches;
+                if (sketches.Count < 2)
+                    throw new InventorComException("Need at least 2 sketches for path_sketch='last'.");
+                pathSketchObj = sketches.Item(sketches.Count - 1);
+            }
+            else if (int.TryParse(pathSketch, out int skIdx) && skIdx >= 1)
+            {
+                pathSketchObj = compDef.Sketches.Item(skIdx);
+            }
+            else
+            {
+                throw new InventorComException($"Invalid path_sketch '{pathSketch}'. Use a 1-based index or 'last'.");
+            }
+
+            // Get the first path entity via dynamic dispatch
+            var pathIndices = path.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (!int.TryParse(pathIndices[0], out int firstIdx))
+                throw new InventorComException($"Invalid path entity index: '{pathIndices[0]}'.");
+
+            dynamic sketchEntity;
+            try { sketchEntity = pathSketchObj.SketchLines.Item(firstIdx); }
+            catch { sketchEntity = pathSketchObj.SketchEntities.Item(firstIdx); }
+
+            // Diagnostic: verify what we got
+            int sketchCount;
+            int entityCount;
+            try { sketchCount = compDef.Sketches.Count; } catch { sketchCount = -1; }
+            try { entityCount = pathSketchObj.SketchEntities.Count; } catch { entityCount = -1; }
+
+            // Create the Path object — need to access Features from raw COM,
+            // not from the wrapped compDef which may not expose CreatePath.
+            dynamic sweepPath;
+            try
+            {
+                dynamic rawDoc = _driver.InventorApp.ActiveDocument;
+                dynamic rawCompDef = rawDoc.ComponentDefinition;
+                sweepPath = rawCompDef.Features.CreatePath(sketchEntity);
+            }
+            catch (Exception ex)
+            {
+                throw new InventorComException(
+                    $"Sweep: CreatePath failed (sketches={sketchCount}, entities={entityCount}, " +
+                    $"path_sketch='{pathSketch}', pathIdx={firstIdx}) - {ex.Message}", ex);
+            }
+
+            // Map operation
+            var opMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["new_body"] = 20485,   // kNewBodyOperation
+                ["join"] = 20481,       // kJoinOperation
+                ["cut"] = 20482,        // kCutOperation
+                ["intersect"] = 20483,  // kIntersectOperation
+                ["surface"] = 20484,    // kSurfaceOperation
+            };
+
+            if (!opMap.TryGetValue(operation, out int opCode))
+                throw new InventorComException($"Unknown operation '{operation}'. Valid: new_body, join, cut, intersect, surface.");
+
+            // Map sweep type
+            var swMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["path"] = 104449,                // kPathSweepType
+                ["path_guide_rail"] = 104450,     // kPathAndGuidRailSweepType
+                ["path_guide_surface"] = 104451,  // kPathAndGuidSurfaceSweepType
+                ["path_section_twist"] = 104452,  // kPathAndSectionTwistSweepType
+            };
+
+            if (!swMap.TryGetValue(sweepType, out int swCode))
+                throw new InventorComException($"Unknown sweep type '{sweepType}'. Valid: path, path_guide_rail, path_guide_surface, path_section_twist.");
+
+            // Create sweep definition and add the feature
+            dynamic sweepFeatures;
+            try { sweepFeatures = compDef.Features.SweepFeatures; }
+            catch (Exception ex) { throw new InventorComException($"Sweep: SweepFeatures - {ex.Message}", ex); }
+
+            dynamic sweepDef;
+            try { sweepDef = sweepFeatures.CreateSweepDefinition(swCode, profileObj, sweepPath, opCode); }
+            catch (Exception ex) { throw new InventorComException($"Sweep: CreateSweepDefinition - {ex.Message}", ex); }
+
+            // Apply taper if specified
+            if (Math.Abs(taper) > 1e-9)
+                sweepDef.TaperAngle = $"{taper} deg";
+
+            dynamic sweepFeature;
+            try { sweepFeature = sweepFeatures.Add(sweepDef); }
+            catch (Exception ex) { throw new InventorComException($"Sweep: Add - {ex.Message}", ex); }
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "sweep",
+                ["feature_name"] = sweepFeature.Name,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to sweep: {ex.Message}", ex); }
+    }
+
+    /// <summary>
     /// Apply a fillet (radius rounding) to the specified edges.
     /// </summary>
     public Dictionary<string, object?> Fillet(string edges, double radius, string mode = "constant")

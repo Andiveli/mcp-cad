@@ -282,6 +282,15 @@ public class SkillTools(IMechanicalCadProvider provider)
         }
     }
 
+    // ── Sweep skill ──────────────────────────────────────────────────────
+
+    [McpServerTool, Description("Sweep a profile along connected sketch entities. Use after creating both a profile sketch and a path sketch.")]
+    public Dictionary<string, object?> skill_sweep(
+        string profile, string path,
+        string sweep_type = "path", string operation = "new_body",
+        double taper = 0, string path_sketch = "", string profile_sketch = "")
+        => Catch(() => provider.Sweep(profile, path, sweep_type, operation, taper, path_sketch, profile_sketch));
+
     // ── Delete sketch skill (1) ─────────────────────────────────────────
 
     [McpServerTool, Description("Delete the active sketch (must not be used by a feature).")]

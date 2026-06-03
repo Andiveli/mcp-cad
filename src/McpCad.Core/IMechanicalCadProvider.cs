@@ -37,6 +37,7 @@ public interface IMechanicalCadProvider : ICadProvider
 
     Dictionary<string, object?> Extrude(string profile, double distance, string direction = "positive", double taper = 0.0, string operation = "new_body");
     Dictionary<string, object?> Revolve(string profile, string axis, double angle = 360.0, string direction = "positive", string operation = "join");
+    Dictionary<string, object?> Sweep(string profile, string path, string sweepType = "path", string operation = "new_body", double taper = 0, string pathSketch = "", string profileSketch = "");
     Dictionary<string, object?> Fillet(string edges, double radius, string mode = "constant");
     Dictionary<string, object?> Chamfer(string edges, double distance, string mode = "equal_distance");
     Dictionary<string, object?> CircularPattern(string profile, string axis, int count, double angle = 360.0, bool fitWithinAngle = true, bool naturalDirection = true);

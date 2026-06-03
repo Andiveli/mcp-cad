@@ -43,6 +43,7 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _sketchProfilesResult;
     private Dictionary<string, object?>? _extrudeResult;
     private Dictionary<string, object?>? _revolveResult;
+    private Dictionary<string, object?>? _sweepResult;
     private Dictionary<string, object?>? _filletResult;
     private Dictionary<string, object?>? _chamferResult;
     private Dictionary<string, object?>? _circularPatternResult;
@@ -112,6 +113,7 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._sketchProfilesResult = errorResult;
         mock._extrudeResult = errorResult;
         mock._revolveResult = errorResult;
+        mock._sweepResult = errorResult;
         mock._filletResult = errorResult;
         mock._chamferResult = errorResult;
         mock._circularPatternResult = errorResult;
@@ -147,6 +149,8 @@ public class MockInventorProvider : IMechanicalCadProvider
     { _extrudeResult = result; return this; }
     public MockInventorProvider SetRevolveResult(Dictionary<string, object?> result)
     { _revolveResult = result; return this; }
+    public MockInventorProvider SetSweepResult(Dictionary<string, object?> result)
+    { _sweepResult = result; return this; }
 
     // ── ICadProvider implementation ──
 
@@ -542,6 +546,24 @@ public class MockInventorProvider : IMechanicalCadProvider
         {
             ["success"] = true,
             ["feature"] = "Revolution1",
+        };
+    }
+
+    public Dictionary<string, object?> Sweep(
+        string profile, string path, string sweepType = "path",
+        string operation = "new_body", double taper = 0,
+        string pathSketch = "", string profileSketch = "")
+    {
+        CallLog.Add(("Sweep", new Dictionary<string, object?>
+        {
+            ["profile"] = profile, ["path"] = path, ["sweep_type"] = sweepType,
+            ["operation"] = operation, ["taper"] = taper,
+            ["path_sketch"] = pathSketch, ["profile_sketch"] = profileSketch,
+        }));
+        return _sweepResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature"] = "Sweep1",
         };
     }
 
