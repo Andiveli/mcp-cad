@@ -200,6 +200,140 @@ public class SketchManager
         catch (Exception ex) { throw new InventorComException($"Failed to close profile: {ex.Message}", ex); }
     }
 
+    /// <summary>
+    /// List all closed profiles in the active sketch with area and region info.
+    /// Use this to identify which profile index to pass to extrude/revolve.
+    /// </summary>
+    public Dictionary<string, object?> SketchProfiles()
+    {
+        var sketch = EnsureActiveSketch();
+        try
+        {
+            // Merge intersection points so crossing curves create sub-regions
+            IntersectionMerger.MergeAll(sketch, App);
+
+            dynamic profiles = sketch.Profiles;
+
+            // Compute profiles fresh each time — we'll do destructive path deletion
+            // to read individual region properties, then recreate.
+            // First pass: create a profile and count paths.
+            if (profiles.Count > 0)
+            {
+                // Clean up any existing profile before recomputing
+                try { profiles.Item(1).Delete(); } catch { }
+            }
+
+            dynamic fullProfile = profiles.AddForSolid(false);
+
+            // Count paths by iterating
+            var pathCount = 0;
+            try
+            {
+                foreach (dynamic _ in fullProfile)
+                    pathCount++;
+            }
+            catch { }
+
+            // Now for each path, create a temporary Profile with only that path,
+            // read its RegionProperties, and clean up.
+            var profileList = new List<Dictionary<string, object?>>();
+
+            for (int i = 1; i <= pathCount; i++)
+            {
+                // Recreate the profile fresh
+                // Clean up old one first
+                if (profiles.Count > 0)
+                {
+                    try { profiles.Item(profiles.Count).Delete(); } catch { }
+                }
+
+                dynamic tempProfile = profiles.AddForSolid(false);
+                var info = new Dictionary<string, object?> { ["index"] = i };
+
+                // Delete all paths except the one at index i
+                int pathIdx = 1;
+                try
+                {
+                    var pathsToDelete = new System.Collections.Generic.List<object>();
+                    foreach (dynamic path in tempProfile)
+                    {
+                        if (pathIdx != i)
+                            pathsToDelete.Add(path);
+                        pathIdx++;
+                    }
+                    foreach (dynamic path in pathsToDelete)
+                        path.Delete();
+                }
+                catch { }
+
+                // Read RegionProperties of the remaining single-path profile
+                try
+                {
+                    dynamic region = tempProfile.RegionProperties;
+                    info["area"] = Math.Round((double)region.Area, 4);
+                    info["perimeter"] = Math.Round((double)region.Perimeter, 4);
+
+                    try
+                    {
+                        dynamic centroid = region.Centroid;
+                        info["centroid_x"] = Math.Round((double)centroid.X, 4);
+                        info["centroid_y"] = Math.Round((double)centroid.Y, 4);
+                    }
+                    catch
+                    {
+                        info["centroid_x"] = null;
+                        info["centroid_y"] = null;
+                    }
+                }
+                catch
+                {
+                    info["area"] = null;
+                    info["perimeter"] = null;
+                }
+
+                profileList.Add(info);
+            }
+
+            // Final cleanup: recreate a clean profile for downstream use
+            if (profiles.Count > 0)
+            {
+                try { profiles.Item(profiles.Count).Delete(); } catch { }
+            }
+            profiles.AddForSolid(false);
+
+            // Sort profiles by centroid position for predictable indexing:
+            // top-to-bottom (Y desc), then left-to-right (X asc)
+            profileList.Sort((a, b) =>
+            {
+                double ay = a.TryGetValue("centroid_y", out var cyObj) && cyObj is double cyVal ? cyVal : 0;
+                double by = b.TryGetValue("centroid_y", out var cyObj2) && cyObj2 is double cyVal2 ? cyVal2 : 0;
+                double ax = a.TryGetValue("centroid_x", out var cxObj) && cxObj is double cxVal ? cxVal : 0;
+                double bx = b.TryGetValue("centroid_x", out var cxObj2) && cxObj2 is double cxVal2 ? cxVal2 : 0;
+
+                int yCmp = by.CompareTo(ay); // descending Y
+                if (yCmp != 0) return yCmp;
+                return ax.CompareTo(bx); // ascending X
+            });
+
+            // Re-index after sorting
+            for (int i = 0; i < profileList.Count; i++)
+                profileList[i]["index"] = i + 1;
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["profile_count"] = pathCount,
+                ["profiles"] = profileList,
+                ["hint"] = pathCount > 1
+                    ? $"Profiles sorted top→bottom, left→right. Use profile index (1-{pathCount}) in extrude/revolve."
+                    : "Only one profile found — use profile=\"1\" or omit the parameter.",
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to list profiles: {ex.Message}", ex); }
+    }
+
     public Dictionary<string, object?> SketchCircle(double cx, double cy, double radius, string? tag = null)
     {
         var sketch = EnsureActiveSketch();
@@ -578,7 +712,7 @@ public class SketchManager
             var circleModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 { "concentric", "tangent" };
             var pointModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                { "coincident", "midpoint" };
+                { "midpoint" };
 
             dynamic e1, e2 = Type.Missing;
 
@@ -610,7 +744,13 @@ public class SketchManager
             switch (mode.ToLowerInvariant())
             {
                 case "coincident":
-                    gc.AddCoincident(e1, e2);
+                    // Coincident: entity1 = SketchPoint, entity2 = any SketchEntity (line, circle, arc, point, etc.)
+                    // AddCoincident(point, entity) constrains the point to lie ON the entity.
+                    {
+                        dynamic pointEnt = sketch.SketchPoints.Item(int.Parse(entity1.Trim()));
+                        dynamic entityEnt = sketch.SketchEntities.Item(int.Parse(entity2.Trim()));
+                        gc.AddCoincident(pointEnt, entityEnt);
+                    }
                     break;
                 case "collinear":
                     gc.AddCollinear(e1, e2, useMajor, useMajor);

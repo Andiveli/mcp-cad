@@ -1,6 +1,7 @@
 using McpCad.Core;
 using McpCad.Inventor;
 using McpCad.Tools;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,7 @@ builder.Logging.AddConsole(consoleLogOptions =>
 });
 
 // Register the Inventor-backed provider as a singleton.
-// The driver connects lazily — no Inventor required at startup.
+// The driver auto-connects on first use; startup connect is controlled by appsettings.
 builder.Services.AddSingleton<InventorDriver>();
 builder.Services.AddSingleton<IMechanicalCadProvider, InventorProvider>();
 builder.Services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<IMechanicalCadProvider>());
@@ -26,4 +27,14 @@ builder.Services
     .WithTools<AtomicTools>()
     .WithTools<SkillTools>();
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+// Auto-connect to Inventor on startup if configured (non-blocking, safe to fail)
+if (app.Services.GetRequiredService<IConfiguration>()
+        .GetValue<bool>("Inventor:AutoConnect"))
+{
+    var driver = app.Services.GetRequiredService<InventorDriver>();
+    driver.Connect();
+}
+
+await app.RunAsync();

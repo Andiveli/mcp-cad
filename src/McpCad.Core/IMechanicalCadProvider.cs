@@ -29,6 +29,7 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> SketchScale(string entities, double cx, double cy, double factor);
     Dictionary<string, object?> SketchMirror(string entities, string mirrorEntity);
     Dictionary<string, object?> SketchLineClose();
+    Dictionary<string, object?> SketchProfiles();
 
     #endregion
 

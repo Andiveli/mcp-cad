@@ -530,22 +530,137 @@ public class FeatureManager
     /// <summary>
     /// Resolve a profile reference for feature operations.
     /// Accepts:
-    ///   - "1" → profile at that 1-based index in the sketch
-    ///   - Anything else → try ProfileResolver with timeout
+    ///   - Single numeric index (1-based): returns that profile from sketch.Profiles
+    ///   - Comma-separated indices (e.g. "2,4"): creates a compound profile with only
+    ///     those regions using AddForSolid(false) + AddRegion(centroid)
+    ///   - Non-numeric: delegates to ProfileResolver for auto-detection
+    /// Fails with a clear error + profile count when the index is out of range.
     /// </summary>
     private dynamic ResolveProfile(string profileRef, dynamic sketch, dynamic compDef)
     {
-        // Try numeric index first
+        // Merge intersection points so crossing curves create sub-regions
+        try
+        {
+            IntersectionMerger.MergeAll(sketch, App);
+        }
+        catch { /* Best-effort */ }
+
+        // Check for comma-separated multi-index: "2,4" or "1,3,5"
+        if (profileRef.Contains(','))
+        {
+            var parts = profileRef.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var indices = new HashSet<int>();
+            foreach (var p in parts)
+            {
+                if (!int.TryParse(p, out int idx))
+                    throw new InventorComException($"Invalid profile reference '{p}' in multi-index '{profileRef}'. Use numeric indices (e.g. '2,4').");
+                indices.Add(idx);
+            }
+
+            dynamic profiles = sketch.Profiles;
+
+            // Clean up any existing profiles before recomputing
+            while (profiles.Count > 0)
+            {
+                try { profiles.Item(profiles.Count).Delete(); } catch { break; }
+            }
+
+            // Create a fresh Profile to discover paths
+            dynamic multiProfile = profiles.AddForSolid(false);
+
+            // Count paths by iterating
+            int pathCount = 0;
+            try
+            {
+                foreach (dynamic _ in multiProfile)
+                    pathCount++;
+            }
+            catch { }
+
+            if (pathCount == 0)
+                throw new InventorComException("No closed profiles found in sketch. Draw closed regions first.");
+
+            // Validate all indices before building
+            foreach (int idx in indices)
+            {
+                if (idx < 1 || idx > pathCount)
+                    throw new InventorComException(
+                        $"Profile index {idx} is out of range. " +
+                        $"The sketch has {pathCount} profile(s) (valid indices: 1-{pathCount}). " +
+                        $"Use sketch_profiles() to inspect available profiles.");
+            }
+
+            // Keep only the desired paths, delete the rest
+            int pi = 1;
+            var pathsToDelete = new List<object>();
+            foreach (dynamic path in multiProfile)
+            {
+                if (!indices.Contains(pi))
+                    pathsToDelete.Add(path);
+                pi++;
+            }
+            foreach (dynamic path in pathsToDelete)
+                path.Delete();
+
+            return multiProfile;
+        }
+
+        // Try single numeric index
         if (int.TryParse(profileRef, out int profileIdx))
         {
             dynamic profiles = sketch.Profiles;
-            if (profiles.Count > 0 && profileIdx >= 1 && profileIdx <= profiles.Count)
-                return profiles.Item(profileIdx);
 
-            // Fall through to ProfileResolver if index doesn't exist
+            // If profiles exist but we need a specific index > 1,
+            // we need to work with paths, not the Profiles collection.
+            // First, count paths.
+            while (profiles.Count > 0)
+            {
+                try { profiles.Item(profiles.Count).Delete(); } catch { break; }
+            }
+
+            dynamic fullProfile = profiles.AddForSolid(false);
+
+            int pathCount = 0;
+            try
+            {
+                foreach (dynamic _ in fullProfile)
+                    pathCount++;
+            }
+            catch { }
+
+            // Index 1 with only one profile: return as-is (convenience, full profile)
+            if (profileIdx == 1 && pathCount >= 1)
+                return fullProfile;
+
+            // Validate range
+            if (profileIdx < 1 || profileIdx > pathCount)
+            {
+                if (pathCount > 0)
+                    throw new InventorComException(
+                        $"Profile index {profileIdx} is out of range. " +
+                        $"The sketch has {pathCount} profile(s) (valid indices: 1-{pathCount}). " +
+                        $"Use sketch_profiles() to inspect available profiles before extruding.");
+
+                // No profiles at all — fall through to ProfileResolver
+                return ProfileResolver.Resolve(sketch);
+            }
+
+            // idx > 1 or explicit single-path request: delete other paths
+            int pi = 1;
+            var pathsToDelete = new List<object>();
+            foreach (dynamic path in fullProfile)
+            {
+                if (pi != profileIdx)
+                    pathsToDelete.Add(path);
+                pi++;
+            }
+            foreach (dynamic path in pathsToDelete)
+                path.Delete();
+
+            return fullProfile;
         }
 
-        // Use ProfileResolver with timeout-based AddForSolid
+        // Non-numeric reference or zero profiles: delegate to ProfileResolver
         return ProfileResolver.Resolve(sketch);
     }
 

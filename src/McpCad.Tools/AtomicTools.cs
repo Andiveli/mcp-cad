@@ -146,9 +146,13 @@ public class AtomicTools(IMechanicalCadProvider provider)
     public Dictionary<string, object?> sketch_mirror(string entities, string mirror_entity)
         => Catch(() => provider.SketchMirror(entities, mirror_entity));
 
+    [McpServerTool, Description("List all closed profiles in the active sketch with area info. Use before extrude/revolve to pick the correct profile index.")]
+    public Dictionary<string, object?> sketch_profiles()
+        => Catch(provider.SketchProfiles);
+
     // ── Features (5) ──────────────────────────────────────────────────
 
-    [McpServerTool, Description("Extrude a sketch profile to create a 3D feature.")]
+    [McpServerTool, Description("Extrude a sketch profile to create a 3D feature. Use profile: \"1\" for single region, or \"2,4\" for multiple regions (comma-separated indices). Run sketch_profiles() first to see available profiles and their centroids.")]
     public Dictionary<string, object?> extrude(
         string profile, double distance, string direction = "positive",
         double taper = 0.0, string operation = "new_body")

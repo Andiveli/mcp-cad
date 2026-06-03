@@ -215,7 +215,7 @@ public class SkillTools(IMechanicalCadProvider provider)
 
     // ── 3D skills (2) ───────────────────────────────────────────────────
 
-    [McpServerTool, Description("Extrude a sketch profile. Auto-defaults to profile=1.")]
+    [McpServerTool, Description("Extrude a sketch profile. Auto-defaults to profile=1. Use profile=\"2,4\" for multi-region extrusion.")]
     public Dictionary<string, object?> skill_extrude(
         double distance,
         string direction = "positive",

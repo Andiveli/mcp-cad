@@ -33,10 +33,23 @@ public class InventorDriver
 
     /// <summary>
     /// The active Inventor Application COM object.
-    /// Throws <see cref="InventorConnectionException"/> if not connected.
+    /// Auto-connects on first access if not already connected.
+    /// Throws <see cref="InventorConnectionException"/> if connection fails.
     /// </summary>
-    public InvApp InventorApp =>
-        _invApp ?? throw new InventorConnectionException("Not connected to Inventor. Call Connect() first.");
+    public InvApp InventorApp
+    {
+        get
+        {
+            if (_invApp is not null)
+                return _invApp;
+
+            // Auto-connect on first use — Connect() is idempotent and handles all error cases
+            Connect();
+
+            return _invApp ?? throw new InventorConnectionException(
+                "Not connected to Inventor. Make sure Inventor is running.");
+        }
+    }
 
     /// <summary>Whether the driver currently holds a COM reference to Inventor.</summary>
     public bool IsConnected => _connected && _invApp is not null;

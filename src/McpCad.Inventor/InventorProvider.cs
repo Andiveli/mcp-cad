@@ -116,6 +116,7 @@ public class InventorProvider : IMechanicalCadProvider
     // ── Skills ────────────────────────────────────────────────────────
 
     public Dictionary<string, object?> SketchLineClose() => _sketch.SketchLineClose();
+    public Dictionary<string, object?> SketchProfiles() => _sketch.SketchProfiles();
 
     // ── Features ──────────────────────────────────────────────────────
 

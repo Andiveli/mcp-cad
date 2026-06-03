@@ -40,6 +40,7 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _sketchScaleResult;
     private Dictionary<string, object?>? _sketchMirrorResult;
     private Dictionary<string, object?>? _sketchLineCloseResult;
+    private Dictionary<string, object?>? _sketchProfilesResult;
     private Dictionary<string, object?>? _extrudeResult;
     private Dictionary<string, object?>? _revolveResult;
     private Dictionary<string, object?>? _filletResult;
@@ -108,6 +109,7 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._sketchScaleResult = errorResult;
         mock._sketchMirrorResult = errorResult;
         mock._sketchLineCloseResult = errorResult;
+        mock._sketchProfilesResult = errorResult;
         mock._extrudeResult = errorResult;
         mock._revolveResult = errorResult;
         mock._filletResult = errorResult;
@@ -493,6 +495,20 @@ public class MockInventorProvider : IMechanicalCadProvider
         return _sketchLineCloseResult ?? new Dictionary<string, object?>
         {
             ["success"] = true,
+        };
+    }
+
+    public Dictionary<string, object?> SketchProfiles()
+    {
+        CallLog.Add(("SketchProfiles", new Dictionary<string, object?>()));
+        return _sketchProfilesResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["profile_count"] = 1,
+            ["profiles"] = new List<Dictionary<string, object?>>
+            {
+                new() { ["index"] = 1, ["area"] = 78.54, ["perimeter"] = 31.42, ["loops"] = 1 },
+            },
         };
     }
 
