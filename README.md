@@ -1,15 +1,67 @@
 # mcp-cad
 
-MCP server for CAD automation — give AI agents direct parametric control over Autodesk Inventor. Built in C#/.NET 8 with early-bound COM interop for maximum reliability.
+**Give any AI coding agent direct parametric control over Autodesk Inventor.**  
+Not an app. Not a plugin. An MCP server — infrastructure for the agent-first era of CAD.
 
-**28+ tools** across sketch, 3D features, parameters, iProperties, and export. Tag-based entity resolution. Interactive TUI installer.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/)
+[![80+ tools](https://img.shields.io/badge/tools-80%2B-orange)](docs/tools-reference.md)
 
-Works with OpenCode, Claude Desktop, VS Code, and Pi.
+---
 
-## Requirements
+## Showcase
 
-- **Windows** with Autodesk Inventor 2025+ installed
-- .NET 8.0 SDK
+<!-- Replace with your video: upload showcase.mp4 to the repo root, then uncomment below -->
+<!-- <video src="showcase.mp4" controls width="100%"></video> -->
+<!-- Alternative: animated GIF -->
+<!-- ![Showcase](showcase.gif) -->
+
+[▶️ Watch showcase video](showcase.mp4)
+
+---
+
+## Why mcp-cad is different
+
+| | CAD add-ins | Browser CAD | **mcp-cad** |
+|---|---|---|---|
+| **Model** | Plugin (paid per seat) | Web app (SaaS) | MCP server (free, open source) |
+| **Runs in** | Desktop CAD only | Browser tab | Claude, OpenCode, Cursor, Windsurf, VS Code, Pi — any agent |
+| **Source** | Closed | Closed | MIT — fully open |
+| **CAD engines** | Tied to one vendor | None (browser-only) | Inventor now, SolidWorks & KiCad planned |
+| **Control** | High-level prompts | High-level prompts | 80+ atomic tools + 22 composable skills |
+| **Privacy** | Cloud-dependent | Cloud-only | Local — your data never leaves your machine |
+| **Setup** | Manual per-machine | Sign up + account | One-command TUI installer |
+
+### The problem with CAD AI tools today
+
+Existing tools are **apps**. They force you into their UI, their workflow, their pricing model. CAD add-ins lock you into one vendor and charge per seat. Browser-based tools hold your designs on their servers. Both give you high-level "prompt-to-part" with limited control over the result — and zero transparency into what the AI is actually doing.
+
+### What mcp-cad unlocks
+
+**mcp-cad is not an app.** It's an MCP server that any AI coding agent can use as a tool. You stay in your agent (Claude, OpenCode, Cursor, Windsurf, VS Code, Pi) and the agent drives Inventor directly — sketch by sketch, feature by feature, parameter by parameter.
+
+- **80+ atomic tools** — not "generate a bracket", but `sketch_line`, `extrude`, `circular_pattern`, `combine`. Full parametric control.
+- **Tag-based entity resolution** — name geometry `@hole_center` and reference it reliably across operations.
+- **Composable skills** — higher-level abstractions built on the atomic tools, reducing tool calls for common workflows.
+- **Early-bound COM** — no `dynamic`/reflection hacks. Real type safety, real reliability.
+- **Provider-agnostic** — Inventor today, SolidWorks and KiCad tomorrow. Same MCP protocol, any CAD engine.
+
+### Built at AI speed — 8 days, 80+ tools
+
+The entire project was built using **SDD (Spec-Driven Development)** — AI-orchestrated planning and implementation. From first commit to 80+ production tools across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export — in 8 days.
+
+```
+May 26 → Jun 3, 2026
+  Sketch (20 tools)      ████████████████████
+  3D Features (21)       █████████████████████
+  Assembly (16)          ████████████████
+  Work Geometry (3)      ███
+  Params & Props (9)     █████████
+  Export (4)             ████
+  Skills (22)            ███████████████████████
+```
+
+---
 
 ## Quick start
 
@@ -20,95 +72,42 @@ cd mcp-cad
 # Build and publish
 dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
 
-# Run the TUI installer
+# Run the TUI installer — registers with OpenCode, Claude, Cursor, Windsurf, VS Code, Pi
 dotnet run --project src/McpCad.Installer
 ```
 
-The **TUI** lets you select MCP clients (OpenCode, Claude, Pi, VS Code) via keyboard navigation and registers the server automatically.
+### Prerequisites
 
-## Tools
+- **OS:** Windows 10/11
+- **CAD:** Autodesk Inventor 2025+
+- **Runtime:** .NET 8.0 SDK
 
-### Connection
-| Tool | Description |
-|------|-------------|
-| `inventor_connect` | Connect to running Inventor instance |
-| `inventor_health` | Check connection and document state |
-| `inventor_disconnect` | Release COM reference |
+---
 
-### Documents
-| Tool | Description |
-|------|-------------|
-| `doc_new_part` | Create new part document |
-| `doc_new_assembly` | Create new assembly document |
-| `doc_save` | Save active document |
-| `doc_save_as` | Save to new path |
-| `doc_close` | Close active document |
+## How it works
 
-### Sketch
-| Tool | Description |
-|------|-------------|
-| `sketch_create` | Create sketch on XY/XZ/YZ |
-| `sketch_line` | Draw line segment |
-| `sketch_circle` | Draw circle |
-| `sketch_arc` | Draw arc |
-| `sketch_rectangle` | Draw rectangle |
-| `sketch_point` | Draw point |
-| `sketch_ellipse` | Draw ellipse |
-| `sketch_spline` | Draw spline |
-| `sketch_dimension` | Add dimension constraint |
-| `sketch_constraint` | Add geometric constraint |
-| `sketch_offset` | Offset entities |
-| `sketch_move` | Move entities |
-| `sketch_rotate` | Rotate entities |
-| `sketch_mirror` | Mirror entities |
-| `sketch_scale` | Scale entities |
-| `sketch_circular_pattern` | Circular pattern in sketch |
-| `sketch_rectangular_pattern` | Rectangular pattern in sketch |
-| `sketch_delete` | Delete active sketch |
+```
+You → AI Agent (Claude / OpenCode / Cursor / Windsurf / VS Code / Pi)
+        │
+        ├── "Create a gear with 24 teeth, module 2, 10mm thick"
+        │
+        ▼
+     MCP Protocol (stdio)
+        │
+        ▼
+   mcp-cad server (.NET 8)
+        │
+        ├── sketch_circle XY 0 0 47.5
+        ├── sketch_circle XY 0 0 50 tag=@tip
+        ├── extrude 1 10
+        ├── circular_pattern extrusion="Extrusion1" axis="Y Axis" count=24
+        └── ...
+        │
+        ▼
+   Early-bound COM → Autodesk Inventor
+```
 
-### 3D Features
-| Tool | Description |
-|------|-------------|
-| `extrude` | Extrude profile (new body/join/cut/intersect) |
-| `revolve` | Revolve profile around axis |
-| `fillet` | Apply fillet to edges |
-| `chamfer` | Apply chamfer to edges |
-| `hole` | Create hole feature |
-| `thread` | Create thread on face |
-| `circular_pattern` | Circular pattern of 3D feature |
-| `inspect_edges` | List edges with geometry info |
-
-### Parameters & Properties
-| Tool | Description |
-|------|-------------|
-| `param_list` | List model parameters |
-| `param_get` | Get parameter value |
-| `param_set` | Set parameter value |
-| `param_set_expression` | Set parameter by expression |
-| `iproperty_get` | Get iProperty |
-| `iproperty_set` | Set iProperty |
-| `iproperty_summary` | Get summary properties |
-
-### Export
-| Tool | Description |
-|------|-------------|
-| `export_step` | Export to STEP (.stp) |
-| `export_stl` | Export to STL (.stl) |
-| `export_pdf` | Export to PDF |
-| `export_dxf` | Export to DXF |
-
-### Skills (composable)
-| Skill | Description |
-|-------|-------------|
-| `skill_extrude` | Extrude with auto-default profile |
-| `skill_revolve` | Revolve with auto-drawn profile + axis |
-| `skill_line` | Draw line (simple/midpoint modes) |
-| `skill_circle` | Draw circle (center/3point modes) |
-| `skill_arc` | Draw arc (center/sweep/3point) |
-| `skill_rect` | Draw rectangle (diagonal/center) |
-| `skill_offset` | Offset entities |
-| `skill_mirror` | Mirror entities |
-| `skill_trim` | Trim lines at intersection |
+---
 
 ## Architecture
 
@@ -116,89 +115,43 @@ The **TUI** lets you select MCP clients (OpenCode, Claude, Pi, VS Code) via keyb
 src/
 ├── McpCad.Core/           Protocol & models (zero COM)
 ├── McpCad.Inventor/        Inventor COM backend
-│   ├── Managers/            Sketch, Feature, Parameter, Property, Export
-│   ├── Helpers/              TagStore, AxisResolver, EdgeResolver, ComDispatch
-│   └── InventorDriver.cs    COM lifecycle (GetActiveObject via oleaut32)
+│   ├── Managers/            Sketch, Feature, Assembly, Parameter, Property, Export
+│   └── Helpers/              TagStore, AxisResolver, EdgeResolver, ComDispatch
 ├── McpCad.Tools/           MCP tool definitions (AtomicTools, SkillTools)
-├── McpCad.Server/          Console app — MCP stdio transport
-├── McpCad.Installer/       TUI installer (Spectre.Console)
-└── McpCad.sln
+├── McpCad.Server/          MCP stdio transport
+└── McpCad.Installer/       TUI installer (Spectre.Console)
 ```
 
-### Provider pattern
+**Provider pattern** — same protocol, multiple CAD engines:
 
 ```
-MCP → McpCad.Server → ICadProvider (common: connection, docs, export)
-                     ├── IMechanicalCadProvider (sketch, 3D features, …)
-                     │   ├── InventorProvider (COM)
-                     │   └── SolidWorksProvider (future)
-                     └── IElectronicCadProvider (KiCad, future)
+MCP → ICadProvider (connection, docs, export)
+       ├── IMechanicalCadProvider (sketch, 3D, assembly)
+       │   ├── InventorProvider (COM)          ← today
+       │   └── SolidWorksProvider (future)
+       └── IElectronicCadProvider
+           └── KiCadProvider (future)
 ```
 
-## Configuration
+---
 
-Run the TUI installer (`dotnet run --project src/McpCad.Installer`) to register automatically. Manual config examples:
+## Full tool reference
 
-### OpenCode (`~/.config/opencode/opencode.json`)
-```json
-{
-  "mcp": {
-    "mcp-cad": {
-      "type": "local",
-      "command": ["path/to/dist/mcp-cad/McpCad.Server.exe"]
-    }
-  }
-}
-```
+See [docs/tools-reference.md](docs/tools-reference.md) for the complete list of 80+ tools and 22 composable skills.
 
-### Claude / Pi (`mcpServers`)
-```json
-{
-  "mcpServers": {
-    "mcp-cad": {
-      "command": "path/to/dist/mcp-cad/McpCad.Server.exe",
-      "args": []
-    }
-  }
-}
-```
-
-### VS Code (`servers`)
-```json
-{
-  "servers": {
-    "mcp-cad": {
-      "command": "path/to/dist/mcp-cad/McpCad.Server.exe",
-      "args": []
-    }
-  }
-}
-```
-
-## Development
-
-```bash
-# Build
-dotnet build src/mcp-cad.sln
-
-# Run tests (118 unit tests)
-dotnet test tests/McpCad.Tests
-
-# Integration tests (require Inventor)
-dotnet test tests/McpCad.Tests --filter "FullyQualifiedName~Integration"
-
-# Publish server
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
-```
+---
 
 ## Tags
 
-Tag sketch entities with `@name` for reliable referencing in feature operations:
+Tag sketch entities with `@name` for reliable referencing:
+
 ```
 sketch_line 0 -1 0 5 tag=eje     →  revolve profile 1 axis=@eje
 sketch_circle 3 0 1 tag=perfil   →  extrude profile=@perfil
 ```
 
+---
+
 ## License
 
-MIT
+MIT — free, forever.
