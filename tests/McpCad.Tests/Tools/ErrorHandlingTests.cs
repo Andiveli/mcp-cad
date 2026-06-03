@@ -128,6 +128,235 @@ public class ErrorHandlingTests
         Assert.False((bool)result["success"]!);
         Assert.Contains("Profile not found", result["error"]!.ToString());
     }
+
+    // ── Work Feature error handling ───────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for work_plane.
+    /// </summary>
+    [Fact]
+    public void WorkPlane_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("Invalid geometry reference");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.work_plane("offset_from_plane", "bad_ref");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("Invalid geometry reference", result["error"]);
+    }
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for work_axis.
+    /// </summary>
+    [Fact]
+    public void WorkAxis_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Edge index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.work_axis("along_edge", "99");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Edge index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for work_point.
+    /// </summary>
+    [Fact]
+    public void WorkPoint_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Plane reference not found"));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.work_point("intersection", "bad_plane");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Plane reference not found", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies Catch() wrapper for work_point with invalid coordinate.
+    /// </summary>
+    [Fact]
+    public void WorkPoint_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("Missing required parameter: z");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.work_point("at_coordinates", "10", "5");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("Missing required parameter: z", result["error"]);
+    }
+
+    // ── Modify Feature error handling ──────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for combine.
+    /// </summary>
+    [Fact]
+    public void Combine_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Tool body index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.combine("1", "99", "cut");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Tool body index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies WithError pattern for combine.
+    /// </summary>
+    [Fact]
+    public void Combine_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("No active document");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.combine("1", "2");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("No active document", result["error"]);
+    }
+
+    // ── Shell error handling ───────────────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for shell.
+    /// </summary>
+    [Fact]
+    public void Shell_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Face index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.shell("99", 0.2);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Face index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies WithError pattern for shell.
+    /// </summary>
+    [Fact]
+    public void Shell_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("No active document");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.shell("1,2", 0.3);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("No active document", result["error"]);
+    }
+
+    // ── Thicken error handling ─────────────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for thicken.
+    /// </summary>
+    [Fact]
+    public void Thicken_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Face index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.thicken("99", 0.2);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Face index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies WithError pattern for thicken.
+    /// </summary>
+    [Fact]
+    public void Thicken_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("No active document");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.thicken("1", 0.2);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("No active document", result["error"]);
+    }
+
+    // ── Split error handling ────────────────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for split.
+    /// </summary>
+    [Fact]
+    public void Split_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Work plane index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.split("99", "both");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Work plane index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies WithError pattern for split.
+    /// </summary>
+    [Fact]
+    public void Split_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("No active document");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.split("1", "both");
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("No active document", result["error"]);
+    }
+
+    // ── Draft error handling ────────────────────────────────────────────
+
+    /// <summary>
+    /// Verifies Catch() wrapper converts InventorComException for draft.
+    /// </summary>
+    [Fact]
+    public void Draft_ComException_Produces_ErrorResult()
+    {
+        var mock = new ThrowingMockProvider(
+            new InventorComException("Face index 99 does not exist."));
+        var tools = new AtomicTools(mock);
+
+        var result = tools.draft("99", 5.0);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Contains("Face index 99", result["error"]!.ToString());
+    }
+
+    /// <summary>
+    /// Verifies WithError pattern for draft.
+    /// </summary>
+    [Fact]
+    public void Draft_Error_Returns_False_Success()
+    {
+        var mock = MockInventorProvider.WithError("No active document");
+        var tools = new AtomicTools(mock);
+
+        var result = tools.draft("1,2", 5.0);
+
+        Assert.False((bool)result["success"]!);
+        Assert.Equal("No active document", result["error"]);
+    }
 }
 
 /// <summary>
@@ -174,11 +403,20 @@ internal class ThrowingMockProvider : IMechanicalCadProvider
     public Dictionary<string, object?> SketchScale(string entities, double cx, double cy, double factor) => Throw();
     public Dictionary<string, object?> SketchMirror(string entities, string mirrorEntity) => Throw();
     public Dictionary<string, object?> SketchLineClose() => Throw();
+    public Dictionary<string, object?> SketchProfiles() => Throw();
     public Dictionary<string, object?> Extrude(string profile, double distance, string direction = "positive", double taper = 0.0, string operation = "new_body") => Throw();
     public Dictionary<string, object?> Revolve(string profile, string axis, double angle = 360.0, string direction = "positive", string operation = "join") => Throw();
+    public Dictionary<string, object?> Sweep(string profile, string path, string sweepType = "path", string operation = "new_body", double taper = 0, string pathSketch = "", string profileSketch = "") => Throw();
     public Dictionary<string, object?> Fillet(string edges, double radius, string mode = "constant") => Throw();
     public Dictionary<string, object?> Chamfer(string edges, double distance, string mode = "equal_distance") => Throw();
     public Dictionary<string, object?> CircularPattern(string profile, string axis, int count, double angle = 360.0, bool fitWithinAngle = true, bool naturalDirection = true) => Throw();
+    public Dictionary<string, object?> MirrorFeature(string profile, string mirrorPlane) => Throw();
+    public Dictionary<string, object?> RectangularPattern(string profile, string xAxis, int xCount, double xSpacing, string yAxis = "", int yCount = 1, double ySpacing = 0.0) => Throw();
+    public Dictionary<string, object?> Loft(string profiles, string operation = "new_body") => Throw();
+    public Dictionary<string, object?> Coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body") => Throw();
+    public Dictionary<string, object?> Rib(string profile, double thickness, string direction = "normal", string operation = "new_body") => Throw();
+    public Dictionary<string, object?> Emboss(string profile, double depth, string type = "emboss_from_face") => Throw();
+    public Dictionary<string, object?> Derive(string sourcePath) => Throw();
     public Dictionary<string, object?> Hole(double x, double y, double diameter, double depth, string type = "drilled", string operation = "join") => Throw();
     public Dictionary<string, object?> Thread(string face, string specification, string direction = "right") => Throw();
     public Dictionary<string, object?> InspectEdges() => Throw();
@@ -195,4 +433,28 @@ internal class ThrowingMockProvider : IMechanicalCadProvider
     public Dictionary<string, object?> ExportStl(string path, Dictionary<string, object?>? options = null) => Throw();
     public Dictionary<string, object?> ExportPdf(string path, Dictionary<string, object?>? options = null) => Throw();
     public Dictionary<string, object?> ExportDxf(string path, Dictionary<string, object?>? options = null) => Throw();
+    public Dictionary<string, object?> WorkPlane(string definition, string reference1, string reference2, double offset) => Throw();
+    public Dictionary<string, object?> WorkAxis(string definition, string reference1, string reference2) => Throw();
+    public Dictionary<string, object?> WorkPoint(string definition, string reference1, string reference2, string reference3) => Throw();
+    public Dictionary<string, object?> Shell(string faces, double thickness, string direction = "inside", string operation = "new_body") => Throw();
+    public Dictionary<string, object?> Draft(string faces, double angle, string mode = "fixed_edge", string pullDirection = "z", string fixedEntity = "") => Throw();
+    public Dictionary<string, object?> Split(string splitTool, string removeSide = "positive", string targetBody = "") => Throw();
+    public Dictionary<string, object?> Combine(string baseBody, string toolBodies, string operation = "join", bool keepToolBodies = false) => Throw();
+    public Dictionary<string, object?> Thicken(string faces, double thickness, string direction = "positive", string operation = "new_body") => Throw();
+    public Dictionary<string, object?> AsmListComponents() => Throw();
+    public Dictionary<string, object?> AsmListConstraints() => Throw();
+    public Dictionary<string, object?> AsmPlaceComponent(string path, double x = 0, double y = 0, double z = 0) => Throw();
+    public Dictionary<string, object?> AsmGroundComponent(string occurrence) => Throw();
+    public Dictionary<string, object?> AsmReplaceComponent(string occurrence, string newPath) => Throw();
+    public Dictionary<string, object?> AsmDeleteConstraint(string constraint) => Throw();
+    public Dictionary<string, object?> AsmConstraintMate(string entityOne, string entityTwo, double offset = 0) => Throw();
+    public Dictionary<string, object?> AsmConstraintFlush(string entityOne, string entityTwo, double offset = 0) => Throw();
+    public Dictionary<string, object?> AsmConstraintAngle(string entityOne, string entityTwo, double angle, string solution = "directed") => Throw();
+    public Dictionary<string, object?> AsmConstraintInsert(string entityOne, string entityTwo, double offset = 0) => Throw();
+    public Dictionary<string, object?> AsmConstraintTangent(string entityOne, string entityTwo, double offset = 0) => Throw();
+    public Dictionary<string, object?> AsmCircularPattern(string occurrence, string axis, int count, double angle = 360) => Throw();
+    public Dictionary<string, object?> AsmRectangularPattern(string occurrence, string xAxis, int xCount, double xSpacing, string? yAxis = null, int yCount = 1, double ySpacing = 0) => Throw();
+    public Dictionary<string, object?> AsmExtrudeCut(string profile, double distance, string direction = "positive") => Throw();
+    public Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled") => Throw();
+    public Dictionary<string, object?> AsmBom() => Throw();
 }

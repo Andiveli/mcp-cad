@@ -173,8 +173,8 @@ public class ToolRegistrationTests
             .Where(m => m.DeclaringType == typeof(AtomicTools))
             .ToList();
 
-        Assert.True(methods.Count >= 40,
-            $"Expected at least 40 tool methods on AtomicTools, found {methods.Count}");
+        Assert.True(methods.Count >= 48,
+            $"Expected at least 48 tool methods on AtomicTools, found {methods.Count}");
     }
 
     /// <summary>

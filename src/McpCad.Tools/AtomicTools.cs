@@ -185,6 +185,36 @@ public class AtomicTools(IMechanicalCadProvider provider)
         double angle = 360.0, bool fit_within_angle = true, bool natural_direction = true)
         => Catch(() => provider.CircularPattern(profile, axis, count, angle, fit_within_angle, natural_direction));
 
+    [McpServerTool, Description("Mirror a feature across a work plane.")]
+    public Dictionary<string, object?> mirror_feature(string profile, string mirror_plane)
+        => Catch(() => provider.MirrorFeature(profile, mirror_plane));
+
+    [McpServerTool, Description("Create a rectangular pattern of a feature along one or two axes.")]
+    public Dictionary<string, object?> rectangular_pattern(
+        string profile, string x_axis, int x_count, double x_spacing,
+        string y_axis = "", int y_count = 1, double y_spacing = 0.0)
+        => Catch(() => provider.RectangularPattern(profile, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing));
+
+    [McpServerTool, Description("Create a loft feature between two or more profiles.")]
+    public Dictionary<string, object?> loft(string profiles, string operation = "new_body")
+        => Catch(() => provider.Loft(profiles, operation));
+
+    [McpServerTool, Description("Create a coil (spring) feature.")]
+    public Dictionary<string, object?> coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body")
+        => Catch(() => provider.Coil(profile, axis, pitch, revolutions, operation));
+
+    [McpServerTool, Description("Create a rib (reinforcement) feature.")]
+    public Dictionary<string, object?> rib(string profile, double thickness, string direction = "normal", string operation = "new_body")
+        => Catch(() => provider.Rib(profile, thickness, direction, operation));
+
+    [McpServerTool, Description("Create an emboss feature from a profile.")]
+    public Dictionary<string, object?> emboss(string profile, double depth, string type = "emboss_from_face")
+        => Catch(() => provider.Emboss(profile, depth, type));
+
+    [McpServerTool, Description("Derive a part from an external file.")]
+    public Dictionary<string, object?> derive(string source_path)
+        => Catch(() => provider.Derive(source_path));
+
     [McpServerTool, Description("Create a hole feature at the specified position.")]
     public Dictionary<string, object?> hole(
         double x, double y, double diameter, double depth,
@@ -198,6 +228,34 @@ public class AtomicTools(IMechanicalCadProvider provider)
     [McpServerTool, Description("List all edges of the active body with geometry info for selection.")]
     public Dictionary<string, object?> inspect_edges()
         => Catch(provider.InspectEdges);
+
+    // ── Modify Features (5) ────────────────────────────────────────────
+
+    [McpServerTool, Description("Create a shell feature by removing selected faces and applying uniform thickness to the remaining faces.")]
+    public Dictionary<string, object?> shell(
+        string faces, double thickness, string direction = "inside", string operation = "new_body")
+        => Catch(() => provider.Shell(faces, thickness, direction, operation));
+
+    [McpServerTool, Description("Create a solid feature by offsetting selected faces by a thickness value. Requires a surface body as input.")]
+    public Dictionary<string, object?> thicken(
+        string faces, double thickness, string direction = "positive", string operation = "new_body")
+        => Catch(() => provider.Thicken(faces, thickness, direction, operation));
+
+    [McpServerTool, Description("Combine bodies via boolean operation (join, cut, intersect). Base body and tool bodies are 1-based body indices (tool_bodies may be comma-separated).")]
+    public Dictionary<string, object?> combine(
+        string base_body, string tool_bodies, string operation = "join", bool keep_tool_bodies = false)
+        => Catch(() => provider.Combine(base_body, tool_bodies, operation, keep_tool_bodies));
+
+    [McpServerTool, Description("Split a body using a work plane as the splitting tool.")]
+    public Dictionary<string, object?> split(
+        string split_tool, string remove_side = "positive", string target_body = "")
+        => Catch(() => provider.Split(split_tool, remove_side, target_body));
+
+    [McpServerTool, Description("Apply a draft angle to the specified faces. Pull direction: x, y, or z. Fixed entity: eN for a specific edge, or empty to draft all edges of the selected faces.")]
+    public Dictionary<string, object?> draft(
+        string faces, double angle, string mode = "fixed_edge",
+        string pull_direction = "z", string fixed_entity = "")
+        => Catch(() => provider.Draft(faces, angle, mode, pull_direction, fixed_entity));
 
     // ── Parameters (4) ────────────────────────────────────────────────
 
@@ -256,6 +314,100 @@ public class AtomicTools(IMechanicalCadProvider provider)
     [McpServerTool, Description("Export the active document's sketch or flat pattern to DXF.")]
     public Dictionary<string, object?> export_dxf(string path, Dictionary<string, object?>? options = null)
         => Catch(() => provider.ExportDxf(path, options));
+
+    // ── Work Features (3) ──────────────────────────────────────────────
+
+    [McpServerTool, Description("Create a work plane in the active part document. Supported definitions: default(1-3), offset_from_plane, through_three_points, normal_to_curve.")]
+    public Dictionary<string, object?> work_plane(
+        string definition, string reference1 = "", string reference2 = "", double? offset = null)
+        => Catch(() => provider.WorkPlane(definition, reference1, reference2, offset ?? 0.0));
+
+    [McpServerTool, Description("Create a work axis in the active part document. Supported definitions: default(1-3), through_two_points, normal_to_plane, along_edge.")]
+    public Dictionary<string, object?> work_axis(
+        string definition, string reference1 = "", string reference2 = "")
+        => Catch(() => provider.WorkAxis(definition, reference1, reference2));
+
+    [McpServerTool, Description("Create a work point in the active part document. Supported definitions: default, at_coordinates, on_curve, intersection.")]
+    public Dictionary<string, object?> work_point(
+        string definition, string reference1 = "", string reference2 = "", string reference3 = "")
+        => Catch(() => provider.WorkPoint(definition, reference1, reference2, reference3));
+
+    // ── Assembly (16) ──────────────────────────────────────────────────
+
+    [McpServerTool, Description("List all placed components (occurrences) in the active assembly with their names, grounded state, and source paths.")]
+    public Dictionary<string, object?> asm_list_components()
+        => Catch(provider.AsmListComponents);
+
+    [McpServerTool, Description("List all assembly constraints with their type, offset, and suppressed state.")]
+    public Dictionary<string, object?> asm_list_constraints()
+        => Catch(provider.AsmListConstraints);
+
+    [McpServerTool, Description("Place a component into the assembly at an optional x,y,z position (cm). Path must be an absolute file path to an .ipt or .iam.")]
+    public Dictionary<string, object?> asm_place_component(
+        string path, double x = 0.0, double y = 0.0, double z = 0.0)
+        => Catch(() => provider.AsmPlaceComponent(path, x, y, z));
+
+    [McpServerTool, Description("Ground (fix in place) a component by name or 1-based occurrence index.")]
+    public Dictionary<string, object?> asm_ground_component(string occurrence)
+        => Catch(() => provider.AsmGroundComponent(occurrence));
+
+    [McpServerTool, Description("Replace an occurrence with a different part file, retaining compatible constraints.")]
+    public Dictionary<string, object?> asm_replace_component(string occurrence, string new_path)
+        => Catch(() => provider.AsmReplaceComponent(occurrence, new_path));
+
+    [McpServerTool, Description("Delete an assembly constraint by name or 1-based index.")]
+    public Dictionary<string, object?> asm_delete_constraint(string constraint)
+        => Catch(() => provider.AsmDeleteConstraint(constraint));
+
+    [McpServerTool, Description("Create a mate constraint between two entities. Entity format: 'OccName/N' for face, 'OccName/eN' for edge, '@PlaneName' for work plane.")]
+    public Dictionary<string, object?> asm_constraint_mate(
+        string entity_one, string entity_two, double offset = 0.0)
+        => Catch(() => provider.AsmConstraintMate(entity_one, entity_two, offset));
+
+    [McpServerTool, Description("Create a flush constraint between two planar entities. Entity format: 'OccName/N' for face, '@PlaneName' for work plane.")]
+    public Dictionary<string, object?> asm_constraint_flush(
+        string entity_one, string entity_two, double offset = 0.0)
+        => Catch(() => provider.AsmConstraintFlush(entity_one, entity_two, offset));
+
+    [McpServerTool, Description("Create an angle constraint between two entities. Solution: directed, undirected, reference_vector.")]
+    public Dictionary<string, object?> asm_constraint_angle(
+        string entity_one, string entity_two, double angle, string solution = "directed")
+        => Catch(() => provider.AsmConstraintAngle(entity_one, entity_two, angle, solution));
+
+    [McpServerTool, Description("Create an insert constraint (concentric + planar) between two circular entities.")]
+    public Dictionary<string, object?> asm_constraint_insert(
+        string entity_one, string entity_two, double offset = 0.0)
+        => Catch(() => provider.AsmConstraintInsert(entity_one, entity_two, offset));
+
+    [McpServerTool, Description("Create a tangent constraint between two entities.")]
+    public Dictionary<string, object?> asm_constraint_tangent(
+        string entity_one, string entity_two, double offset = 0.0)
+        => Catch(() => provider.AsmConstraintTangent(entity_one, entity_two, offset));
+
+    [McpServerTool, Description("Create a circular pattern of an assembly occurrence around an axis (X, Y, Z, work axis index, or eN for edge).")]
+    public Dictionary<string, object?> asm_pattern_circular(
+        string occurrence, string axis, int count, double angle = 360.0)
+        => Catch(() => provider.AsmCircularPattern(occurrence, axis, count, angle));
+
+    [McpServerTool, Description("Create a rectangular pattern of an assembly occurrence along one or two axes.")]
+    public Dictionary<string, object?> asm_pattern_rectangular(
+        string occurrence, string x_axis, int x_count, double x_spacing,
+        string? y_axis = null, int y_count = 1, double y_spacing = 0.0)
+        => Catch(() => provider.AsmRectangularPattern(occurrence, x_axis, x_count, x_spacing, y_axis, y_count, y_spacing));
+
+    [McpServerTool, Description("Create an extrude cut across multiple components at the assembly level. Requires an existing sketch.")]
+    public Dictionary<string, object?> asm_extrude_cut(
+        string profile, double distance, string direction = "positive")
+        => Catch(() => provider.AsmExtrudeCut(profile, distance, direction));
+
+    [McpServerTool, Description("Create a hole feature at the assembly level. Requires an existing sketch with a point.")]
+    public Dictionary<string, object?> asm_hole(
+        double x, double y, double diameter, double depth, string type = "drilled")
+        => Catch(() => provider.AsmHole(x, y, diameter, depth, type));
+
+    [McpServerTool, Description("Get the bill of materials (BOM) for the active assembly with part numbers, quantities, and descriptions.")]
+    public Dictionary<string, object?> asm_bom()
+        => Catch(provider.AsmBom);
 
     // ── Error catching helper (D7: tool-layer catches COM exceptions) ─
 

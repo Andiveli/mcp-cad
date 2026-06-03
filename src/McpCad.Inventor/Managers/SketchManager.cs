@@ -87,11 +87,12 @@ public class SketchManager
         try
         {
             var compDef = ComponentDefinition();
-            var partCompDef = (global::Inventor.PartComponentDefinition)compDef;
-            dynamic workPlane = partCompDef.WorkPlanes[planeIndex];
-            dynamic sketch = partCompDef.Sketches.Add(workPlane);
+            // Use dynamic dispatch — works for both PartComponentDefinition and AssemblyComponentDefinition
+            dynamic dynCompDef = ComDispatchHelper.WrapDispatch(compDef);
+            dynamic workPlane = dynCompDef.WorkPlanes[planeIndex];
+            dynamic sketch = dynCompDef.Sketches.Add(workPlane);
             _activeSketch = sketch;
-            _activeSketchIndex = partCompDef.Sketches.Count;
+            _activeSketchIndex = dynCompDef.Sketches.Count;
             return new Dictionary<string, object?>
             {
                 ["success"] = true,

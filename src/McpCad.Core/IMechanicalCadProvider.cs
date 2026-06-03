@@ -41,9 +41,21 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> Fillet(string edges, double radius, string mode = "constant");
     Dictionary<string, object?> Chamfer(string edges, double distance, string mode = "equal_distance");
     Dictionary<string, object?> CircularPattern(string profile, string axis, int count, double angle = 360.0, bool fitWithinAngle = true, bool naturalDirection = true);
+    Dictionary<string, object?> MirrorFeature(string profile, string mirrorPlane);
+    Dictionary<string, object?> RectangularPattern(string profile, string xAxis, int xCount, double xSpacing, string yAxis = "", int yCount = 1, double ySpacing = 0.0);
+    Dictionary<string, object?> Loft(string profiles, string operation = "new_body");
+    Dictionary<string, object?> Coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body");
+    Dictionary<string, object?> Rib(string profile, double thickness, string direction = "normal", string operation = "new_body");
+    Dictionary<string, object?> Emboss(string profile, double depth, string type = "emboss_from_face");
+    Dictionary<string, object?> Derive(string sourcePath);
     Dictionary<string, object?> Hole(double x, double y, double diameter, double depth, string type = "drilled", string operation = "join");
     Dictionary<string, object?> Thread(string face, string specification, string direction = "right");
     Dictionary<string, object?> InspectEdges();
+    Dictionary<string, object?> Shell(string faces, double thickness, string direction = "inside", string operation = "new_body");
+    Dictionary<string, object?> Draft(string faces, double angle, string mode = "fixed_edge", string pullDirection = "z", string fixedEntity = "");
+    Dictionary<string, object?> Split(string splitTool, string removeSide = "positive", string targetBody = "");
+    Dictionary<string, object?> Combine(string baseBody, string toolBodies, string operation = "join", bool keepToolBodies = false);
+    Dictionary<string, object?> Thicken(string faces, double thickness, string direction = "positive", string operation = "new_body");
 
     #endregion
 
@@ -63,6 +75,35 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> IPropertySummary();
     Dictionary<string, object?> IPropertyCustomGet(string name);
     Dictionary<string, object?> IPropertyCustomSet(string name, string? value);
+
+    #endregion
+
+    #region WorkFeatures
+
+    Dictionary<string, object?> WorkPlane(string definition, string reference1, string reference2, double offset);
+    Dictionary<string, object?> WorkAxis(string definition, string reference1, string reference2);
+    Dictionary<string, object?> WorkPoint(string definition, string reference1, string reference2, string reference3);
+
+    #endregion
+
+    #region Assembly
+
+    Dictionary<string, object?> AsmListComponents();
+    Dictionary<string, object?> AsmListConstraints();
+    Dictionary<string, object?> AsmPlaceComponent(string path, double x = 0, double y = 0, double z = 0);
+    Dictionary<string, object?> AsmGroundComponent(string occurrence);
+    Dictionary<string, object?> AsmReplaceComponent(string occurrence, string newPath);
+    Dictionary<string, object?> AsmDeleteConstraint(string constraint);
+    Dictionary<string, object?> AsmConstraintMate(string entityOne, string entityTwo, double offset = 0);
+    Dictionary<string, object?> AsmConstraintFlush(string entityOne, string entityTwo, double offset = 0);
+    Dictionary<string, object?> AsmConstraintAngle(string entityOne, string entityTwo, double angle, string solution = "directed");
+    Dictionary<string, object?> AsmConstraintInsert(string entityOne, string entityTwo, double offset = 0);
+    Dictionary<string, object?> AsmConstraintTangent(string entityOne, string entityTwo, double offset = 0);
+    Dictionary<string, object?> AsmCircularPattern(string occurrence, string axis, int count, double angle = 360);
+    Dictionary<string, object?> AsmRectangularPattern(string occurrence, string xAxis, int xCount, double xSpacing, string? yAxis = null, int yCount = 1, double ySpacing = 0);
+    Dictionary<string, object?> AsmExtrudeCut(string profile, double distance, string direction = "positive");
+    Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled");
+    Dictionary<string, object?> AsmBom();
 
     #endregion
 }

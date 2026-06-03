@@ -462,6 +462,180 @@ public class FeatureManager
         catch (Exception ex) { throw new InventorComException($"Failed to create circular pattern: {ex.Message}", ex); }
     }
 
+    // ── Mirror Feature ─────────────────────────────────────────────────
+
+    public Dictionary<string, object?> MirrorFeature(string profile, string mirrorPlane)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic feature = ResolveFeature(compDef, profile);
+            dynamic objectCollection = TransientObjects().CreateObjectCollection();
+            objectCollection.Add(feature);
+            dynamic plane = ResolveWorkPlane(compDef, mirrorPlane);
+            dynamic mirrorFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.MirrorFeatures);
+            dynamic mf = mirrorFeatures.Add(objectCollection, plane, Type.Missing);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "mirror", ["feature_name"] = mf.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to mirror feature: {ex.Message}", ex); }
+    }
+
+    // ── Rectangular Pattern ─────────────────────────────────────────────
+
+    public Dictionary<string, object?> RectangularPattern(
+        string profile, string xAxis, int xCount, double xSpacing,
+        string yAxis = "", int yCount = 1, double ySpacing = 0.0)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic feature = ResolveFeature(compDef, profile);
+            dynamic objectCollection = TransientObjects().CreateObjectCollection();
+            objectCollection.Add(feature);
+            dynamic xDir = ResolvePatternAxis(compDef, xAxis);
+            dynamic yDir = string.IsNullOrEmpty(yAxis) ? null : ResolvePatternAxis(compDef, yAxis);
+            dynamic rpFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.RectangularPatternFeatures);
+            dynamic rp = yDir != null
+                ? rpFeatures.Add(objectCollection, xDir, xCount, xSpacing, yDir, yCount, ySpacing, Type.Missing)
+                : rpFeatures.Add(objectCollection, xDir, true, xCount, xSpacing, false, Type.Missing, Type.Missing, Type.Missing);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "rectangular_pattern", ["x_count"] = xCount, ["y_count"] = yCount, ["feature_name"] = rp.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create rectangular pattern: {ex.Message}", ex); }
+    }
+
+    // ── ResolveWorkPlane helper ──────────────────────────────────────────
+
+    private dynamic ResolveWorkPlane(dynamic compDef, string planeRef)
+    {
+        if (int.TryParse(planeRef, out int idx))
+            return compDef.WorkPlanes.Item(idx);
+        return compDef.WorkPlanes.Item(planeRef);
+    }
+
+    // ── Loft ─────────────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> Loft(string profiles, string operation = "new_body")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic sketch = GetActiveSketch(compDef);
+            if (!OperationMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'.");
+            var sections = profiles.Split(',');
+            dynamic sectionsColl = TransientObjects().CreateObjectCollection();
+            foreach (var s in sections)
+            {
+                int idx = int.Parse(s.Trim());
+                object rawProfile = sketch.Profiles.Item(idx);
+                dynamic profile = ComDispatchHelper.WrapDispatch(rawProfile);
+                sectionsColl.Add(profile);
+            }
+            dynamic loftFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.LoftFeatures);
+            dynamic loftDef = loftFeatures.CreateLoftDefinition(sectionsColl, opEnum);
+            dynamic result = loftFeatures.Add(loftDef);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "loft", ["feature_name"] = result.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create loft: {ex.Message}", ex); }
+    }
+
+    // ── Coil ─────────────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> Coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic sketch = GetActiveSketch(compDef);
+            object rawProfile = sketch.Profiles.Item(1);
+            dynamic prof = ComDispatchHelper.WrapDispatch(rawProfile);
+            dynamic ax = ResolvePatternAxis(compDef, axis);
+            if (!OperationMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'.");
+            dynamic coilFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.CoilFeatures);
+            dynamic result = coilFeatures.AddByPitchAndRevolution(
+                prof, ax, pitch.ToString(), revolutions.ToString(), (global::Inventor.PartFeatureOperationEnum)opEnum,
+                Type.Missing, Type.Missing, Type.Missing, Type.Missing,
+                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "coil", ["feature_name"] = result.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create coil: {ex.Message}", ex); }
+    }
+
+    // ── Rib ──────────────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> Rib(string profile, double thickness, string direction = "normal", string operation = "new_body")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic sketch = GetActiveSketch(compDef);
+            object rawProfile = sketch.Profiles.Item(1);
+            dynamic prof = ComDispatchHelper.WrapDispatch(rawProfile);
+            if (!OperationMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'.");
+            dynamic ribFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.RibFeatures);
+            dynamic ribDef = ribFeatures.CreateDefinition();
+            ribDef.Profile = prof;
+            ribDef.Thickness.Value = thickness;
+            ribDef.Operation = opEnum;
+            dynamic result = ribFeatures.Add(ribDef);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "rib", ["feature_name"] = result.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create rib: {ex.Message}", ex); }
+    }
+
+    // ── Emboss ───────────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> Emboss(string profile, double depth, string type = "emboss_from_face")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic sketch = GetActiveSketch(compDef);
+            object rawProfile = sketch.Profiles.Item(1);
+            dynamic prof = ComDispatchHelper.WrapDispatch(rawProfile);
+            // Emboss direction uses PartFeatureExtentDirectionEnum (same as extrude)
+            int dirEnum = DirectionMap.GetValueOrDefault("positive", 20993);
+            dynamic embossFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.EmbossFeatures);
+            // AddEmbossFromFace(Profile, Distance, ExtentDirection, TopFaceColor, WrapFace)
+            dynamic result = embossFeatures.AddEmbossFromFace(prof, depth.ToString(), dirEnum, Type.Missing, Type.Missing);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "emboss", ["feature_name"] = result.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create emboss: {ex.Message}", ex); }
+    }
+
+    // ── Derive ───────────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> Derive(string sourcePath)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            dynamic derivedParts = ComDispatchHelper.WrapDispatch(compDef.ReferenceComponents.DerivedPartComponents);
+            dynamic def = derivedParts.CreateDefinition(sourcePath);
+            dynamic result = derivedParts.Add(def);
+            return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "derive", ["source"] = sourcePath, ["feature_name"] = result.Name as string };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to derive: {ex.Message}", ex); }
+    }
+
+    // ── ResolveWorkPlane helper ──────────────────────────────────────────
+
     // ── Hole Feature ──────────────────────────────────────────────────
 
     /// <summary>
@@ -662,6 +836,391 @@ public class FeatureManager
         catch (InventorConnectionException) { throw; }
         catch (InventorComException) { throw; }
         catch (Exception ex) { throw new InventorComException($"Failed to inspect edges: {ex.Message}", ex); }
+    }
+
+    // ── Modify Features ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Combine bodies via boolean operation (join, cut, intersect).
+    /// </summary>
+    public Dictionary<string, object?> Combine(
+        string baseBody, string toolBodies,
+        string operation = "join", bool keepToolBodies = false)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Map operation string to BooleanFeatureOperationEnum
+            // kJoinBoolean = 10481, kCutBoolean = 10482, kIntersectBoolean = 10483
+            var combineOpMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["join"] = 20481,
+                ["cut"] = 20482,
+                ["intersect"] = 20483,
+            };
+
+            if (!combineOpMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'. Use: join, cut, intersect.");
+
+            // Resolve base body by index
+            if (!int.TryParse(baseBody, out int baseBodyIdx))
+                throw new InventorComException($"Invalid base body index '{baseBody}'. Must be a 1-based numeric index.");
+
+            dynamic surfaceBodies = compDef.SurfaceBodies;
+            dynamic baseBodyObj;
+            try
+            {
+                baseBodyObj = surfaceBodies.Item(baseBodyIdx);
+            }
+            catch (Exception ex)
+            {
+                throw new InventorComException($"Base body index {baseBodyIdx} does not exist. The part has {surfaceBodies.Count} surface bodies.", ex);
+            }
+
+            // Parse tool bodies (comma-separated indices) into ObjectCollection
+            dynamic toolCollection = TransientObjects().CreateObjectCollection();
+            var toolIndices = toolBodies.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var idxStr in toolIndices)
+            {
+                if (!int.TryParse(idxStr, out int toolIdx))
+                    throw new InventorComException($"Invalid tool body index '{idxStr}'. Must be a number.");
+
+                try
+                {
+                    dynamic toolBody = surfaceBodies.Item(toolIdx);
+                    toolCollection.Add(toolBody);
+                }
+                catch (Exception ex)
+                {
+                    throw new InventorComException($"Tool body index {toolIdx} does not exist. The part has {surfaceBodies.Count} surface bodies.", ex);
+                }
+            }
+
+            // Access CombineFeatures via late-bound dynamic with Dispatch wrapper
+            dynamic combineFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.CombineFeatures);
+
+            // Add(baseBody, toolBodies, operation, keepToolBodies)
+            dynamic combineFeature = combineFeatures.Add(baseBodyObj, toolCollection, opEnum, keepToolBodies);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "combine",
+                ["operation"] = operation,
+                ["keep_tool_bodies"] = keepToolBodies,
+                ["feature_name"] = combineFeature.Name as string,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to combine: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Create a shell feature by removing selected faces and applying uniform
+    /// thickness to the remaining faces (hollowing out the body).
+    /// </summary>
+    public Dictionary<string, object?> Shell(
+        string faces, double thickness,
+        string direction = "inside", string operation = "new_body")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Map shell direction (ShellDirectionEnum - verified from API)
+            var shellDirMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["inside"] = 41217,    // kInsideShellDirection
+                ["outside"] = 41218,   // kOutsideShellDirection
+                ["midplane"] = 41219,  // kBothSidesShellDirection
+            };
+            if (!shellDirMap.TryGetValue(direction, out int dirEnum))
+                return ErrorResult.Create($"Invalid direction '{direction}'. Use: inside, outside, midplane.");
+
+            // Map operation enum
+            if (!OperationMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'. Use: new_body, join, cut, intersect.");
+
+            // Resolve faces using shared FaceResolver
+            dynamic faceCollection = FaceResolver.ResolveFaces(compDef, faces);
+
+            // Materialize faceCollection for COM
+            System.IntPtr pFaceColl = System.Runtime.InteropServices.Marshal.GetIUnknownForObject(
+                (object)faceCollection);
+            var safeFaceColl = (global::Inventor.FaceCollection)
+                System.Runtime.InteropServices.Marshal.GetObjectForIUnknown(pFaceColl);
+            System.Runtime.InteropServices.Marshal.Release(pFaceColl);
+
+            // CreateDefinition(InputFaces, Solids, Thickness, Direction, Method, MoreOptions)
+            // Uses late-bound dynamic — CreateDefinition is found but CreateShellDefinition does not exist
+            dynamic shellFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.ShellFeatures);
+            dynamic shellDef = shellFeatures.CreateDefinition(
+                safeFaceColl, Type.Missing, thickness, (global::Inventor.ShellDirectionEnum)dirEnum,
+                Type.Missing, Type.Missing);
+            dynamic shellFeature = shellFeatures.Add(shellDef);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "shell",
+                ["thickness"] = thickness,
+                ["direction"] = direction,
+                ["feature_name"] = shellFeature.Name as string,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create shell: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Split a body using a work plane as the splitting tool.
+    /// </summary>
+    public Dictionary<string, object?> Split(
+        string splitTool, string removeSide = "positive", string targetBody = "")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Map remove_side enum (SplitHalfTypeEnum)
+            // positive=0 (kPositiveHalfSplitType), negative=1 (kNegativeHalfSplitType), both=2 (kBothHalvesSplitType)
+            var splitSideMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["positive"] = 0,
+                ["negative"] = 1,
+                ["both"] = 2,
+            };
+
+            if (!splitSideMap.TryGetValue(removeSide, out int sideEnum))
+                return ErrorResult.Create($"Invalid remove_side '{removeSide}'. Use: positive, negative, both.");
+
+            // Resolve work plane by index or name
+            dynamic workPlane;
+            if (int.TryParse(splitTool, out int wpIdx))
+            {
+                try
+                {
+                    workPlane = compDef.WorkPlanes.Item(wpIdx);
+                }
+                catch (Exception ex)
+                {
+                    throw new InventorComException(
+                        $"Work plane index {wpIdx} does not exist. The part has {compDef.WorkPlanes.Count} work planes.", ex);
+                }
+            }
+            else
+            {
+                // Try by name
+                try
+                {
+                    workPlane = compDef.WorkPlanes.Item(splitTool);
+                }
+                catch
+                {
+                    throw new InventorComException(
+                        $"Work plane '{splitTool}' not found. Provide a valid work plane index or name.");
+                }
+            }
+
+            // Access SplitFeatures via late-bound dynamic with Dispatch wrapper
+            dynamic splitFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.SplitFeatures);
+
+            // Resolve body: default to first solid body
+            dynamic body;
+            if (!string.IsNullOrEmpty(targetBody))
+            {
+                if (int.TryParse(targetBody, out int bodyIdx))
+                {
+                    body = compDef.SurfaceBodies.Item(bodyIdx);
+                }
+                else
+                {
+                    throw new InventorComException(
+                        $"Invalid target_body '{targetBody}'. Must be a 1-based numeric index.");
+                }
+            }
+            else
+            {
+                body = compDef.SurfaceBodies.Item(1);
+            }
+
+            // TrimSolid(SplitTool, Body, RemovePositiveSide)
+            bool removePositive = sideEnum == 0; // 0 = positive side removed
+            dynamic splitFeature = splitFeatures.TrimSolid(workPlane, body, removePositive);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "split",
+                ["remove_side"] = removeSide,
+                ["feature_name"] = splitFeature.Name as string,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to split: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Apply a fixed-edge draft angle to the specified faces.
+    /// Pull direction: "x"/"y"/"z" → WorkAxes 1/2/3.
+    /// Fixed entity: "eN" → edge by index, or empty to draft all edges of the selected faces.
+    /// </summary>
+    public Dictionary<string, object?> Draft(
+        string faces, double angle, string mode = "fixed_edge",
+        string pullDirection = "z", string fixedEntity = "")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Only fixed_edge mode supported for now
+            if (!mode.Equals("fixed_edge", StringComparison.OrdinalIgnoreCase))
+                return ErrorResult.Create($"Draft mode '{mode}' is not supported. Use: fixed_edge.");
+
+            // Resolve faces using shared FaceResolver
+            dynamic faceCollection = FaceResolver.ResolveFaces(compDef, faces);
+
+            // Resolve pull direction to work axis
+            dynamic pullDir = pullDirection.ToLowerInvariant() switch
+            {
+                "x" => compDef.WorkAxes.Item(1),
+                "y" => compDef.WorkAxes.Item(2),
+                "z" => compDef.WorkAxes.Item(3),
+                _ => throw new InventorComException($"Invalid pull direction '{pullDirection}'. Use: x, y, z."),
+            };
+
+            // Resolve fixed edges
+            dynamic transientObjects = TransientObjects();
+            dynamic fixedEdgesCollection = transientObjects.CreateEdgeCollection();
+
+            if (!string.IsNullOrEmpty(fixedEntity))
+            {
+                // Parse edge index: "e1", "e5", etc.
+                if (fixedEntity.StartsWith("e", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(fixedEntity[1..], out int edgeIdx))
+                {
+                    dynamic surfaceBody = compDef.SurfaceBodies.Item(1);
+                    try
+                    {
+                        fixedEdgesCollection.Add(surfaceBody.Edges.Item(edgeIdx));
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InventorComException(
+                            $"Edge index {edgeIdx} does not exist. The body has {surfaceBody.Edges.Count} edges.", ex);
+                    }
+                }
+                else
+                {
+                    throw new InventorComException(
+                        $"Invalid fixed entity '{fixedEntity}'. Use format 'eN' where N is a 1-based edge index.");
+                }
+            }
+            else
+            {
+                // Collect all edges from the drafted faces
+                for (int i = 1; i <= faceCollection.Count; i++)
+                {
+                    dynamic face = ComDispatchHelper.WrapDispatch(faceCollection.Item(i));
+                    dynamic edges = face.Edges;
+                    for (int j = 1; j <= edges.Count; j++)
+                    {
+                        fixedEdgesCollection.Add(edges.Item(j));
+                    }
+                }
+            }
+
+            // Convert angle from degrees to radians
+            double angleRad = angle * Math.PI / 180.0;
+
+            // Materialize faceCollection for COM (same pattern as shell)
+            System.IntPtr pDraftFaces = System.Runtime.InteropServices.Marshal.GetIUnknownForObject(
+                (object)faceCollection);
+            var safeDraftFaces = (global::Inventor.FaceCollection)
+                System.Runtime.InteropServices.Marshal.GetObjectForIUnknown(pDraftFaces);
+            System.Runtime.InteropServices.Marshal.Release(pDraftFaces);
+
+            // Access FaceDraftFeatures via late-bound dynamic with Dispatch wrapper
+            dynamic draftFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.FaceDraftFeatures);
+
+            // Two-step: CreateFaceDraftDefinition → SetFixedEdge → Add(definition)
+            dynamic draftDef = draftFeatures.CreateFaceDraftDefinition();
+            // SetFixedEdge(InputFaces, FixedEdges, PullDirection, DraftAngle, PullDirectionReversed, AbsoluteDraftAngle)
+            draftDef.SetFixedEdge(
+                safeDraftFaces,
+                fixedEdgesCollection.Count > 0 ? fixedEdgesCollection : Type.Missing,
+                pullDir, angleRad,
+                Type.Missing, Type.Missing);
+            dynamic draftFeature = draftFeatures.Add(draftDef);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "draft",
+                ["angle"] = angle,
+                ["mode"] = mode,
+                ["pull_direction"] = pullDirection,
+                ["feature_name"] = draftFeature.Name as string,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create draft: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Create a solid by offsetting selected faces by a thickness value.
+    /// Typically used on surface bodies to convert them to solids.
+    /// </summary>
+    public Dictionary<string, object?> Thicken(
+        string faces, double thickness,
+        string direction = "positive", string operation = "new_body")
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Map direction (uses PartFeatureExtentDirectionEnum, same as extrude)
+            if (!DirectionMap.TryGetValue(direction, out int dirEnum))
+                return ErrorResult.Create($"Invalid direction '{direction}'. Use: positive, negative, symmetric.");
+
+            // Map operation enum
+            if (!OperationMap.TryGetValue(operation, out int opEnum))
+                return ErrorResult.Create($"Invalid operation '{operation}'. Use: new_body, join, cut, intersect.");
+
+            // Resolve faces using shared FaceResolver
+            dynamic faceCollection = FaceResolver.ResolveFaces(compDef, faces);
+
+            // Materialize faceCollection for COM
+            System.IntPtr pThickFaces = System.Runtime.InteropServices.Marshal.GetIUnknownForObject(
+                (object)faceCollection);
+            var safeThickFaces = (global::Inventor.FaceCollection)
+                System.Runtime.InteropServices.Marshal.GetObjectForIUnknown(pThickFaces);
+            System.Runtime.InteropServices.Marshal.Release(pThickFaces);
+
+            // Access ThickenFeatures via late-bound dynamic with Dispatch wrapper
+            dynamic thickenFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.ThickenFeatures);
+
+            // Add(Faces, Distance, ExtentDirection, Operation, AutomaticFaceChain, CreateVerticalSurfaces, AutomaticBlending)
+            dynamic thickenFeature = thickenFeatures.Add(safeThickFaces, thickness.ToString(), dirEnum, opEnum,
+                Type.Missing, Type.Missing, Type.Missing);
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "thicken",
+                ["thickness"] = thickness,
+                ["direction"] = direction,
+                ["feature_name"] = thickenFeature.Name as string,
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to thicken: {ex.Message}", ex); }
     }
 
     // ── Private helpers ───────────────────────────────────────────────

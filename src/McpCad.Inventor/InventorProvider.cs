@@ -17,6 +17,8 @@ public class InventorProvider : IMechanicalCadProvider
     private readonly ParameterManager _parameter;
     private readonly PropertyManager _property;
     private readonly ExportManager _export;
+    private readonly WorkFeatureManager _workFeatures;
+    private readonly AssemblyManager _assembly;
 
     public InventorProvider(InventorDriver driver)
     {
@@ -27,6 +29,8 @@ public class InventorProvider : IMechanicalCadProvider
         _parameter = new ParameterManager(driver);
         _property = new PropertyManager(driver);
         _export = new ExportManager(driver);
+        _workFeatures = new WorkFeatureManager(driver);
+        _assembly = new AssemblyManager(driver);
     }
 
     // ── Connection ────────────────────────────────────────────────────
@@ -148,6 +152,29 @@ public Dictionary<string, object?> CircularPattern(
         bool naturalDirection = true)
         => _feature.CircularPattern(profile, axis, count, angle, fitWithinAngle, naturalDirection);
 
+    public Dictionary<string, object?> MirrorFeature(string profile, string mirrorPlane)
+        => _feature.MirrorFeature(profile, mirrorPlane);
+
+    public Dictionary<string, object?> RectangularPattern(
+        string profile, string xAxis, int xCount, double xSpacing,
+        string yAxis = "", int yCount = 1, double ySpacing = 0.0)
+        => _feature.RectangularPattern(profile, xAxis, xCount, xSpacing, yAxis, yCount, ySpacing);
+
+    public Dictionary<string, object?> Loft(string profiles, string operation = "new_body")
+        => _feature.Loft(profiles, operation);
+
+    public Dictionary<string, object?> Coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body")
+        => _feature.Coil(profile, axis, pitch, revolutions, operation);
+
+    public Dictionary<string, object?> Rib(string profile, double thickness, string direction = "normal", string operation = "new_body")
+        => _feature.Rib(profile, thickness, direction, operation);
+
+    public Dictionary<string, object?> Emboss(string profile, double depth, string type = "emboss_from_face")
+        => _feature.Emboss(profile, depth, type);
+
+    public Dictionary<string, object?> Derive(string sourcePath)
+        => _feature.Derive(sourcePath);
+
     public Dictionary<string, object?> Hole(
         double x, double y, double diameter, double depth,
         string type = "drilled", string operation = "join")
@@ -157,6 +184,21 @@ public Dictionary<string, object?> CircularPattern(
         => _feature.Thread(face, specification, direction);
 
     public Dictionary<string, object?> InspectEdges() => _feature.InspectEdges();
+
+    public Dictionary<string, object?> Combine(string baseBody, string toolBodies, string operation = "join", bool keepToolBodies = false)
+        => _feature.Combine(baseBody, toolBodies, operation, keepToolBodies);
+
+    public Dictionary<string, object?> Shell(string faces, double thickness, string direction = "inside", string operation = "new_body")
+        => _feature.Shell(faces, thickness, direction, operation);
+
+    public Dictionary<string, object?> Thicken(string faces, double thickness, string direction = "positive", string operation = "new_body")
+        => _feature.Thicken(faces, thickness, direction, operation);
+
+    public Dictionary<string, object?> Split(string splitTool, string removeSide = "positive", string targetBody = "")
+        => _feature.Split(splitTool, removeSide, targetBody);
+
+    public Dictionary<string, object?> Draft(string faces, double angle, string mode = "fixed_edge", string pullDirection = "z", string fixedEntity = "")
+        => _feature.Draft(faces, angle, mode, pullDirection, fixedEntity);
 
     // ── Parameters ───────────────────────────────────────────────────
 
@@ -193,4 +235,44 @@ public Dictionary<string, object?> CircularPattern(
 
     public Dictionary<string, object?> ExportDxf(string path, Dictionary<string, object?>? options = null)
         => _export.ExportDxf(path, options);
+
+    // ── Work Features ─────────────────────────────────────────────────
+
+    public Dictionary<string, object?> WorkPlane(string definition, string reference1, string reference2, double offset)
+        => _workFeatures.WorkPlane(definition, reference1, reference2, offset);
+
+    public Dictionary<string, object?> WorkAxis(string definition, string reference1, string reference2)
+        => _workFeatures.WorkAxis(definition, reference1, reference2);
+
+    public Dictionary<string, object?> WorkPoint(string definition, string reference1, string reference2, string reference3)
+        => _workFeatures.WorkPoint(definition, reference1, reference2, reference3);
+
+    // ── Assembly ──────────────────────────────────────────────────────
+
+    public Dictionary<string, object?> AsmListComponents() => _assembly.AsmListComponents();
+    public Dictionary<string, object?> AsmListConstraints() => _assembly.AsmListConstraints();
+    public Dictionary<string, object?> AsmPlaceComponent(string path, double x = 0, double y = 0, double z = 0)
+        => _assembly.AsmPlaceComponent(path, x, y, z);
+    public Dictionary<string, object?> AsmGroundComponent(string occurrence) => _assembly.AsmGroundComponent(occurrence);
+    public Dictionary<string, object?> AsmReplaceComponent(string occurrence, string newPath) => _assembly.AsmReplaceComponent(occurrence, newPath);
+    public Dictionary<string, object?> AsmDeleteConstraint(string constraint) => _assembly.AsmDeleteConstraint(constraint);
+    public Dictionary<string, object?> AsmConstraintMate(string entityOne, string entityTwo, double offset = 0)
+        => _assembly.AsmConstraintMate(entityOne, entityTwo, offset);
+    public Dictionary<string, object?> AsmConstraintFlush(string entityOne, string entityTwo, double offset = 0)
+        => _assembly.AsmConstraintFlush(entityOne, entityTwo, offset);
+    public Dictionary<string, object?> AsmConstraintAngle(string entityOne, string entityTwo, double angle, string solution = "directed")
+        => _assembly.AsmConstraintAngle(entityOne, entityTwo, angle, solution);
+    public Dictionary<string, object?> AsmConstraintInsert(string entityOne, string entityTwo, double offset = 0)
+        => _assembly.AsmConstraintInsert(entityOne, entityTwo, offset);
+    public Dictionary<string, object?> AsmConstraintTangent(string entityOne, string entityTwo, double offset = 0)
+        => _assembly.AsmConstraintTangent(entityOne, entityTwo, offset);
+    public Dictionary<string, object?> AsmCircularPattern(string occurrence, string axis, int count, double angle = 360)
+        => _assembly.AsmCircularPattern(occurrence, axis, count, angle);
+    public Dictionary<string, object?> AsmRectangularPattern(string occurrence, string xAxis, int xCount, double xSpacing, string? yAxis = null, int yCount = 1, double ySpacing = 0)
+        => _assembly.AsmRectangularPattern(occurrence, xAxis, xCount, xSpacing, yAxis, yCount, ySpacing);
+    public Dictionary<string, object?> AsmExtrudeCut(string profile, double distance, string direction = "positive")
+        => _assembly.AsmExtrudeCut(profile, distance, direction);
+    public Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled")
+        => _assembly.AsmHole(x, y, diameter, depth, type);
+    public Dictionary<string, object?> AsmBom() => _assembly.AsmBom();
 }

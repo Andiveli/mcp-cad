@@ -1,13 +1,5 @@
-# Build output — ignore old versioned builds, keep dist/mcp-cad
+# Build output
 dist/csharp-server-*/
-
-# Virtual environment
-.venv/
-venv/
-env/
-
-# Pi local state
-.pi/
 
 # OS
 .DS_Store
@@ -17,9 +9,9 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Coverage
-.coverage
-htmlcov/
-
 # Local Pi runtime state
 .atl/
+
+# Test artifacts
+test_*.ipt
+test_*.iam

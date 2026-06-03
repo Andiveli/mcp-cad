@@ -47,6 +47,13 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _filletResult;
     private Dictionary<string, object?>? _chamferResult;
     private Dictionary<string, object?>? _circularPatternResult;
+    private Dictionary<string, object?>? _mirrorFeatureResult;
+    private Dictionary<string, object?>? _rectangularPatternResult;
+    private Dictionary<string, object?>? _loftResult;
+    private Dictionary<string, object?>? _coilResult;
+    private Dictionary<string, object?>? _ribResult;
+    private Dictionary<string, object?>? _embossResult;
+    private Dictionary<string, object?>? _deriveResult;
     private Dictionary<string, object?>? _holeResult;
     private Dictionary<string, object?>? _threadResult;
     private Dictionary<string, object?>? _inspectEdgesResult;
@@ -63,6 +70,14 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _exportStlResult;
     private Dictionary<string, object?>? _exportPdfResult;
     private Dictionary<string, object?>? _exportDxfResult;
+    private Dictionary<string, object?>? _workPlaneResult;
+    private Dictionary<string, object?>? _workAxisResult;
+    private Dictionary<string, object?>? _workPointResult;
+    private Dictionary<string, object?>? _shellResult;
+    private Dictionary<string, object?>? _draftResult;
+    private Dictionary<string, object?>? _splitResult;
+    private Dictionary<string, object?>? _combineResult;
+    private Dictionary<string, object?>? _thickenResult;
 
     /// <summary>Tracks which methods were called and their arguments.</summary>
     public List<(string Method, Dictionary<string, object?> Args)> CallLog { get; } = new();
@@ -117,6 +132,13 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._filletResult = errorResult;
         mock._chamferResult = errorResult;
         mock._circularPatternResult = errorResult;
+        mock._mirrorFeatureResult = errorResult;
+        mock._rectangularPatternResult = errorResult;
+        mock._loftResult = errorResult;
+        mock._coilResult = errorResult;
+        mock._ribResult = errorResult;
+        mock._embossResult = errorResult;
+        mock._deriveResult = errorResult;
         mock._holeResult = errorResult;
         mock._threadResult = errorResult;
         mock._inspectEdgesResult = errorResult;
@@ -133,6 +155,14 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._exportStlResult = errorResult;
         mock._exportPdfResult = errorResult;
         mock._exportDxfResult = errorResult;
+        mock._workPlaneResult = errorResult;
+        mock._workAxisResult = errorResult;
+        mock._workPointResult = errorResult;
+        mock._shellResult = errorResult;
+        mock._draftResult = errorResult;
+        mock._splitResult = errorResult;
+        mock._combineResult = errorResult;
+        mock._thickenResult = errorResult;
 
         return mock;
     }
@@ -151,6 +181,22 @@ public class MockInventorProvider : IMechanicalCadProvider
     { _revolveResult = result; return this; }
     public MockInventorProvider SetSweepResult(Dictionary<string, object?> result)
     { _sweepResult = result; return this; }
+    public MockInventorProvider SetWorkPlaneResult(Dictionary<string, object?> result)
+    { _workPlaneResult = result; return this; }
+    public MockInventorProvider SetWorkAxisResult(Dictionary<string, object?> result)
+    { _workAxisResult = result; return this; }
+    public MockInventorProvider SetWorkPointResult(Dictionary<string, object?> result)
+    { _workPointResult = result; return this; }
+    public MockInventorProvider SetShellResult(Dictionary<string, object?> result)
+    { _shellResult = result; return this; }
+    public MockInventorProvider SetDraftResult(Dictionary<string, object?> result)
+    { _draftResult = result; return this; }
+    public MockInventorProvider SetSplitResult(Dictionary<string, object?> result)
+    { _splitResult = result; return this; }
+    public MockInventorProvider SetCombineResult(Dictionary<string, object?> result)
+    { _combineResult = result; return this; }
+    public MockInventorProvider SetThickenResult(Dictionary<string, object?> result)
+    { _thickenResult = result; return this; }
 
     // ── ICadProvider implementation ──
 
@@ -609,6 +655,64 @@ public class MockInventorProvider : IMechanicalCadProvider
         };
     }
 
+    public Dictionary<string, object?> MirrorFeature(string profile, string mirrorPlane)
+    {
+        CallLog.Add(("MirrorFeature", new Dictionary<string, object?>
+        {
+            ["profile"] = profile, ["mirror_plane"] = mirrorPlane,
+        }));
+        return _mirrorFeatureResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature"] = "Mirror1",
+        };
+    }
+
+    public Dictionary<string, object?> RectangularPattern(
+        string profile, string xAxis, int xCount, double xSpacing,
+        string yAxis = "", int yCount = 1, double ySpacing = 0.0)
+    {
+        CallLog.Add(("RectangularPattern", new Dictionary<string, object?>
+        {
+            ["profile"] = profile, ["x_axis"] = xAxis, ["x_count"] = xCount,
+        }));
+        return _rectangularPatternResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature"] = "RectPattern1",
+        };
+    }
+
+    public Dictionary<string, object?> Loft(string profiles, string operation = "new_body")
+    {
+        CallLog.Add(("Loft", new Dictionary<string, object?> { ["profiles"] = profiles }));
+        return _loftResult ?? new Dictionary<string, object?> { ["success"] = true, ["feature"] = "Loft1" };
+    }
+
+    public Dictionary<string, object?> Coil(string profile, string axis, double pitch, double revolutions, string operation = "new_body")
+    {
+        CallLog.Add(("Coil", new Dictionary<string, object?> { ["profile"] = profile }));
+        return _coilResult ?? new Dictionary<string, object?> { ["success"] = true, ["feature"] = "Coil1" };
+    }
+
+    public Dictionary<string, object?> Rib(string profile, double thickness, string direction = "normal", string operation = "new_body")
+    {
+        CallLog.Add(("Rib", new Dictionary<string, object?> { ["profile"] = profile }));
+        return _ribResult ?? new Dictionary<string, object?> { ["success"] = true, ["feature"] = "Rib1" };
+    }
+
+    public Dictionary<string, object?> Emboss(string profile, double depth, string type = "emboss_from_face")
+    {
+        CallLog.Add(("Emboss", new Dictionary<string, object?> { ["profile"] = profile }));
+        return _embossResult ?? new Dictionary<string, object?> { ["success"] = true, ["feature"] = "Emboss1" };
+    }
+
+    public Dictionary<string, object?> Derive(string sourcePath)
+    {
+        CallLog.Add(("Derive", new Dictionary<string, object?> { ["source"] = sourcePath }));
+        return _deriveResult ?? new Dictionary<string, object?> { ["success"] = true, ["feature"] = "Derive1" };
+    }
+
     public Dictionary<string, object?> Hole(
         double x, double y, double diameter, double depth,
         string type = "drilled", string operation = "join")
@@ -645,6 +749,92 @@ public class MockInventorProvider : IMechanicalCadProvider
         {
             ["success"] = true,
             ["edges"] = new List<Dictionary<string, object?>>(),
+        };
+    }
+
+    public Dictionary<string, object?> Shell(
+        string faces, double thickness, string direction = "inside", string operation = "new_body")
+    {
+        CallLog.Add(("Shell", new Dictionary<string, object?>
+        {
+            ["faces"] = faces, ["thickness"] = thickness,
+            ["direction"] = direction, ["operation"] = operation,
+        }));
+        return _shellResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "shell",
+            ["thickness"] = thickness,
+            ["feature_name"] = "MockShell1",
+        };
+    }
+
+    public Dictionary<string, object?> Draft(
+        string faces, double angle, string mode = "fixed_edge",
+        string pullDirection = "z", string fixedEntity = "")
+    {
+        CallLog.Add(("Draft", new Dictionary<string, object?>
+        {
+            ["faces"] = faces, ["angle"] = angle,
+            ["mode"] = mode, ["pull_direction"] = pullDirection,
+            ["fixed_entity"] = fixedEntity,
+        }));
+        return _draftResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "draft",
+            ["angle"] = angle,
+            ["feature_name"] = "MockDraft1",
+        };
+    }
+
+    public Dictionary<string, object?> Split(
+        string splitTool, string removeSide = "positive", string targetBody = "")
+    {
+        CallLog.Add(("Split", new Dictionary<string, object?>
+        {
+            ["split_tool"] = splitTool, ["remove_side"] = removeSide,
+            ["target_body"] = targetBody,
+        }));
+        return _splitResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "split",
+            ["feature_name"] = "MockSplit1",
+        };
+    }
+
+    public Dictionary<string, object?> Combine(
+        string baseBody, string toolBodies, string operation = "join", bool keepToolBodies = false)
+    {
+        CallLog.Add(("Combine", new Dictionary<string, object?>
+        {
+            ["base_body"] = baseBody, ["tool_bodies"] = toolBodies,
+            ["operation"] = operation, ["keep_tool_bodies"] = keepToolBodies,
+        }));
+        return _combineResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "combine",
+            ["operation"] = operation,
+            ["feature_name"] = "MockCombine1",
+        };
+    }
+
+    public Dictionary<string, object?> Thicken(
+        string faces, double thickness, string direction = "positive", string operation = "new_body")
+    {
+        CallLog.Add(("Thicken", new Dictionary<string, object?>
+        {
+            ["faces"] = faces, ["thickness"] = thickness,
+            ["direction"] = direction, ["operation"] = operation,
+        }));
+        return _thickenResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "thicken",
+            ["thickness"] = thickness,
+            ["feature_name"] = "MockThicken1",
         };
     }
 
@@ -783,5 +973,147 @@ public class MockInventorProvider : IMechanicalCadProvider
             ["success"] = true,
             ["path"] = path,
         };
+    }
+
+    // Work Features
+    public Dictionary<string, object?> WorkPlane(string definition, string reference1, string reference2, double offset)
+    {
+        CallLog.Add(("WorkPlane", new Dictionary<string, object?>
+        {
+            ["definition"] = definition,
+            ["reference1"] = reference1,
+            ["reference2"] = reference2,
+            ["offset"] = offset,
+        }));
+        return _workPlaneResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["plane"] = new Dictionary<string, object?>
+            {
+                ["name"] = "WorkPlane1",
+                ["id"] = "WorkPlane1",
+            },
+        };
+    }
+
+    public Dictionary<string, object?> WorkAxis(string definition, string reference1, string reference2)
+    {
+        CallLog.Add(("WorkAxis", new Dictionary<string, object?>
+        {
+            ["definition"] = definition,
+            ["reference1"] = reference1,
+            ["reference2"] = reference2,
+        }));
+        return _workAxisResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["axis"] = new Dictionary<string, object?>
+            {
+                ["name"] = "WorkAxis1",
+                ["id"] = "WorkAxis1",
+            },
+        };
+    }
+
+    public Dictionary<string, object?> WorkPoint(string definition, string reference1, string reference2, string reference3)
+    {
+        CallLog.Add(("WorkPoint", new Dictionary<string, object?>
+        {
+            ["definition"] = definition,
+            ["reference1"] = reference1,
+            ["reference2"] = reference2,
+            ["reference3"] = reference3,
+        }));
+        return _workPointResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["point"] = new Dictionary<string, object?>
+            {
+                ["name"] = "WorkPoint1",
+                ["id"] = "WorkPoint1",
+            },
+        };
+    }
+
+    // Assembly
+    public Dictionary<string, object?> AsmListComponents()
+    {
+        CallLog.Add(("AsmListComponents", new Dictionary<string, object?>()));
+        return new Dictionary<string, object?> { ["success"] = true, ["occurrences"] = new List<Dictionary<string, object?>>() };
+    }
+    public Dictionary<string, object?> AsmListConstraints()
+    {
+        CallLog.Add(("AsmListConstraints", new Dictionary<string, object?>()));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraints"] = new List<Dictionary<string, object?>>() };
+    }
+    public Dictionary<string, object?> AsmPlaceComponent(string path, double x = 0, double y = 0, double z = 0)
+    {
+        CallLog.Add(("AsmPlaceComponent", new Dictionary<string, object?> { ["path"] = path, ["x"] = x, ["y"] = y, ["z"] = z }));
+        return new Dictionary<string, object?> { ["success"] = true, ["component_name"] = "Component1" };
+    }
+    public Dictionary<string, object?> AsmGroundComponent(string occurrence)
+    {
+        CallLog.Add(("AsmGroundComponent", new Dictionary<string, object?> { ["occurrence"] = occurrence }));
+        return new Dictionary<string, object?> { ["success"] = true, ["grounded"] = true };
+    }
+    public Dictionary<string, object?> AsmReplaceComponent(string occurrence, string newPath)
+    {
+        CallLog.Add(("AsmReplaceComponent", new Dictionary<string, object?> { ["occurrence"] = occurrence, ["new_path"] = newPath }));
+        return new Dictionary<string, object?> { ["success"] = true };
+    }
+    public Dictionary<string, object?> AsmDeleteConstraint(string constraint)
+    {
+        CallLog.Add(("AsmDeleteConstraint", new Dictionary<string, object?> { ["constraint"] = constraint }));
+        return new Dictionary<string, object?> { ["success"] = true };
+    }
+    public Dictionary<string, object?> AsmConstraintMate(string entityOne, string entityTwo, double offset = 0)
+    {
+        CallLog.Add(("AsmConstraintMate", new Dictionary<string, object?> { ["entity_one"] = entityOne, ["entity_two"] = entityTwo, ["offset"] = offset }));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraint_type"] = "mate", ["constraint_name"] = "Mate1" };
+    }
+    public Dictionary<string, object?> AsmConstraintFlush(string entityOne, string entityTwo, double offset = 0)
+    {
+        CallLog.Add(("AsmConstraintFlush", new Dictionary<string, object?> { ["entity_one"] = entityOne, ["entity_two"] = entityTwo, ["offset"] = offset }));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraint_type"] = "flush", ["constraint_name"] = "Flush1" };
+    }
+    public Dictionary<string, object?> AsmConstraintAngle(string entityOne, string entityTwo, double angle, string solution = "directed")
+    {
+        CallLog.Add(("AsmConstraintAngle", new Dictionary<string, object?> { ["entity_one"] = entityOne, ["entity_two"] = entityTwo, ["angle"] = angle }));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraint_type"] = "angle", ["constraint_name"] = "Angle1" };
+    }
+    public Dictionary<string, object?> AsmConstraintInsert(string entityOne, string entityTwo, double offset = 0)
+    {
+        CallLog.Add(("AsmConstraintInsert", new Dictionary<string, object?> { ["entity_one"] = entityOne, ["entity_two"] = entityTwo, ["offset"] = offset }));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraint_type"] = "insert", ["constraint_name"] = "Insert1" };
+    }
+    public Dictionary<string, object?> AsmConstraintTangent(string entityOne, string entityTwo, double offset = 0)
+    {
+        CallLog.Add(("AsmConstraintTangent", new Dictionary<string, object?> { ["entity_one"] = entityOne, ["entity_two"] = entityTwo, ["offset"] = offset }));
+        return new Dictionary<string, object?> { ["success"] = true, ["constraint_type"] = "tangent", ["constraint_name"] = "Tangent1" };
+    }
+    public Dictionary<string, object?> AsmCircularPattern(string occurrence, string axis, int count, double angle = 360)
+    {
+        CallLog.Add(("AsmCircularPattern", new Dictionary<string, object?> { ["occurrence"] = occurrence, ["axis"] = axis, ["count"] = count }));
+        return new Dictionary<string, object?> { ["success"] = true, ["pattern_type"] = "circular" };
+    }
+    public Dictionary<string, object?> AsmRectangularPattern(string occurrence, string xAxis, int xCount, double xSpacing, string? yAxis = null, int yCount = 1, double ySpacing = 0)
+    {
+        CallLog.Add(("AsmRectangularPattern", new Dictionary<string, object?> { ["occurrence"] = occurrence, ["x_axis"] = xAxis, ["x_count"] = xCount }));
+        return new Dictionary<string, object?> { ["success"] = true, ["pattern_type"] = "rectangular" };
+    }
+    public Dictionary<string, object?> AsmExtrudeCut(string profile, double distance, string direction = "positive")
+    {
+        CallLog.Add(("AsmExtrudeCut", new Dictionary<string, object?> { ["profile"] = profile, ["distance"] = distance }));
+        return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "assembly_extrude_cut" };
+    }
+    public Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled")
+    {
+        CallLog.Add(("AsmHole", new Dictionary<string, object?> { ["x"] = x, ["y"] = y, ["diameter"] = diameter, ["depth"] = depth }));
+        return new Dictionary<string, object?> { ["success"] = true, ["feature_type"] = "assembly_hole" };
+    }
+    public Dictionary<string, object?> AsmBom()
+    {
+        CallLog.Add(("AsmBom", new Dictionary<string, object?>()));
+        return new Dictionary<string, object?> { ["success"] = true, ["items"] = new List<Dictionary<string, object?>>() };
     }
 }
