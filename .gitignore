@@ -1,5 +1,7 @@
 # Build output
-dist/csharp-server-*/
+dist/
+src/**/bin/
+src/**/obj/
 
 # OS
 .DS_Store
