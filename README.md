@@ -152,6 +152,31 @@ sketch_circle 3 0 1 tag=perfil   →  extrude profile=@perfil
 
 ---
 
+## Verification & Feedback Loop (Agent Observability)
+
+After any modeling operation the agent should **close the loop** by requesting feedback. mcp-cad provides two complementary paths:
+
+### 1. Visual / Multimodal feedback
+`capture_viewport_image` — captures a screenshot of the active 3D viewport (standard orientations: Iso, Front, Top, Right, Bottom, Back, Left, or "Current").
+
+- Returns Base64 PNG (plus metadata).
+- The vision-capable LLM can directly "see" the result: crown shape, ring grooves, internal bosses, cutouts, collisions, proportions, etc.
+- Multiple views in one go give full 3D understanding.
+
+### 2. Structured / Data-driven feedback ("Árbol de Operaciones")
+- `get_feature_tree`: Exact tree of features/occurrences with names, types, suppression state and health. The agent reads the real operation history from Inventor.
+- `get_bounding_box`: Precise numeric extents (min/max, size, center) for the model or specific bodies/entities — no vision required.
+- `inspect_edges`: Edge list with geometry for precise selection and measurement.
+
+**Tested workflow** (this session):
+1. Perform operations through MCP (`sketch_create` + `sketch_rectangle` + `extrude`, or working on existing parts).
+2. Immediately request `capture_viewport_image` (several angles) + `get_feature_tree` + `get_bounding_box`.
+3. Agent compares "what I asked for" vs "what actually exists in the model" and can correct in the next step.
+
+This is the core mechanism that makes reliable agent-driven CAD possible.
+
+---
+
 ## License
 
 MIT — free, forever.

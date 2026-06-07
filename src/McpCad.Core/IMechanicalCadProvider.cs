@@ -106,4 +106,28 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> AsmBom();
 
     #endregion
+
+    #region Inspection & Visual Feedback (for LLM self-verification / retroalimentación)
+
+    /// <summary>
+    /// Captures a screenshot of the active 3D viewport or CAD window.
+    /// Returns Base64 encoded image for multimodal (vision) feedback to the LLM.
+    /// Use after operations so the vision model can visually verify geometry, collisions, etc.
+    /// </summary>
+    Dictionary<string, object?> CaptureViewportImage(string view = "Iso", int width = 1024, int height = 768, string format = "png");
+
+    /// <summary>
+    /// Returns the full feature/operation tree of the active document.
+    /// Allows the LLM to inspect the model structure (features, their order, dependencies)
+    /// directly via data (no vision needed). Supports "Árbol de Operaciones" verification.
+    /// </summary>
+    Dictionary<string, object?> GetFeatureTree();
+
+    /// <summary>
+    /// Returns bounding box information for the whole model, a body, or a tagged entity.
+    /// Useful for geometric verification (intersections, sizes) using direct vector data from Inventor API.
+    /// </summary>
+    Dictionary<string, object?> GetBoundingBox(string target = "");
+
+    #endregion
 }

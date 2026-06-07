@@ -2,6 +2,7 @@ using McpCad.Core;
 using McpCad.Core.Exceptions;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.Text.Json;
 
 namespace McpCad.Tools;
 
@@ -408,6 +409,43 @@ public class AtomicTools(IMechanicalCadProvider provider)
     [McpServerTool, Description("Get the bill of materials (BOM) for the active assembly with part numbers, quantities, and descriptions.")]
     public Dictionary<string, object?> asm_bom()
         => Catch(provider.AsmBom);
+
+    // ── Inspection & Visual Feedback (for LLM self-verification / retroalimentación de imágenes) ─
+    // These tools implement the two approaches:
+    // 1. Multimodal: CaptureViewportImage returns a Base64 screenshot of the viewport so a vision model can visually verify the result.
+    // 2. Data-driven: GetFeatureTree + GetBoundingBox let the LLM inspect the exact operation tree and geometry via Inventor's API (no image needed).
+
+    [McpServerTool, Description("Capture a screenshot of the active 3D viewport (or CAD window). Returns the image as Base64 (plus a 'content' array with type:'image' for clients that support native MCP image blocks). The LLM with vision can use this to visually verify the result of modeling operations (geometry correctness, collisions, etc.). This enables the multimodal feedback path.")]
+    public Dictionary<string, object?> capture_viewport_image(string view = "Iso", int width = 1024, int height = 768, string format = "png")
+    {
+        var dict = Catch(() => provider.CaptureViewportImage(view, width, height, format));
+
+        if (dict.TryGetValue("image_base64", out var b64) && b64 is string base64 && !string.IsNullOrEmpty(base64))
+        {
+            string mime = dict.TryGetValue("mime_type", out var m) && m is string ms ? ms : "image/png";
+
+            // Also provide the native MCP content structure so clients that support it (as described) can forward the image directly to the vision model.
+            dict["content"] = new[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["type"] = "image",
+                    ["data"] = base64,
+                    ["mimeType"] = mime
+                }
+            };
+        }
+
+        return dict;
+    }
+
+    [McpServerTool, Description("Return the structured feature/operation tree of the active document (parts: features; assemblies: occurrences + constraints). Enables the 'Árbol de Operaciones' / data inspection approach so the LLM can verify structure, order, and dependencies directly from the Inventor model without relying on vision.")]
+    public Dictionary<string, object?> get_feature_tree()
+        => Catch(provider.GetFeatureTree);
+
+    [McpServerTool, Description("Return bounding box (min/max, size, center) for the model, a body, or a specific tagged entity. Provides direct vector/geometry data for precise verification (intersections, extents) as the data-driven complement to image feedback.")]
+    public Dictionary<string, object?> get_bounding_box(string target = "")
+        => Catch(() => provider.GetBoundingBox(target));
 
     // ── Error catching helper (D7: tool-layer catches COM exceptions) ─
 

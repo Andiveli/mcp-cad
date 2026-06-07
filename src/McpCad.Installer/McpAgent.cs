@@ -1,3 +1,6 @@
+using Tomlyn;
+using Tomlyn.Model;
+
 namespace McpCad.Installer;
 
 public class McpAgent
@@ -58,6 +61,26 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio"),
             },
+            new McpAgent
+            {
+                Name = "Cursor",
+                Description = "Register in ~/.cursor/mcp.json",
+                ConfigPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".cursor", "mcp.json"),
+                Selected = false,
+                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
+            },
+            new McpAgent
+            {
+                Name = "Grok",
+                Description = "Register in ~/.grok/config.toml",
+                ConfigPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".grok", "config.toml"),
+                Selected = false,
+                Run = (s, a) => RegisterGrok(a.ConfigPath!, serverPath),
+            },
         };
     }
 
@@ -109,6 +132,68 @@ public static class McpAgents
             : new Dictionary<string, object?> { ["command"] = serverPath, ["args"] = Array.Empty<string>() };
         ConfigManager.MergeEntry(config, parentKey, new Dictionary<string, object?> { ["mcp-cad"] = entry });
         ConfigManager.Write(configPath, config);
+        return configPath;
+    }
+
+    private static string RegisterGrok(string configPath, string serverPath)
+    {
+        var dir = Path.GetDirectoryName(configPath);
+        if (dir is not null) Directory.CreateDirectory(dir);
+
+        TomlTable root;
+        if (File.Exists(configPath))
+        {
+            var text = File.ReadAllText(configPath);
+            try
+            {
+                root = Toml.ToModel(text) ?? new TomlTable();
+            }
+            catch
+            {
+                root = new TomlTable();
+            }
+        }
+        else
+        {
+            root = new TomlTable();
+        }
+
+        TomlTable mcpServers;
+        if (root.TryGetValue("mcp_servers", out var existing) && existing is TomlTable existingTable)
+        {
+            mcpServers = existingTable;
+        }
+        else
+        {
+            mcpServers = new TomlTable();
+            root["mcp_servers"] = mcpServers;
+        }
+
+        var entry = new TomlTable
+        {
+            ["command"] = serverPath,
+            ["args"] = new TomlArray(),
+            ["enabled"] = true
+        };
+        mcpServers["mcp-cad"] = entry;
+
+        var newToml = Toml.FromModel(root);
+
+        // Tomlyn model serializer drops empty arrays. Ensure "args = []" is present for Grok.
+        // The mcp-cad table is small, so we inject explicitly after its command line.
+        if (!newToml.Contains("args"))
+        {
+            // Insert args = [] after the command line inside the mcp-cad table
+            newToml = System.Text.RegularExpressions.Regex.Replace(
+                newToml,
+                @"(\[mcp_servers\.mcp-cad\][^\[]*?command\s*=\s*""[^""]*"")(\r?\n)",
+                "$1\r\nargs = []\r\n",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+        }
+
+        var tmp = configPath + ".tmp";
+        File.WriteAllText(tmp, newToml.TrimEnd() + Environment.NewLine);
+        File.Move(tmp, configPath, overwrite: true);
         return configPath;
     }
 }

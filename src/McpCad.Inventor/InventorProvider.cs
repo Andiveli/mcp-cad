@@ -19,6 +19,7 @@ public class InventorProvider : IMechanicalCadProvider
     private readonly ExportManager _export;
     private readonly WorkFeatureManager _workFeatures;
     private readonly AssemblyManager _assembly;
+    private readonly InspectionManager _inspection;
 
     public InventorProvider(InventorDriver driver)
     {
@@ -31,6 +32,7 @@ public class InventorProvider : IMechanicalCadProvider
         _export = new ExportManager(driver);
         _workFeatures = new WorkFeatureManager(driver);
         _assembly = new AssemblyManager(driver);
+        _inspection = new InspectionManager(driver);
     }
 
     // ── Connection ────────────────────────────────────────────────────
@@ -275,4 +277,15 @@ public Dictionary<string, object?> CircularPattern(
     public Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled")
         => _assembly.AsmHole(x, y, diameter, depth, type);
     public Dictionary<string, object?> AsmBom() => _assembly.AsmBom();
+
+    // ── Inspection & Visual Feedback ──────────────────────────────────
+
+    public Dictionary<string, object?> CaptureViewportImage(string view = "Iso", int width = 1024, int height = 768, string format = "png")
+        => _inspection.CaptureViewportImage(view, width, height, format);
+
+    public Dictionary<string, object?> GetFeatureTree()
+        => _inspection.GetFeatureTree();
+
+    public Dictionary<string, object?> GetBoundingBox(string target = "")
+        => _inspection.GetBoundingBox(target);
 }

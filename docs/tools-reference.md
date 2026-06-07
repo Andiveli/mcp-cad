@@ -4,7 +4,7 @@ MCP server for CAD automation — give AI agents direct parametric control over 
 
 **80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. Interactive TUI installer.
 
-Works with OpenCode, Claude Desktop, VS Code, and Pi.
+Works with OpenCode, Claude Desktop, Cursor, Grok, VS Code, Pi, and others.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
 dotnet run --project src/McpCad.Installer
 ```
 
-The **TUI** lets you select MCP clients (OpenCode, Claude, Pi, VS Code) via keyboard navigation and registers the server automatically.
+The **TUI** lets you select MCP clients (OpenCode, Claude, Cursor, Grok, Pi, VS Code) via keyboard navigation and registers the server automatically.
 
 ## Tools
 
@@ -231,6 +231,25 @@ Run the TUI installer (`dotnet run --project src/McpCad.Installer`) to register 
     }
   }
 }
+```
+
+### Cursor (`~/.cursor/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "mcp-cad": {
+      "command": "path/to/dist/mcp-cad/McpCad.Server.exe",
+      "args": []
+    }
+  }
+}
+```
+
+### Grok CLI / TUI (`~/.grok/config.toml`)
+```toml
+[mcp_servers.mcp-cad]
+command = "path/to/dist/mcp-cad/McpCad.Server.exe"
+args = []
 ```
 
 ## Development
