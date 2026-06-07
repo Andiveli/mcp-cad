@@ -92,7 +92,6 @@ The **TUI** lets you select MCP clients (OpenCode, Claude, Cursor, Grok, Pi, VS 
 | `derive` | Derive part from external file |
 | `circular_pattern` | Circular pattern of 3D feature |
 | `rectangular_pattern` | Rectangular pattern of 3D feature |
-| `inspect_edges` | List edges with geometry info |
 
 ### Work Geometry
 | Tool | Description |
@@ -133,6 +132,29 @@ The **TUI** lets you select MCP clients (OpenCode, Claude, Cursor, Grok, Pi, VS 
 | `iproperty_summary` | Get summary properties |
 | `iproperty_custom_get` | Get custom iProperty |
 | `iproperty_custom_set` | Set custom iProperty |
+
+### Inspection & Verification
+
+These tools let agents **observe and verify** what actually happened in Inventor after modeling operations (the critical feedback loop for reliable agent-driven CAD).
+
+mcp-cad supports two complementary approaches:
+
+- **Visual / multimodal feedback**: `capture_viewport_image` returns Base64 PNG screenshots of the 3D viewport (supports "Iso", "Front", "Top", "Right", "Bottom", "Back", "Left", "Current", etc.). Vision models can directly inspect the rendered result (crown shape, ring grooves, internal bosses, proportions, etc.).
+- **Structured / data-driven feedback**: `get_feature_tree` (the "Árbol de Operaciones"), `get_bounding_box`, and `inspect_edges` provide exact, machine-readable information without relying on vision.
+
+| Tool | Description |
+|------|-------------|
+| `capture_viewport_image` | Capture screenshot of the active viewport. Parameters: `view` (default "Iso"), `width`, `height`, `format`. Returns Base64 image data. |
+| `get_feature_tree` | Return the structured feature/operation tree (features for parts, occurrences for assemblies). Includes name, type, suppressed state, and health. |
+| `get_bounding_box` | Return precise bounds (min, max, size, center) for the whole model or a specific target. |
+| `inspect_edges` | List edges of the active body with geometry information (useful for selection and detailed measurement). |
+
+**Typical pattern** (tested in practice):
+1. Perform one or more modeling operations.
+2. Immediately call `capture_viewport_image` (one or more views) + `get_feature_tree` + `get_bounding_box`.
+3. The agent compares the returned state against the intended result and corrects in subsequent steps if needed.
+
+See also `inventor_health` for quick connection + active document status.
 
 ### Export
 | Tool | Description |
