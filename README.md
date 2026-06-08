@@ -1,5 +1,9 @@
 # mcp-cad
 
+<p align="center">
+  <img src="logomcp.jpg" alt="mcp-cad banner" width="80%">
+</p>
+
 **Give any AI coding agent direct parametric control over Autodesk Inventor.**  
 Not an app. Not a plugin. An MCP server — infrastructure for the agent-first era of CAD.
 
