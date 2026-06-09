@@ -457,4 +457,15 @@ internal class ThrowingMockProvider : IMechanicalCadProvider
     public Dictionary<string, object?> AsmExtrudeCut(string profile, double distance, string direction = "positive") => Throw();
     public Dictionary<string, object?> AsmHole(double x, double y, double diameter, double depth, string type = "drilled") => Throw();
     public Dictionary<string, object?> AsmBom() => Throw();
+
+    // Welds (weld-feature)
+    public Dictionary<string, object?> WeldFillet(string legFaces1, string legFaces2, double legSize, double? length = null, bool intermittent = false, double? pitch = null, double? gap = null, string? name = null) => Throw();
+    public Dictionary<string, object?> WeldGroove(string faces1, string faces2, double size, string grooveType = "square", double? length = null) => Throw();
+    public Dictionary<string, object?> WeldCosmetic(string faces, double size, double? length = null) => Throw();
+    public Dictionary<string, object?> ConvertToWeldment() => Throw();
+
+    // Inspection (required)
+    public Dictionary<string, object?> CaptureViewportImage(string view = "Iso", int width = 1024, int height = 768, string format = "png") => Throw();
+    public Dictionary<string, object?> GetFeatureTree() => Throw();
+    public Dictionary<string, object?> GetBoundingBox(string target = "") => Throw();
 }

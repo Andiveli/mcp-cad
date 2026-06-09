@@ -202,6 +202,23 @@ public Dictionary<string, object?> CircularPattern(
     public Dictionary<string, object?> Draft(string faces, double angle, string mode = "fixed_edge", string pullDirection = "z", string fixedEntity = "")
         => _feature.Draft(faces, angle, mode, pullDirection, fixedEntity);
 
+    // ── Welds ────────────────────────────────────────────────────────
+    public Dictionary<string, object?> WeldFillet(
+        string legFaces1, string legFaces2, double legSize,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+        => _feature.WeldFillet(legFaces1, legFaces2, legSize, length, intermittent, pitch, gap, name);
+
+    public Dictionary<string, object?> WeldGroove(
+        string faces1, string faces2, double size, string grooveType = "square", double? length = null)
+        => _feature.WeldGroove(faces1, faces2, size, grooveType, length);
+
+    public Dictionary<string, object?> WeldCosmetic(string faces, double size, double? length = null)
+        => _feature.WeldCosmetic(faces, size, length);
+
+    public Dictionary<string, object?> ConvertToWeldment()
+        => _feature.ConvertToWeldment();
+
     // ── Parameters ───────────────────────────────────────────────────
 
     public Dictionary<string, object?> ParamList(string? filterPattern = null)

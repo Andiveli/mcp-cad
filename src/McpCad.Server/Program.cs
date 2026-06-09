@@ -25,7 +25,8 @@ builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<AtomicTools>()
-    .WithTools<SkillTools>();
+    .WithTools<SkillTools>()
+    .WithTools<MacroTools>();
 
 var app = builder.Build();
 

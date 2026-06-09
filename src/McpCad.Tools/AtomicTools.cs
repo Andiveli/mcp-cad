@@ -258,6 +258,28 @@ public class AtomicTools(IMechanicalCadProvider provider)
         string pull_direction = "z", string fixed_entity = "")
         => Catch(() => provider.Draft(faces, angle, mode, pull_direction, fixed_entity));
 
+    // ── Welds (weldment docs) ──────────────────────────────────────────
+    [McpServerTool, Description("Create a fillet weld bead. leg_faces1/2: comma nums or @name (one leg set per part). leg_size in cm. length=null for full; use intermittent/pitch/gap for stitch welds. Requires weldment assembly/part.")]
+    public Dictionary<string, object?> weld_fillet(
+        string leg_faces1, string leg_faces2, double leg_size,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+        => Catch(() => provider.WeldFillet(leg_faces1, leg_faces2, leg_size, length, intermittent, pitch, gap, name));
+
+    [McpServerTool, Description("Create a groove weld between two face sets. groove_type: square|v|bevel|j|u. Requires weldment context.")]
+    public Dictionary<string, object?> weld_groove(
+        string faces1, string faces2, double size, string groove_type = "square", double? length = null)
+        => Catch(() => provider.WeldGroove(faces1, faces2, size, groove_type, length));
+
+    [McpServerTool, Description("Create a lightweight cosmetic weld bead for visualization/drawings. Requires weldment support.")]
+    public Dictionary<string, object?> weld_cosmetic(
+        string faces, double size, double? length = null)
+        => Catch(() => provider.WeldCosmetic(faces, size, length));
+
+    [McpServerTool, Description("Convert the active assembly (or part) to a weldment document. Call this before using weld_fillet / weld_groove / weld_cosmetic if the document is a regular assembly. This enables weld features programmatically.")]
+    public Dictionary<string, object?> asm_convert_to_weldment()
+        => Catch(() => provider.ConvertToWeldment());
+
     // ── Parameters (4) ────────────────────────────────────────────────
 
     [McpServerTool, Description("List model parameters, optionally filtered by name pattern.")]

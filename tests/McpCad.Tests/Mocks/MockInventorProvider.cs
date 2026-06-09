@@ -79,6 +79,17 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _combineResult;
     private Dictionary<string, object?>? _thickenResult;
 
+    // Welds (added in weld-feature)
+    private Dictionary<string, object?>? _weldFilletResult;
+    private Dictionary<string, object?>? _weldGrooveResult;
+    private Dictionary<string, object?>? _weldCosmeticResult;
+    private Dictionary<string, object?>? _convertToWeldmentResult;
+
+    // Inspection & visual feedback (required by IMechanicalCadProvider)
+    private Dictionary<string, object?>? _captureViewportImageResult;
+    private Dictionary<string, object?>? _getFeatureTreeResult;
+    private Dictionary<string, object?>? _getBoundingBoxResult;
+
     /// <summary>Tracks which methods were called and their arguments.</summary>
     public List<(string Method, Dictionary<string, object?> Args)> CallLog { get; } = new();
 
@@ -164,6 +175,15 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._combineResult = errorResult;
         mock._thickenResult = errorResult;
 
+        // Welds and inspection (for weld-feature + prior inspection additions)
+        mock._weldFilletResult = errorResult;
+        mock._weldGrooveResult = errorResult;
+        mock._weldCosmeticResult = errorResult;
+        mock._convertToWeldmentResult = errorResult;
+        mock._captureViewportImageResult = errorResult;
+        mock._getFeatureTreeResult = errorResult;
+        mock._getBoundingBoxResult = errorResult;
+
         return mock;
     }
 
@@ -197,6 +217,11 @@ public class MockInventorProvider : IMechanicalCadProvider
     { _combineResult = result; return this; }
     public MockInventorProvider SetThickenResult(Dictionary<string, object?> result)
     { _thickenResult = result; return this; }
+
+    public MockInventorProvider SetGetFeatureTreeResult(Dictionary<string, object?> result)
+    { _getFeatureTreeResult = result; return this; }
+    public MockInventorProvider SetConvertToWeldmentResult(Dictionary<string, object?> result)
+    { _convertToWeldmentResult = result; return this; }
 
     // ── ICadProvider implementation ──
 
@@ -1115,5 +1140,95 @@ public class MockInventorProvider : IMechanicalCadProvider
     {
         CallLog.Add(("AsmBom", new Dictionary<string, object?>()));
         return new Dictionary<string, object?> { ["success"] = true, ["items"] = new List<Dictionary<string, object?>>() };
+    }
+
+    // ── Welds (weld-feature) ────────────────────────────────────────────
+    public Dictionary<string, object?> WeldFillet(
+        string legFaces1, string legFaces2, double legSize,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+    {
+        CallLog.Add(("WeldFillet", new Dictionary<string, object?>
+        {
+            ["leg_faces1"] = legFaces1, ["leg_faces2"] = legFaces2, ["leg_size"] = legSize,
+            ["length"] = length, ["intermittent"] = intermittent, ["pitch"] = pitch, ["gap"] = gap, ["name"] = name
+        }));
+        return _weldFilletResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "fillet_weld",
+            ["feature_name"] = "MockFilletWeld1",
+            ["leg_size"] = legSize
+        };
+    }
+
+    public Dictionary<string, object?> WeldGroove(
+        string faces1, string faces2, double size, string grooveType = "square", double? length = null)
+    {
+        CallLog.Add(("WeldGroove", new Dictionary<string, object?>
+        {
+            ["faces1"] = faces1, ["faces2"] = faces2, ["size"] = size, ["groove_type"] = grooveType, ["length"] = length
+        }));
+        return _weldGrooveResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "groove_weld",
+            ["feature_name"] = "MockGrooveWeld1",
+            ["size"] = size
+        };
+    }
+
+    public Dictionary<string, object?> WeldCosmetic(string faces, double size, double? length = null)
+    {
+        CallLog.Add(("WeldCosmetic", new Dictionary<string, object?> { ["faces"] = faces, ["size"] = size, ["length"] = length }));
+        return _weldCosmeticResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_type"] = "cosmetic_weld",
+            ["feature_name"] = "MockCosmeticWeld1",
+            ["size"] = size
+        };
+    }
+
+    public Dictionary<string, object?> ConvertToWeldment()
+    {
+        CallLog.Add(("ConvertToWeldment", new Dictionary<string, object?>()));
+        return _convertToWeldmentResult ?? new Dictionary<string, object?> { ["success"] = true };
+    }
+
+    // ── Inspection & Visual Feedback ────────────────────────────────────
+    public Dictionary<string, object?> CaptureViewportImage(string view = "Iso", int width = 1024, int height = 768, string format = "png")
+    {
+        CallLog.Add(("CaptureViewportImage", new Dictionary<string, object?> { ["view"] = view, ["width"] = width, ["height"] = height, ["format"] = format }));
+        return _captureViewportImageResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["image_base64"] = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", // 1x1 red pixel placeholder
+            ["mime_type"] = "image/" + format,
+            ["view"] = view
+        };
+    }
+
+    public Dictionary<string, object?> GetFeatureTree()
+    {
+        CallLog.Add(("GetFeatureTree", new Dictionary<string, object?>()));
+        return _getFeatureTreeResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["features"] = new List<Dictionary<string, object?>> { new() { ["name"] = "MockFeature1", ["type"] = "ExtrudeFeature" } }
+        };
+    }
+
+    public Dictionary<string, object?> GetBoundingBox(string target = "")
+    {
+        CallLog.Add(("GetBoundingBox", new Dictionary<string, object?> { ["target"] = target }));
+        return _getBoundingBoxResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["min"] = new[] { 0.0, 0.0, 0.0 },
+            ["max"] = new[] { 10.0, 10.0, 10.0 },
+            ["size"] = new[] { 10.0, 10.0, 10.0 },
+            ["center"] = new[] { 5.0, 5.0, 5.0 }
+        };
     }
 }

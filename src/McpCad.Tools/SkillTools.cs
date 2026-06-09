@@ -291,6 +291,355 @@ public class SkillTools(IMechanicalCadProvider provider)
         double taper = 0, string path_sketch = "", string profile_sketch = "")
         => Catch(() => provider.Sweep(profile, path, sweep_type, operation, taper, path_sketch, profile_sketch));
 
+    // ── Weld skill (macrotools entry point) ────────────────────────────
+    [McpServerTool, Description("Create a fillet weld (simple wrapper over atomic weld_fillet for macrotool composition). Use after placing parts in a weldment assembly.")]
+    public Dictionary<string, object?> skill_weld_fillet(
+        string leg_faces1, string leg_faces2, double leg_size,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+        => Catch(() => provider.WeldFillet(leg_faces1, leg_faces2, leg_size, length, intermittent, pitch, gap, name));
+
+    // ── High-level macro: macro_basic_part (core of macro-tools direction) ─
+    /// <summary>
+    /// High-level server-side macro for creating a basic finished part or adding a simple
+    /// extrude/revolve feature to an existing part. One MCP call from the agent performs
+    /// the full sequence internally (connect, context-aware fresh/continue, optional profile draw,
+    /// profile discovery, feature, mandatory get_feature_tree, best-effort capture).
+    /// This is the primary implementation for token/call reduction.
+    /// </summary>
+    [McpServerTool, Description("High-level macro: creates a basic Inventor part (YZ sketch + closed profile via rect/circle or pre-drawn + extrude/revolve) or adds feature to existing active part. Context-aware (fresh vs continue). Supports any closed profile including compound/hollow (concentric circles for tube, offset rects for hollow box). One call replaces 5-8 atomic calls. Returns envelope with success, geometry_created, document_state, profile_used, operation, tree, warnings, next. Prefer this for finished basic geometry.")]
+    public Dictionary<string, object?> macro_basic_part(
+        string plane = "YZ",
+        string profile = "auto",
+        double? width = null,
+        double? height = null,
+        double? radius = null,
+        double? inner_radius = null,
+        double? thickness = null,
+        double? distance = null,
+        double? angle = null,
+        string operation = "new_body",
+        bool force_new = false)
+    {
+        var warnings = new List<string>();
+        string documentState = "existing";
+        string profileUsed = (string.IsNullOrWhiteSpace(profile) || profile.Equals("auto", StringComparison.OrdinalIgnoreCase)) ? "auto-resolved" : profile;
+        bool hasTube = radius.HasValue && inner_radius.HasValue;
+        bool isRevolve = (angle.HasValue && angle.Value > 0.0001) || hasTube;
+        string operationUsed = isRevolve ? "revolve" : "extrude";
+        Dictionary<string, object?>? finalTree = null;
+        bool geometryCreated = false;
+        bool isCompound = false; // set true for hollow box (offset rects)
+
+        try
+        {
+            // 1. Connect (idempotent)
+            var conn = provider.Connect();
+            if (conn.TryGetValue("success", out var connOk) && connOk is bool cok && !cok)
+            {
+                return MakeMacroError("Failed to connect to Inventor. Is Inventor open and with an active document?", geometryCreated: false, documentState: "unknown", profileUsed: profileUsed, operationUsed: operationUsed, warnings: new List<string>(), tree: null);
+            }
+
+            // 2. Inspect current state for context awareness (robust for no-document fresh-start case)
+            // Use Health() first (safe, never throws on missing doc) to decide whether GetFeatureTree/SketchProfiles are viable.
+            // "No active document" / "no component" states are treated as empty so fresh creation branch is reachable.
+            bool docHasContent = false;
+            bool hasActiveProfiles = false;
+            try
+            {
+                var h = provider.Health();
+                bool hasActiveDoc = false;
+                if (h.TryGetValue("active_document", out var adObj) && adObj is string adStr && !string.IsNullOrEmpty(adStr))
+                    hasActiveDoc = true;
+
+                if (hasActiveDoc)
+                {
+                    var initialTree = provider.GetFeatureTree();
+                    if (initialTree.TryGetValue("feature_count", out var fcObj) && fcObj is int fc && fc > 0)
+                        docHasContent = true;
+                    else if (initialTree.TryGetValue("features", out var fl) && fl is System.Collections.IList list && list.Count > 0)
+                        docHasContent = true;
+                }
+            }
+            catch { /* no active doc or COM issues — fall through to treat as no content */ }
+
+            // P4 (lower priority): lightweight check after Health() for assembly vs part.
+            // Limitation (surgical constraint, not obvious w/o bigger changes or other-file schema): prior code in this file only reads "active_document" from Health(); no "document_type"/"is_assembly" usage visible here.
+            // We do not add runtime positive detection+error (risk of wrong key or false behavior on assemblies). Assemblies will surface via later sketch/profile or use force_new to override to part.
+            // Documented here per rules; no mutation to control flow or new calls.
+
+            try
+            {
+                var initProf = provider.SketchProfiles();
+                if (initProf.TryGetValue("success", out var pOk) && pOk is bool pok && pok &&
+                    initProf.TryGetValue("profile_count", out var pcObj) && pcObj is int pci && pci > 0)
+                {
+                    hasActiveProfiles = true;
+                }
+            }
+            catch { /* no active sketch or not a sketch context */ }
+
+            bool createFresh = force_new || (!hasActiveProfiles && !docHasContent);
+            // documentState set to "new" only on successful DocNewPart below (per envelope contract)
+
+            // P3a: for fresh + no width/height/radius, error BEFORE DocNewPart+SketchCreate to avoid leaving skeleton (empty YZ part+sketch) on this core-failure path.
+            // Uses early-computed profileUsed/operationUsed (P2) for correct error envelope. createFresh no-dims never reaches profile discovery.
+            if (createFresh && !width.HasValue && !height.HasValue && !radius.HasValue && !inner_radius.HasValue && !thickness.HasValue)
+            {
+                string hint = "Provide width+height (for rect), radius (for circle), radius+inner_radius (for tube), or width+height+thickness (for hollow box) when creating a fresh part, or draw a closed profile with atomic sketch tools before calling the macro.";
+                return MakeMacroError("No closed profile detected. " + hint, geometryCreated: false, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+            }
+
+            // 3. Fresh creation path (doc + sketch YZ + optional basic profile draw)
+            if (createFresh)
+            {
+                documentState = "new";
+                var newDoc = provider.DocNewPart();
+                if (!IsSuccess(newDoc))
+                    return MakeMacroError("Failed to create new part document.", geometryCreated: false, details: GetErrorMessage(newDoc), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                documentState = "new";  // set only after successful doc creation (for partial success + envelope contract: "new" if we called doc_new_part)
+                var sk = provider.SketchCreate(plane);
+                if (!IsSuccess(sk))
+                    return MakeMacroError($"Failed to create sketch on plane '{plane}'.", geometryCreated: false, details: GetErrorMessage(sk), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                // Draw profile(s) only if dimensions supplied — supports any closed profile shape
+                if (radius.HasValue && inner_radius.HasValue)
+                {
+                    // Tube: draw wall cross-section as rect offset from origin, then revolve around Y axis
+                    // This avoids the concentric-circles issue where sketch_profiles doesn't detect the annular region.
+                    if (inner_radius.Value >= radius.Value)
+                        return MakeMacroError("inner_radius must be less than radius for tube.", geometryCreated: false, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+                    if (!distance.HasValue)
+                        return MakeMacroError("distance (tube length) is required for tube.", geometryCreated: false, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                    double wallThickness = radius.Value - inner_radius.Value;
+                    double tubeLength = distance.Value;
+                    // Wall cross-section: rect from (inner_radius, 0) to (radius, tubeLength)
+                    var wallRes = provider.SketchRectangle(inner_radius.Value, 0, radius.Value, tubeLength);
+                    if (!IsSuccess(wallRes))
+                        return MakeMacroError("Failed to draw tube wall cross-section.", geometryCreated: false, details: GetErrorMessage(wallRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+                }
+                else if (width.HasValue && height.HasValue && thickness.HasValue)
+                {
+                    // Compound: two rectangles → hollow box profile
+                    double w = width.Value;
+                    double h = height.Value;
+                    double t = thickness.Value;
+                    if (t * 2 >= w || t * 2 >= h)
+                        return MakeMacroError("thickness is too large for the given width and height.", geometryCreated: false, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                    var outerRes = provider.SketchRectangle(0, 0, w, h);
+                    if (!IsSuccess(outerRes))
+                        return MakeMacroError("Failed to draw outer rectangle.", geometryCreated: false, details: GetErrorMessage(outerRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                    var innerRes = provider.SketchRectangle(t, t, w - t, h - t);
+                    if (!IsSuccess(innerRes))
+                        return MakeMacroError("Failed to draw inner rectangle.", geometryCreated: false, details: GetErrorMessage(innerRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+                    isCompound = true;
+                }
+                else if (width.HasValue && height.HasValue)
+                {
+                    // Simple solid rectangle
+                    double w = width.Value;
+                    double h = height.Value;
+                    var rectRes = provider.SketchRectangle(0, 0, w, h);
+                    if (!IsSuccess(rectRes))
+                        return MakeMacroError("Failed to draw rectangle profile.", geometryCreated: false, details: GetErrorMessage(rectRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+                }
+                else if (radius.HasValue)
+                {
+                    // Simple solid circle
+                    double r = radius.Value;
+                    var circRes = provider.SketchCircle(0, 0, r);
+                    if (!IsSuccess(circRes))
+                        return MakeMacroError("Failed to draw circle profile.", geometryCreated: false, details: GetErrorMessage(circRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+                }
+                // If no dims: proceed; profile discovery below will catch "no profile" and give actionable error.
+                if (isRevolve)
+                {
+                    // Place axis through origin / rect left side (x=0) for solid basic revolution results
+                    // (avoids rings/toroids from x=-20 offset on origin-based circle/rect profiles).
+                    // P3b: drawn for fresh+revolve BEFORE the SketchProfiles + resolution (this block is inside createFresh), so chosen profile index is resolved against the sketch state Revolve will actually see.
+                    var axisRes = provider.SketchLine(0, -40, 0, 40, tag: "macro_axis");
+                    // Axis creation is best-effort; if it fails we still attempt revolve (may use numeric or fail with good error).
+                }
+            }
+
+            // 4. Profile discovery (always required before feature; supports auto + explicit + manual pre-drawn)
+            var profRes = provider.SketchProfiles();
+            if (!IsSuccess(profRes))
+                return MakeMacroError("Failed to list sketch profiles. Ensure a sketch with a closed profile is active.", geometryCreated: geometryCreated, details: GetErrorMessage(profRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+
+            int profCount = 0;
+            if (profRes.TryGetValue("profile_count", out var pc2) && pc2 is int pcount)
+                profCount = pcount;
+
+            if (profCount <= 0)
+            {
+                string hint = createFresh
+                    ? "Provide width+height (for rect) or radius (for circle) when creating a fresh part, or draw a closed profile with atomic sketch tools before calling the macro."
+                    : "No closed profile detected on the active sketch. Draw a closed shape (rect, circle, or lines+constraints) then call macro_basic_part again, or use force_new=true for a new part.";
+                return MakeMacroError("No closed profile detected. " + hint, geometryCreated: geometryCreated, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+            }
+
+            // Choose profile: "auto" → primary (usually 1 after sorting in provider), or explicit like "2" or "2,4"
+            // For compound profiles (concentric circles, offset rects), pick the annular/hollow region
+            string chosenProfile;
+            bool usedAuto = string.IsNullOrWhiteSpace(profile) || profile.Equals("auto", StringComparison.OrdinalIgnoreCase);
+            if (usedAuto && isCompound && profCount > 1)
+            {
+                // Annular region is typically index 2 (inner=1, ring=2, outside=3+)
+                chosenProfile = "2";
+                profileUsed = "auto-resolved(annular)";
+            }
+            else
+            {
+                chosenProfile = ResolveProfileIndex(profile, profRes);
+                profileUsed = usedAuto ? "auto-resolved" : chosenProfile;
+            }
+
+            // 5. Execute the core geometry (extrude or revolve). Only proven paths.
+            Dictionary<string, object?> featRes;
+            if (isRevolve)
+            {
+                operationUsed = "revolve";
+                double useAngle = angle ?? (hasTube ? 360.0 : 0); // tube defaults to full revolve
+
+                // Axis: for fresh+revolve, drawn earlier in create block (P3b: before SketchProfiles/resolution so index chosen matches Revolve's view post-axis mutation).
+                // For continue+revolve (P1 critical): NEVER draw (would mutate user's sketch); instead precise pre-geo error using preserved documentState/profileUsed/operationUsed (P2).
+                // Limitation: no detection of pre-existing user axis here (bigger change, non-minimal); user provides via atomic or has tagged line.
+                string axisRef = "@macro_axis";
+                if (!createFresh)
+                {
+                    return MakeMacroError("Revolve on continue requires a suitable axis already present in the active sketch (tagged @macro_axis or use numeric index). Do not use auto for continue+revolve; use atomic revolve with explicit axis instead, or force_new for auto-axis.", geometryCreated: false, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+                }
+
+                featRes = provider.Revolve(chosenProfile, axisRef, useAngle, direction: "positive", operation: operation);
+            }
+            else
+            {
+                operationUsed = "extrude";
+                double useDist = distance ?? 10.0; // sensible default for quick basic parts if omitted
+                featRes = provider.Extrude(chosenProfile, useDist, direction: "positive", taper: 0.0, operation: operation);
+            }
+
+            if (!IsSuccess(featRes))
+            {
+                return MakeMacroError($"Feature creation failed ({operationUsed}).", geometryCreated: false, details: GetErrorMessage(featRes), documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+            }
+
+            geometryCreated = true;
+
+            // 6. Full verification suite — all best-effort, none fails the operation
+            Dictionary<string, object?>? bbox = null;
+            Dictionary<string, object?>? parameters = null;
+            var viewportImages = new List<Dictionary<string, object?>?>();
+
+            // 6a. Feature tree (mandatory)
+            try { finalTree = provider.GetFeatureTree(); }
+            catch (Exception ex) { warnings.Add($"get_feature_tree failed: {ex.Message}"); }
+
+            // 6b. Bounding box (precise geometry data)
+            try { bbox = provider.GetBoundingBox(""); }
+            catch (Exception ex) { warnings.Add($"get_bounding_box failed: {ex.Message}"); }
+
+            // 6c. Model parameters
+            try { parameters = provider.ParamList(); }
+            catch (Exception ex) { warnings.Add($"param_list failed: {ex.Message}"); }
+
+            // 6d. Viewport images (two views for visual verification)
+            foreach (string view in new[] { "Iso", "Top" })
+            {
+                try
+                {
+                    var cap = provider.CaptureViewportImage(view: view, width: 800, height: 600, format: "png");
+                    if (IsSuccess(cap))
+                        viewportImages.Add(cap);
+                    else
+                        warnings.Add($"capture_viewport_image({view}) failed: {GetErrorMessage(cap) ?? "unknown"}");
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"capture_viewport_image({view}) failed: {ex.Message}");
+                }
+            }
+
+            // 7. Success envelope (exact contract) — includes full verification data
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["geometry_created"] = true,
+                ["document_state"] = documentState,
+                ["profile_used"] = profileUsed,
+                ["operation"] = operationUsed,
+                ["warnings"] = warnings,
+                ["tree"] = finalTree,
+                ["bounding_box"] = bbox,
+                ["parameters"] = parameters,
+                ["viewport_images"] = viewportImages,
+                ["next"] = "ready for fillets, patterns, holes, or material via iproperty_set / iproperty_custom_set"
+            };
+        }
+        catch (InventorConnectionException ex)
+        {
+            return MakeMacroError(ex.Message, geometryCreated: geometryCreated, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+        }
+        catch (InventorComException ex)
+        {
+            return MakeMacroError(ex.Message, geometryCreated: geometryCreated, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+        }
+        catch (Exception ex)
+        {
+            return MakeMacroError($"Unexpected error in macro_basic_part: {ex.Message}", geometryCreated: geometryCreated, documentState: documentState, profileUsed: profileUsed, operationUsed: operationUsed, warnings: warnings, tree: finalTree);
+        }
+    }
+
+    // Small helpers for the macro (local to this orchestration; keep focused)
+    private static bool IsSuccess(Dictionary<string, object?>? d)
+        => d != null && d.TryGetValue("success", out var s) && s is bool b && b;
+
+    private static string? GetErrorMessage(Dictionary<string, object?>? d)
+    {
+        if (d == null) return null;
+        if (d.TryGetValue("error", out var e) && e is string es && !string.IsNullOrWhiteSpace(es)) return es;
+        return null;
+    }
+
+    private static Dictionary<string, object?> MakeMacroError(string message, bool geometryCreated, string? details = null,
+        string? documentState = "unknown", string? profileUsed = null, string? operationUsed = null,
+        List<string>? warnings = null, Dictionary<string, object?>? tree = null)
+    {
+        var err = ToolHelpers.Error(message);
+        err["geometry_created"] = geometryCreated;
+        err["document_state"] = documentState ?? "unknown";
+        err["profile_used"] = profileUsed;
+        err["operation"] = operationUsed;
+        err["warnings"] = warnings ?? new List<string>();
+        err["tree"] = tree;
+        if (!string.IsNullOrWhiteSpace(details))
+            err["details"] = details;
+        // error key already set by ToolHelpers.Error
+        return err;
+    }
+
+    /// <summary>
+    /// Resolve profile selection from "auto" (pick first/primary after provider sort) or explicit "2" / "2,4".
+    /// Returns the string to pass to extrude/revolve (supports multi-region).
+    /// </summary>
+    private static string ResolveProfileIndex(string requested, Dictionary<string, object?> profRes)
+    {
+        if (string.IsNullOrWhiteSpace(requested) || requested.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            // Provider already sorts profiles; primary is index 1 in the returned list
+            return "1";
+        }
+
+        // Pass through explicit (including multi like "2,4")
+        return requested;
+    }
+
     // ── Delete sketch skill (1) ─────────────────────────────────────────
 
     [McpServerTool, Description("Delete the active sketch (must not be used by a feature).")]
