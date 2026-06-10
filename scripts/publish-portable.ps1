@@ -55,6 +55,12 @@ if (Test-Path $batSrc) {
     Write-Host "Copied McpCad-Install.bat"
 }
 
+# Copy the CAD skills (SKILL.md files) so the installer can deploy them as global skills for Grok
+if (Test-Path "skills") {
+    Copy-Item "skills" -Destination (Join-Path $OutputRoot "skills") -Recurse -Force
+    Write-Host "Copied skills/ (for global Grok skill installation)"
+}
+
 # Copy a minimal user readme
 $readme = @"
 mcp-cad - AI control for Autodesk Inventor (MCP server)
@@ -72,9 +78,17 @@ REQUIREMENTS:
   - Autodesk Inventor 2025 or newer (must be running when the AI uses tools)
 
 After installation:
-  1. Fully close and reopen your AI client.
+  1. Fully close and reopen your AI client (especially Grok).
   2. Open Inventor.
   3. Talk to your AI: "Create a 80x60mm plate with 4 holes..."
+
+When you select any agent (Grok, Cursor, Claude, VS Code, etc.), the installer now:
+- Registers the mcp-cad MCP server for that client
+- Copies the CAD skills (macro-basic-part, inventor-new-part, macro-selector, ...)
+  into that agent's skills directory (e.g. ~/.grok/skills/, ~/.cursor/skills/, %APPDATA%/Claude/skills/, etc.)
+  so the high-level skills become available globally/native to the agent.
+
+You can also select the "CAD Skills" item to deploy them to every supported agent at once.
 
 For updates: download a newer portable zip, extract over the old folder or to a new location, and re-run the installer.
 

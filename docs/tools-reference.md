@@ -276,6 +276,12 @@ command = "path/to/dist/mcp-cad/McpCad.Server.exe"
 args = []
 ```
 
+When you run the installer and select any agent (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), it automatically:
+- Registers the mcp-cad MCP server for that client
+- Copies the CAD skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, ...) from the package into that agent's skills directory (e.g. `~/.grok/skills/`, `~/.cursor/skills/`, `%APPDATA%/Claude/skills/`, etc.).
+
+The "CAD Skills" item deploys them to every supported agent at once. The skills become globally/native to the agent.
+
 ## Development
 
 ```bash

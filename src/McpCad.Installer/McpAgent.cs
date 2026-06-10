@@ -9,6 +9,7 @@ public class McpAgent
     public string Description { get; init; } = "";
     public bool Selected { get; set; } = true;
     public string? ConfigPath { get; init; }
+    public string? SkillsPath { get; init; }
     public Func<State, McpAgent, string>? Run { get; init; }
 
     public string Label => Selected ? $"[[x]] {Name}" : $"[[ ]] {Name}";
@@ -20,66 +21,100 @@ public static class McpAgents
     {
         var serverPath = FindServerPath();
 
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
         return new[]
         {
             new McpAgent
             {
                 Name = "OpenCode",
-                Description = "Register in ~/.config/opencode/opencode.json",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".config", "opencode", "opencode.json"),
-                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcp", "local"),
+                Description = "Register MCP + install CAD skills to ~/.config/opencode/skills/",
+                ConfigPath = Path.Combine(userProfile, ".config", "opencode", "opencode.json"),
+                SkillsPath = Path.Combine(userProfile, ".config", "opencode", "skills"),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcp", "local");
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
             },
             new McpAgent
             {
                 Name = "Claude",
-                Description = "Register in %APPDATA%/Claude/claude_desktop_config.json",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Claude", "claude_desktop_config.json"),
+                Description = "Register MCP + install CAD skills to %APPDATA%/Claude/skills/",
+                ConfigPath = Path.Combine(appData, "Claude", "claude_desktop_config.json"),
+                SkillsPath = Path.Combine(appData, "Claude", "skills"),
                 Selected = false,
-                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
             },
             new McpAgent
             {
                 Name = "Pi",
-                Description = "Register in ~/.pi/agent/mcp.json",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".pi", "agent", "mcp.json"),
+                Description = "Register MCP + install CAD skills to ~/.pi/skills/",
+                ConfigPath = Path.Combine(userProfile, ".pi", "agent", "mcp.json"),
+                SkillsPath = Path.Combine(userProfile, ".pi", "skills"),
                 Selected = false,
-                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
             },
             new McpAgent
             {
                 Name = "VS Code",
-                Description = "Register in %APPDATA%/Code/User/mcp.json",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Code", "User", "mcp.json"),
+                Description = "Register MCP + install CAD skills to %APPDATA%/Code/User/skills/",
+                ConfigPath = Path.Combine(appData, "Code", "User", "mcp.json"),
+                SkillsPath = Path.Combine(appData, "Code", "User", "skills"),
                 Selected = false,
-                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio"),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio");
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
             },
             new McpAgent
             {
                 Name = "Cursor",
-                Description = "Register in ~/.cursor/mcp.json",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".cursor", "mcp.json"),
+                Description = "Register MCP + install CAD skills to ~/.cursor/skills/",
+                ConfigPath = Path.Combine(userProfile, ".cursor", "mcp.json"),
+                SkillsPath = Path.Combine(userProfile, ".cursor", "skills"),
                 Selected = false,
-                Run = (s, a) => RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio"),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
             },
             new McpAgent
             {
                 Name = "Grok",
-                Description = "Register in ~/.grok/config.toml",
-                ConfigPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".grok", "config.toml"),
+                Description = "Register MCP + install CAD skills to ~/.grok/skills/ (global)",
+                ConfigPath = Path.Combine(userProfile, ".grok", "config.toml"),
+                SkillsPath = Path.Combine(userProfile, ".grok", "skills"),
                 Selected = false,
-                Run = (s, a) => RegisterGrok(a.ConfigPath!, serverPath),
+                Run = (s, a) =>
+                {
+                    var cfg = RegisterGrok(a.ConfigPath!, serverPath);
+                    var sk = TryInstallSkills(a.SkillsPath);
+                    return cfg + " | " + sk;
+                },
+            },
+            new McpAgent
+            {
+                Name = "CAD Skills",
+                Description = "Install CAD skills to ALL supported agents' skills directories at once",
+                Selected = true,
+                Run = (s, a) => InstallSkillsToAllAgents(),
             },
         };
     }
@@ -234,5 +269,137 @@ public static class McpAgents
         File.WriteAllText(tmp, newToml.TrimEnd() + Environment.NewLine);
         File.Move(tmp, configPath, overwrite: true);
         return configPath;
+    }
+
+    // ============================================================
+    // CAD Skills installation — now for ALL supported agents
+    // Each agent has its own SkillsPath (e.g. ~/.grok/skills, ~/.cursor/skills, etc.).
+    // When you select an agent we register the MCP server AND copy the skills/
+    // from the portable/repo into that agent's skills directory.
+    // The "CAD Skills" item installs to every supported agent's skills dir at once.
+    // ============================================================
+
+    public static string InstallSkillsToAllAgents()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+        var paths = new[]
+        {
+            Path.Combine(userProfile, ".config", "opencode", "skills"),
+            Path.Combine(appData, "Claude", "skills"),
+            Path.Combine(userProfile, ".pi", "skills"),
+            Path.Combine(appData, "Code", "User", "skills"),
+            Path.Combine(userProfile, ".cursor", "skills"),
+            Path.Combine(userProfile, ".grok", "skills"),
+        };
+
+        var results = new List<string>();
+        foreach (var p in paths.Distinct())
+        {
+            try
+            {
+                results.Add(InstallSkills(p));
+            }
+            catch (Exception ex)
+            {
+                results.Add($"Skipped {Path.GetFileName(p)}: {ex.Message}");
+            }
+        }
+        return string.Join(" ; ", results);
+    }
+
+    private static string TryInstallSkills(string? targetDir)
+    {
+        if (string.IsNullOrWhiteSpace(targetDir))
+            return "Skills: no target dir for this agent";
+        try
+        {
+            return InstallSkills(targetDir);
+        }
+        catch (Exception ex)
+        {
+            return $"Skills skipped: {ex.Message}";
+        }
+    }
+
+    private static string InstallSkills(string targetBaseDir)
+    {
+        if (string.IsNullOrWhiteSpace(targetBaseDir))
+            throw new ArgumentException("Target skills directory is required");
+
+        var sourceDir = FindSkillsDir();
+        if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
+            throw new Exception("Could not locate 'skills/' folder (run from the full portable package or repo root).");
+
+        var hasSkill = Directory.GetDirectories(sourceDir)
+            .Any(d => File.Exists(Path.Combine(d, "SKILL.md")));
+        if (!hasSkill)
+            throw new Exception("Found 'skills/' but no SKILL.md subfolders.");
+
+        Directory.CreateDirectory(targetBaseDir);
+
+        int installed = 0;
+        foreach (var skillDir in Directory.GetDirectories(sourceDir))
+        {
+            if (!File.Exists(Path.Combine(skillDir, "SKILL.md")))
+                continue;
+
+            var skillName = Path.GetFileName(skillDir);
+            var targetDir = Path.Combine(targetBaseDir, skillName);
+
+            CopyDirectory(skillDir, targetDir, overwrite: true);
+            installed++;
+        }
+
+        return $"CAD skills installed/updated ({installed}) → {targetBaseDir}";
+    }
+
+    private static string FindSkillsDir()
+    {
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? "";
+
+        var candidates = new List<string>
+        {
+            Path.Combine(baseDir, "skills"),
+            Path.Combine(baseDir, "mcp-cad", "skills"),
+        };
+
+        var dir = baseDir;
+        for (int i = 0; i < 8; i++)
+        {
+            var candidate = Path.Combine(dir, "skills");
+            if (Directory.Exists(candidate) &&
+                Directory.GetDirectories(candidate).Any(d => File.Exists(Path.Combine(d, "SKILL.md"))))
+                return candidate;
+
+            var parent = Path.GetDirectoryName(dir);
+            if (parent == null || parent == dir) break;
+            dir = parent;
+        }
+
+        var cwdCandidate = Path.Combine(Environment.CurrentDirectory, "skills");
+        if (Directory.Exists(cwdCandidate) &&
+            Directory.GetDirectories(cwdCandidate).Any(d => File.Exists(Path.Combine(d, "SKILL.md"))))
+            return cwdCandidate;
+
+        return "";
+    }
+
+    private static void CopyDirectory(string sourceDir, string destDir, bool overwrite)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            File.Copy(file, destFile, overwrite);
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var destSubDir = Path.Combine(destDir, Path.GetFileName(subDir));
+            CopyDirectory(subDir, destSubDir, overwrite);
+        }
     }
 }

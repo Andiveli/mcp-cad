@@ -48,7 +48,7 @@ public class Program
                           a.Equals("--install-recommended", StringComparison.OrdinalIgnoreCase)))
         {
             // Sensible defaults for most CAD + AI users
-            var recommended = new[] { "Claude", "Cursor", "Grok", "OpenCode" };
+            var recommended = new[] { "Claude", "Cursor", "Grok", "OpenCode", "CAD Skills" };
             foreach (var a in _agents)
                 a.Selected = recommended.Contains(a.Name, StringComparer.OrdinalIgnoreCase);
             RunSelectedAgentsAndExit(serverPath);
@@ -72,7 +72,7 @@ public class Program
             Console.WriteLine("mcp-cad Installer");
             Console.WriteLine("Usage:");
             Console.WriteLine("  McpCad.Installer.exe                 Interactive TUI");
-            Console.WriteLine("  McpCad.Installer.exe --recommended   Install for common agents (Claude, Cursor, Grok, OpenCode)");
+            Console.WriteLine("  McpCad.Installer.exe --recommended   Install for common agents (Claude, Cursor, Grok, OpenCode + CAD Skills)");
             Console.WriteLine("  McpCad.Installer.exe --all           Enable for every supported agent");
             Console.WriteLine("  McpCad.Installer.exe --agents Claude,Cursor");
             return;

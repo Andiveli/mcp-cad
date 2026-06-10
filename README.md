@@ -73,7 +73,12 @@ May 26 → Jun 3, 2026
 4. **Double-click `McpCad-Install.bat`** (recommended)  
    — or directly run `McpCad.Installer.exe`
 5. The installer will let you choose which AI tools to connect (Claude Desktop, Cursor, Grok, OpenCode, VS Code, Pi…).
-6. Use the keyboard (↑↓ or j/k, Space to toggle, Enter to apply) or use the one-click flags.
+6. When you select **any agent** (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), the installer will:
+   - Register the mcp-cad MCP server for that client
+   - Copy the CAD skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, ...) into that agent's skills directory (e.g. `~/.grok/skills/`, `~/.cursor/skills/`, `%APPDATA%/Claude/skills/`, etc.)
+   This makes the high-level skills available natively/global to the agent.
+7. The standalone "**CAD Skills**" item deploys the skills to *all* supported agents in one go.
+8. Use the keyboard (↑↓ or j/k, Space to toggle, Enter to apply) or use the one-click flags (`--recommended`, `--all`).
 
 After it says ✅ configured, **restart your AI client** and make sure Inventor is open.
 
