@@ -84,23 +84,62 @@ public static class McpAgents
         };
     }
 
+    /// <summary>
+    /// Public helper so the UI can show the resolved server path to the user.
+    /// </summary>
+    public static string GetResolvedServerPath() => FindServerPath();
+
     private static string FindServerPath()
     {
-        // Walk up from assembly dir looking for dist/mcp-cad or dist/csharp-server-*
-        var dir = AppDomain.CurrentDomain.BaseDirectory;
+        var candidates = new List<string>();
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? "";
+
+        // 1. Most common for end-users: portable download — server files placed next to the Installer.exe
+        candidates.Add(Path.Combine(baseDir, "McpCad.Server.exe"));
+
+        // 2. Sensible subfolder layouts inside a zip/extracted package
+        candidates.Add(Path.Combine(baseDir, "server", "McpCad.Server.exe"));
+        candidates.Add(Path.Combine(baseDir, "mcp-cad", "McpCad.Server.exe"));
+        candidates.Add(Path.Combine(baseDir, "bin", "McpCad.Server.exe"));
+
+        // 3. Legacy dev build layout: walk upwards looking for dist/mcp-cad or dist/csharp-server-*
+        var dir = baseDir;
         for (int i = 0; i < 8; i++)
         {
             var found = FindInDist(dir);
-            if (found is not null) return found;
+            if (found is not null)
+                candidates.Add(found);
+
+            // Also check if the scanned dir itself contains the exe directly (in case baseDir == the published folder)
+            var directHere = Path.Combine(dir, "McpCad.Server.exe");
+            if (File.Exists(directHere))
+                candidates.Add(directHere);
+
             var parent = Path.GetDirectoryName(dir);
             if (parent is null || parent == dir) break;
             dir = parent;
         }
-        return FindInDist(Environment.CurrentDirectory) ?? "";
+
+        // 4. CWD fallbacks (double-click scenarios sometimes have different CWD)
+        var cwd = Environment.CurrentDirectory;
+        candidates.Add(Path.Combine(cwd, "McpCad.Server.exe"));
+        candidates.Add(Path.Combine(cwd, "dist", "mcp-cad", "McpCad.Server.exe"));
+
+        // Pick the first that actually exists on disk
+        foreach (var c in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(c) && File.Exists(c))
+                return c;
+        }
+
+        return "";
     }
 
     private static string? FindInDist(string baseDir)
     {
+        if (string.IsNullOrWhiteSpace(baseDir) || !Directory.Exists(baseDir))
+            return null;
+
         var dist = Path.Combine(baseDir, "dist");
         if (!Directory.Exists(dist)) return null;
 

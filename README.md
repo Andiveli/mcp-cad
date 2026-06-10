@@ -30,7 +30,7 @@ Not an app. Not a plugin. An MCP server — infrastructure for the agent-first e
 | **CAD engines** | Tied to one vendor | None (browser-only) | Inventor now, SolidWorks & KiCad planned |
 | **Control** | High-level prompts | High-level prompts | 80+ atomic tools + 22 composable skills |
 | **Privacy** | Cloud-dependent | Cloud-only | Local — your data never leaves your machine |
-| **Setup** | Manual per-machine | Sign up + account | One-command TUI installer |
+| **Setup** | Manual per-machine | Sign up + account | Download zip + double-click installer (no git/terminal) |
 
 ### The problem with CAD AI tools today
 
@@ -63,24 +63,42 @@ May 26 → Jun 3, 2026
 
 ---
 
-## Quick start
+## Quick start (easiest — for most users)
+
+**Download and click. No git. No terminal. No .NET SDK required.**
+
+1. Go to the [Releases page](https://github.com/Andiveli/mcp-cad/releases)
+2. Download the latest portable package (`mcp-cad-*-portable.zip` or similar)
+3. Extract the zip to any folder (Desktop, Documents, etc.)
+4. **Double-click `McpCad-Install.bat`** (recommended)  
+   — or directly run `McpCad.Installer.exe`
+5. The installer will let you choose which AI tools to connect (Claude Desktop, Cursor, Grok, OpenCode, VS Code, Pi…).
+6. Use the keyboard (↑↓ or j/k, Space to toggle, Enter to apply) or use the one-click flags.
+
+After it says ✅ configured, **restart your AI client** and make sure Inventor is open.
+
+That's it. Your AI can now drive Inventor directly.
+
+> Tip for one-click: the provided `McpCad-Install.bat` runs the installer with sensible defaults for most people.
+
+---
+
+### For developers / building from source
 
 ```powershell
 git clone https://github.com/Andiveli/mcp-cad.git
 cd mcp-cad
 
-# Build and publish
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+# Publish server + installer (self-contained recommended for distribution)
+dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
+dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 
-# Run the TUI installer — registers with OpenCode, Claude, Cursor, Windsurf, VS Code, Pi
+# Run the TUI (or the .bat)
 dotnet run --project src/McpCad.Installer
+# or double-click the generated McpCad-Install.bat / McpCad.Installer.exe
 ```
 
-### Prerequisites
-
-- **OS:** Windows 10/11
-- **CAD:** Autodesk Inventor 2025+
-- **Runtime:** .NET 8.0 SDK
+**Prerequisites (dev builds):** Windows 10/11 + Autodesk Inventor 2025+ + .NET 8 SDK (only needed to build).
 
 ---
 

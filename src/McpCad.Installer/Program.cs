@@ -31,6 +31,54 @@ public class Program
         _agents = McpAgents.All(_state);
         AutoDetectAgents(_agents);
 
+        // Resolve server path early (used for both non-interactive and to display in TUI)
+        var serverPath = McpAgents.GetResolvedServerPath();
+
+        // --- Non-interactive / one-click support for "download + double-click" users ---
+        // This enables McpCad-Install.bat and simple "extract zip and run" flow for non-technical CAD users.
+        if (args.Any(a => a.Equals("--all", StringComparison.OrdinalIgnoreCase) ||
+                          a.Equals("--install-all", StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var a in _agents) a.Selected = true;
+            RunSelectedAgentsAndExit(serverPath);
+            return;
+        }
+
+        if (args.Any(a => a.Equals("--recommended", StringComparison.OrdinalIgnoreCase) ||
+                          a.Equals("--install-recommended", StringComparison.OrdinalIgnoreCase)))
+        {
+            // Sensible defaults for most CAD + AI users
+            var recommended = new[] { "Claude", "Cursor", "Grok", "OpenCode" };
+            foreach (var a in _agents)
+                a.Selected = recommended.Contains(a.Name, StringComparer.OrdinalIgnoreCase);
+            RunSelectedAgentsAndExit(serverPath);
+            return;
+        }
+
+        // --agents "Claude,Cursor,VS Code"
+        var agentsArg = args.FirstOrDefault(a => a.StartsWith("--agents", StringComparison.OrdinalIgnoreCase));
+        if (agentsArg is not null)
+        {
+            var list = agentsArg.Contains('=') ? agentsArg.Split('=', 2)[1] : (args.Length > 1 ? args[1] : "");
+            var wanted = list.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var a in _agents)
+                a.Selected = wanted.Any(w => string.Equals(w, a.Name, StringComparison.OrdinalIgnoreCase));
+            RunSelectedAgentsAndExit(serverPath);
+            return;
+        }
+
+        if (args.Any(a => a.Equals("--help", StringComparison.OrdinalIgnoreCase) || a.Equals("-h", StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine("mcp-cad Installer");
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  McpCad.Installer.exe                 Interactive TUI");
+            Console.WriteLine("  McpCad.Installer.exe --recommended   Install for common agents (Claude, Cursor, Grok, OpenCode)");
+            Console.WriteLine("  McpCad.Installer.exe --all           Enable for every supported agent");
+            Console.WriteLine("  McpCad.Installer.exe --agents Claude,Cursor");
+            return;
+        }
+
+        // --- Interactive TUI (polished version with logo, auto-detect, Continue/Exit buttons) ---
         int totalItems = _agents.Length + 2;
         int continueIndex = _agents.Length;
         int exitIndex = _agents.Length + 1;
@@ -43,6 +91,16 @@ public class Program
             RenderLogo();
             AnsiConsole.MarkupLine("[grey]MCP server installer — AI Agents for CAD (Mechanical + Electronic)[/]");
             AnsiConsole.MarkupLine("[grey]j/k or arrows: move  |  Space or Enter on agent: toggle  |  Enter on button: activate  |  q: quit[/]");
+
+            if (!string.IsNullOrEmpty(serverPath))
+            {
+                AnsiConsole.MarkupLine($"[grey]Server:[/] [dim]{serverPath}[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[red]⚠ Server not found.[/] Make sure McpCad.Server.exe is next to this installer (or in the same folder you extracted).");
+            }
+
             AnsiConsole.WriteLine();
 
             for (int i = 0; i < _agents.Length; i++)
@@ -73,6 +131,7 @@ public class Program
             AnsiConsole.MarkupLine(exitBtn);
 
             AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[dim]Tip: Select the AI tools you use (Claude Desktop, Cursor, etc.) then press Enter on each.[/]");
             if (!string.IsNullOrEmpty(_status))
                 AnsiConsole.MarkupLine(_status);
 
@@ -240,13 +299,67 @@ public class Program
         try
         {
             var path = agent.Run?.Invoke(_state, agent) ?? "unknown";
-            _status = $"[green]{agent.Name}: OK ({path})[/]";
+            _status = $"[green]✅ {agent.Name} configured[/]  [dim]({path})[/]";
             _state.LastAgent = agent.Name;
             _state.Save(StatePath);
+
+            // After any successful registration, show friendly next steps once
+            if (!_status.Contains("Next steps"))
+            {
+                _status += "\n[green]Great![/] Close & reopen your AI client. Inventor must be running when you chat with the agent.";
+            }
         }
         catch (Exception ex)
         {
-            _status = $"[red]{agent.Name}: FAIL — {ex.Message}[/]";
+            _status = $"[red]❌ {agent.Name} failed[/] — {ex.Message}";
+        }
+    }
+
+    private static void RunSelectedAgentsAndExit(string serverPath)
+    {
+        Console.WriteLine("mcp-cad installer (non-interactive mode)");
+        if (string.IsNullOrEmpty(serverPath))
+        {
+            Console.WriteLine("ERROR: Could not locate McpCad.Server.exe next to the installer.");
+            Console.WriteLine("Extract the full portable package so McpCad.Server.exe and McpCad.Installer.exe are in the same folder.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        Console.WriteLine($"Server: {serverPath}");
+        Console.WriteLine();
+
+        bool any = false;
+        foreach (var agent in _agents.Where(a => a.Selected))
+        {
+            any = true;
+            try
+            {
+                var path = agent.Run?.Invoke(_state, agent) ?? "unknown";
+                Console.WriteLine($"✅ {agent.Name}: configured → {path}");
+                _state.LastAgent = agent.Name;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ {agent.Name}: FAILED — {ex.Message}");
+            }
+        }
+
+        _state.Save(StatePath);
+
+        if (!any)
+        {
+            Console.WriteLine("No agents were selected. Use --recommended, --all or --agents ...");
+        }
+        else
+        {
+            Console.WriteLine();
+            Console.WriteLine("Done. Next steps:");
+            Console.WriteLine("  1. Close completely and reopen the AI tool(s) you configured (Claude Desktop, Cursor, etc.).");
+            Console.WriteLine("  2. Have Autodesk Inventor 2025 or newer running.");
+            Console.WriteLine("  3. In the chat, say something like: \"Create a new part and sketch a 50mm square.\"");
+            Console.WriteLine();
+            Console.WriteLine("The AI will now have direct access to Inventor's modeling tools via mcp-cad.");
         }
     }
 }

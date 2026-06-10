@@ -1,0 +1,41 @@
+@echo off
+setlocal
+title mcp-cad Installer
+
+echo.
+echo ===============================================
+echo   mcp-cad - AI + Autodesk Inventor
+echo   One-click installer for Claude, Cursor, etc.
+echo ===============================================
+echo.
+
+set "EXE=%~dp0dist\mcp-cad\McpCad.Installer.exe"
+if not exist "%EXE%" set "EXE=%~dp0McpCad.Installer.exe"
+
+if not exist "%EXE%" (
+    echo [ERROR] Could not find McpCad.Installer.exe
+    echo.
+    echo Please extract the full portable package so that
+    echo McpCad.Installer.exe is in the same folder as this .bat
+    echo (or inside a dist\mcp-cad subfolder).
+    echo.
+    pause
+    exit /b 1
+)
+
+echo Launching installer...
+echo.
+
+"%EXE%" --recommended
+
+echo.
+echo ===============================================
+echo Installation finished (or check messages above).
+echo.
+echo Remember:
+echo   - Restart your AI client (Claude Desktop / Cursor / ...)
+echo   - Keep Autodesk Inventor running when using the AI
+echo ===============================================
+echo.
+pause
+endlocal

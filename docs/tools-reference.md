@@ -9,22 +9,24 @@ Works with OpenCode, Claude Desktop, Cursor, Grok, VS Code, Pi, and others.
 ## Requirements
 
 - **Windows** with Autodesk Inventor 2025+ installed
-- .NET 8.0 SDK
 
-## Quick start
+For the portable release: nothing else (self-contained binaries include everything needed).
 
-```powershell
-git clone https://github.com/Andiveli/mcp-cad.git
-cd mcp-cad
+For building from source: .NET 8 SDK.
 
-# Build and publish
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+## Quick start (easiest for end users)
 
-# Run the TUI installer
-dotnet run --project src/McpCad.Installer
-```
+1. Download the latest portable release from GitHub Releases.
+2. Extract the zip.
+3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`).
+4. Toggle the AI clients you use with Space, then press Enter on them.
+5. Restart your AI client (Claude Desktop, Cursor…). Keep Inventor running.
 
-The **TUI** lets you select MCP clients (OpenCode, Claude, Cursor, Grok, Pi, VS Code) via keyboard navigation and registers the server automatically.
+No git, no `dotnet`, no manual JSON editing.
+
+The TUI (or `--recommended` / `--all` flags) automatically registers `mcp-cad` in the supported clients' MCP configuration.
+
+For developers building from source, see the main [README.md](../README.md).
 
 ## Tools
 
@@ -286,8 +288,9 @@ dotnet test tests/McpCad.Tests
 # Integration tests (require Inventor)
 dotnet test tests/McpCad.Tests --filter "FullyQualifiedName~Integration"
 
-# Publish server
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+# Publish server + installer (self-contained single-file, best for distribution)
+dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
+dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 ```
 
 ## Tags
