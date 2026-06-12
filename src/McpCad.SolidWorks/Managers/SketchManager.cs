@@ -205,16 +205,8 @@ public class SketchManager
                     ["type"] = "profile"
                 });
             }
-            else
-            {
-                // Provide a synthetic usable "1" for basic flow when no segments queryable post-create (common timing)
-                profileList.Add(new Dictionary<string, object?>
-                {
-                    ["index"] = "1",
-                    ["area"] = 0.0,
-                    ["centroid"] = new[] { 0.0, 0.0 },
-                });
-            }
+            // No synthetic "1" when segments.Length == 0 — return count=0 + empty list
+            // per CRITICAL 2 fix (no fake profiles).
 
             return new Dictionary<string, object?>
             {
