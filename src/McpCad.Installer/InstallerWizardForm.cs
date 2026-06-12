@@ -52,6 +52,9 @@ public class InstallerWizardForm : Form
     // Electric orange
     private static readonly Color ElectricOrange = Color.FromArgb(255, 95, 0);
 
+    private const int NavBarHeight = 58;
+    private const int ContentBottomPadding = 24;
+
     public InstallerWizardForm(McpAgent[] agents, State state, string serverPath)
     {
         _agents = agents ?? throw new ArgumentNullException(nameof(agents));
@@ -75,8 +78,8 @@ public class InstallerWizardForm : Form
     {
         Text = "mcp-cad Installer";
         StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(720, 520);
-        MinimumSize = new Size(640, 480);
+        Size = new Size(720, 560);
+        MinimumSize = new Size(640, 520);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
 
@@ -108,17 +111,23 @@ public class InstallerWizardForm : Form
         Controls.Add(_progressPanel);
         Controls.Add(_finishPanel);
 
-        // Bottom nav bar
-        var navPanel = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(245, 245, 245) };
+        // Bottom nav bar (extra height + padding so content does not hug the lower edge)
+        var navPanel = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = NavBarHeight,
+            Padding = new Padding(16, 10, 16, 14),
+            BackColor = Color.FromArgb(245, 245, 245)
+        };
         navPanel.Controls.Add(_backButton);
         navPanel.Controls.Add(_nextButton);
         navPanel.Controls.Add(_exitButton);
         navPanel.Controls.Add(_statusLabel);
 
-        _backButton.Location = new Point(20, 10);
-        _nextButton.Location = new Point(120, 10);
-        _exitButton.Location = new Point(Width - 110, 10);
-        _statusLabel.Location = new Point(240, 15);
+        _backButton.Location = new Point(16, 10);
+        _nextButton.Location = new Point(116, 10);
+        _exitButton.Location = new Point(Width - 126, 10);
+        _statusLabel.Location = new Point(236, 14);
 
         Controls.Add(navPanel);
 
@@ -157,10 +166,10 @@ public class InstallerWizardForm : Form
             Location = new Point(40, 140)
         };
 
-        var nextBtn = new Button { Text = "Get Started", Size = new Size(140, 36), Location = new Point(40, 380) };
+        var nextBtn = new Button { Text = "Get Started", Size = new Size(140, 36), Location = new Point(40, 360) };
         nextBtn.Click += (_, __) => OnNext();
 
-        var exitBtn = new Button { Text = "Exit", Size = new Size(80, 36), Location = new Point(200, 380) };
+        var exitBtn = new Button { Text = "Exit", Size = new Size(80, 36), Location = new Point(200, 360) };
         exitBtn.Click += (_, __) => Close();
 
         if (string.IsNullOrEmpty(_serverPath))
@@ -207,17 +216,18 @@ public class InstallerWizardForm : Form
         var flow = new FlowLayoutPanel
         {
             Location = new Point(30, 100),
-            Size = new Size(650, 280),
+            Size = new Size(650, 248),
             AutoScroll = true,
             FlowDirection = FlowDirection.TopDown,
-            WrapContents = false
+            WrapContents = false,
+            Padding = new Padding(0, 0, 0, ContentBottomPadding)
         };
 
         _agentCheckBoxes.Clear();
 
         foreach (var agent in _agents)
         {
-            var container = new Panel { Size = new Size(620, 38), Margin = new Padding(0, 2, 0, 2) };
+            var container = new Panel { Size = new Size(620, 52), Margin = new Padding(0, 2, 0, 4) };
 
             var cb = new CheckBox
             {
@@ -232,10 +242,10 @@ public class InstallerWizardForm : Form
             {
                 Text = agent.Description,
                 AutoSize = true,
-                Location = new Point(160, 10),
-                Font = new Font("Segoe UI", 9),
+                Location = new Point(160, 8),
+                Font = new Font("Segoe UI", 8.5f),
                 ForeColor = Color.DimGray,
-                MaximumSize = new Size(450, 30)
+                MaximumSize = new Size(455, 44)
             };
 
             cb.CheckedChanged += (s, e) =>
@@ -269,7 +279,7 @@ public class InstallerWizardForm : Form
             _agentCheckBoxes.Add(cb);
         }
 
-        var helpers = new Panel { Location = new Point(30, 390), Size = new Size(650, 30) };
+        var helpers = new Panel { Location = new Point(30, 358), Size = new Size(650, 30) };
         var recBtn = new Button { Text = "Recommended", Size = new Size(110, 26), Location = new Point(0, 0) };
         recBtn.Click += (_, __) => SetRecommended();
         var allBtn = new Button { Text = "Select All", Size = new Size(90, 26), Location = new Point(120, 0) };
@@ -328,14 +338,14 @@ public class InstallerWizardForm : Form
         };
 
         _progressListView.Location = new Point(30, 60);
-        _progressListView.Size = new Size(650, 320);
+        _progressListView.Size = new Size(650, 290);
         _progressListView.View = View.Details;
         _progressListView.FullRowSelect = true;
         _progressListView.Columns.Add("Agent", 140);
         _progressListView.Columns.Add("Status", 100);
         _progressListView.Columns.Add("Details", 400);
 
-        _startInstallButton = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(30, 400) };
+        _startInstallButton = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(30, 368) };
         _startInstallButton.Click += async (_, __) => await RunInstallAsync(_startInstallButton);
 
         _progressPanel.Controls.Add(title);
@@ -445,7 +455,7 @@ public class InstallerWizardForm : Form
         _finishSummaryLabel.Location = new Point(30, 55);
 
         _finishListView.Location = new Point(30, 90);
-        _finishListView.Size = new Size(650, 220);
+        _finishListView.Size = new Size(650, 200);
         _finishListView.View = View.Details;
         _finishListView.FullRowSelect = true;
         _finishListView.Columns.Add("Agent", 140);
@@ -458,13 +468,13 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(30, 330)
+            Location = new Point(30, 310)
         };
 
-        var closeBtn = new Button { Text = "Close", Size = new Size(100, 36), Location = new Point(30, 380) };
+        var closeBtn = new Button { Text = "Close", Size = new Size(100, 36), Location = new Point(30, 350) };
         closeBtn.Click += (_, __) => Application.Exit();
 
-        var backupsBtn = new Button { Text = "Open Backups Folder", Size = new Size(160, 36), Location = new Point(150, 380) };
+        var backupsBtn = new Button { Text = "Open Backups Folder", Size = new Size(160, 36), Location = new Point(150, 350) };
         backupsBtn.Click += (_, __) =>
         {
             try

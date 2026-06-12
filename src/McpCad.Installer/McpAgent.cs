@@ -29,7 +29,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "OpenCode",
-                Description = "Register MCP + install CAD skills to ~/.config/opencode/skills/",
+                Description = FormatPathsDescription(
+                    Path.Combine(userProfile, ".config", "opencode", "opencode.json"),
+                    Path.Combine(userProfile, ".config", "opencode", "skills")),
                 ConfigPath = Path.Combine(userProfile, ".config", "opencode", "opencode.json"),
                 SkillsPath = Path.Combine(userProfile, ".config", "opencode", "skills"),
                 Run = (s, a) =>
@@ -42,7 +44,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "Claude",
-                Description = "Register MCP + install CAD skills to %APPDATA%/Claude/skills/",
+                Description = FormatPathsDescription(
+                    Path.Combine(appData, "Claude", "claude_desktop_config.json"),
+                    Path.Combine(appData, "Claude", "skills")),
                 ConfigPath = Path.Combine(appData, "Claude", "claude_desktop_config.json"),
                 SkillsPath = Path.Combine(appData, "Claude", "skills"),
                 Selected = false,
@@ -56,7 +60,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "Pi",
-                Description = "Register MCP + install CAD skills to ~/.pi/skills/",
+                Description = FormatPathsDescription(
+                    Path.Combine(userProfile, ".pi", "agent", "mcp.json"),
+                    Path.Combine(userProfile, ".pi", "skills")),
                 ConfigPath = Path.Combine(userProfile, ".pi", "agent", "mcp.json"),
                 SkillsPath = Path.Combine(userProfile, ".pi", "skills"),
                 Selected = false,
@@ -70,7 +76,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "VS Code",
-                Description = "Register MCP + install CAD skills to %APPDATA%/Code/User/skills/",
+                Description = FormatPathsDescription(
+                    Path.Combine(appData, "Code", "User", "mcp.json"),
+                    Path.Combine(appData, "Code", "User", "skills")),
                 ConfigPath = Path.Combine(appData, "Code", "User", "mcp.json"),
                 SkillsPath = Path.Combine(appData, "Code", "User", "skills"),
                 Selected = false,
@@ -84,7 +92,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "Cursor",
-                Description = "Register MCP + install CAD skills to ~/.cursor/skills/",
+                Description = FormatPathsDescription(
+                    Path.Combine(userProfile, ".cursor", "mcp.json"),
+                    Path.Combine(userProfile, ".cursor", "skills")),
                 ConfigPath = Path.Combine(userProfile, ".cursor", "mcp.json"),
                 SkillsPath = Path.Combine(userProfile, ".cursor", "skills"),
                 Selected = false,
@@ -98,7 +108,9 @@ public static class McpAgents
             new McpAgent
             {
                 Name = "Grok",
-                Description = "Register MCP + install CAD skills to ~/.grok/skills/ (global)",
+                Description = FormatPathsDescription(
+                    Path.Combine(userProfile, ".grok", "config.toml"),
+                    Path.Combine(userProfile, ".grok", "skills")),
                 ConfigPath = Path.Combine(userProfile, ".grok", "config.toml"),
                 SkillsPath = Path.Combine(userProfile, ".grok", "skills"),
                 Selected = false,
@@ -135,6 +147,33 @@ public static class McpAgents
     /// Public helper so the UI can show the resolved server path to the user.
     /// </summary>
     public static string GetResolvedServerPath() => FindServerPath();
+
+    /// <summary>
+    /// Human-readable MCP + skills paths for GUI/TUI (uses ~ and %APPDATA% shorthands).
+    /// </summary>
+    public static string FormatPathsDescription(string? configPath, string? skillsPath)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(configPath))
+            parts.Add($"MCP → {ToFriendlyPath(configPath)}");
+        if (!string.IsNullOrWhiteSpace(skillsPath))
+            parts.Add($"Skills → {ToFriendlyPath(skillsPath)}");
+        return parts.Count > 0 ? string.Join("  |  ", parts) : "";
+    }
+
+    private static string ToFriendlyPath(string path)
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+        if (path.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase))
+            return "~" + path[userProfile.Length..].Replace('\\', '/');
+
+        if (path.StartsWith(appData, StringComparison.OrdinalIgnoreCase))
+            return "%APPDATA%" + path[appData.Length..].Replace('\\', '/');
+
+        return path.Replace('\\', '/');
+    }
 
     private static string FindServerPath()
     {
