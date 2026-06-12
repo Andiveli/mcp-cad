@@ -79,17 +79,9 @@ public class SketchManager
             _activeSketch = doc.GetActiveSketch2() as ISketch;
             _activeSketchIndex = _activeSketchIndex + 1; // simple counter for session (MVP; real sketch name/index via feature tree later)
 
-            // Early-bound via GetFeature() on ISketch (removes dyn GetName/Name/GetFeature chain). Fallback name.
-            // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (ISketch.GetName vs feature name, Create* sigs)
-            string sketchName = null;
-            try
-            {
-                var featRaw = _activeSketch.GetType().InvokeMember("GetFeature", System.Reflection.BindingFlags.InvokeMethod, null, _activeSketch, null);
-                var feat = featRaw as IFeature;
-                sketchName = feat?.Name;
-            }
-            catch { }
-            sketchName ??= $"Sketch{_activeSketchIndex}";
+            // Use counter-based name; removed InvokeMember GetFeature attempt per CRITICAL 2b
+            // (no silent catch swallowing errors — sketch name is diagnostic-only, not functional).
+            string sketchName = $"Sketch{_activeSketchIndex}";
 
             return new Dictionary<string, object?>
             {
