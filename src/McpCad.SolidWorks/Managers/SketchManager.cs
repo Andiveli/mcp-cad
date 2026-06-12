@@ -285,7 +285,7 @@ public class SketchManager
                     return _activeSketch;
                 }
             }
-            catch { }
+            catch (Exception) { /* recovery from stale active sketch failed */ }
             throw new InventorComException("No active sketch. Call SketchCreate() first.");
         }
         return _activeSketch;

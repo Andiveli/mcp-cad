@@ -65,7 +65,7 @@ public class InspectionManager
                 object viewObj = ((dynamic)doc).GetFirstView();
                 if (viewObj == null)
                 {
-                    try { viewObj = ((dynamic)doc).GetActiveView(); } catch { }
+                    try { viewObj = ((dynamic)doc).GetActiveView(); } catch (Exception) { /* best-effort */ }
                 }
                 if (viewObj != null)
                 {
@@ -77,7 +77,7 @@ public class InspectionManager
                     // TODO verify on live SW in verify phase: exact camera or ShowNamedView2 + Update
                 }
             }
-            catch { /* non-fatal */ }
+            catch (Exception) { /* non-fatal */ }
 
             string ext = format.Equals("jpg", StringComparison.OrdinalIgnoreCase) || format.Equals("jpeg", StringComparison.OrdinalIgnoreCase) ? "jpg" : "png";
             string tempPath = Path.Combine(Path.GetTempPath(), $"mcp_sw_viewport_{Guid.NewGuid():N}.{ext}");
@@ -89,10 +89,10 @@ public class InspectionManager
                 dynamic v = ((dynamic)doc).GetFirstView() ?? ((dynamic)doc).GetActiveView();
                 if (v != null)
                 {
-                    try { v.SaveAsImageFile(tempPath, width, height); saved = File.Exists(tempPath); } catch { }
+                    try { v.SaveAsImageFile(tempPath, width, height); saved = File.Exists(tempPath); } catch (Exception) { /* best-effort */ }
                 }
             }
-            catch { }
+            catch (Exception) { /* best-effort */ }
             if (!saved)
             {
                 try
@@ -106,7 +106,7 @@ public class InspectionManager
                         saved = doc.SaveAs(tempPath);  // fallback; many SW installs treat image ext
                     }
                 }
-                catch { }
+                catch (Exception) { /* best-effort */ }
             }
 
             if (!saved || !File.Exists(tempPath))
@@ -123,7 +123,7 @@ public class InspectionManager
             byte[] bytes = File.ReadAllBytes(tempPath);
             if (bytes == null || bytes.Length < 100) // improve: require non-trivial image for 10-step acceptance
             {
-                try { File.Delete(tempPath); } catch { }
+                try { File.Delete(tempPath); } catch (Exception) { /* cleanup */ }
                 return new Dictionary<string, object?>
                 {
                     ["success"] = false,
@@ -132,7 +132,7 @@ public class InspectionManager
                 };
             }
             string b64 = Convert.ToBase64String(bytes);
-            try { File.Delete(tempPath); } catch { }
+            try { File.Delete(tempPath); } catch (Exception) { /* cleanup */ }
 
             return new Dictionary<string, object?>
             {
@@ -208,17 +208,17 @@ public class InspectionManager
                 children.Add(FeatureToDict(sub));
                 // Prefer early-bound GetNextSubFeature (correct for sub-siblings; removed GetNextFeature wrong-in-sub + dyn comment admitting non-exist).
                 IFeature? next = null;
-                try { next = sub.GetNextSubFeature() as IFeature; } catch { }
+                try { next = sub.GetNextSubFeature() as IFeature; } catch (Exception) { /* best-effort */ }
                 if (next == null)
                 {
-                    try { dynamic sd = sub; next = sd.GetNextSubFeature() as IFeature ?? sd.GetNextFeature() as IFeature; } catch { }
+                    try { dynamic sd = sub; next = sd.GetNextSubFeature() as IFeature ?? sd.GetNextFeature() as IFeature; } catch (Exception) { /* best-effort */ }
                 }
                 sub = next;
             }
             if (children.Count > 0)
                 dict["children"] = children;
         }
-        catch { }
+        catch (Exception) { /* best-effort child traversal */ }
 
         return dict;
     }
@@ -261,7 +261,7 @@ public class InspectionManager
                     }
                 }
             }
-            catch { }
+            catch (Exception) { /* best-effort body box query */ }
 
             if (!got)
             {
@@ -275,7 +275,7 @@ public class InspectionManager
                     max = new double[] { 10, 10, 10 };
                     got = true;
                 }
-                catch { }
+                catch (Exception) { /* best-effort extension fallback */ }
             }
 
             if (!got)

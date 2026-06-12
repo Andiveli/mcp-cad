@@ -94,14 +94,9 @@ public class FeatureManager
             // Early-bound IFeatureManager.InsertExtrude2 (common stable); removed dyn Create*Definition / Insert* chains + guessed overloads (repeated fragile pattern).
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (InsertExtrude2 param count/order for taper/op/dir)
             object? newFeat = null;
-            try
-            {
-                newFeat = ((dynamic)featMgr).InsertExtrude2(endCond, false, distance, dir, 0, op, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-            }
-            catch
-            {
-                try { newFeat = ((dynamic)featMgr).InsertExtrude(endCond, false, distance, dir); } catch { }
-            }
+            // Single InsertExtrude attempt (CRITICAL 4: no silent catch, let outer handler wrap failures).
+            // TODO verify exact InsertExtrude2/InsertExtrude overloads on live SW
+            newFeat = ((dynamic)featMgr).InsertExtrude2(endCond, false, distance, dir, 0, op, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
             if (newFeat == null)
             {

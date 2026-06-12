@@ -73,27 +73,13 @@ public class DocumentManager
         try
         {
             string templatePath = string.IsNullOrWhiteSpace(template) ? "" : template;
-            // Documents collection access + Add wrapped in try for COM variance (CRITICAL 4: early-bound preferred where stable; dynamic only for the Add call itself).
+            // Single attempt for Documents.Add (CRITICAL 4: no silent catch, let outer handler wrap failures).
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (Documents.Add/Open, SaveAs3 overloads)
             object? docObj = null;
-            try
+            var docs = ((dynamic)App).Documents;
+            if (docs != null)
             {
-                var docs = ((dynamic)App).Documents;
-                if (docs != null)
-                {
-                    docObj = ((dynamic)docs).Add(SwDocPART, templatePath, "");
-                }
-            }
-            catch { }
-            if (docObj == null)
-            {
-                try
-                {
-                    var docs2 = ((dynamic)App).Documents;
-                    if (docs2 != null)
-                        docObj = ((dynamic)docs2).Add(SwDocPART, templatePath, "");
-                }
-                catch { }
+                docObj = ((dynamic)docs).Add(SwDocPART, templatePath, "");
             }
             if (docObj == null)
                 throw new InventorComException("Documents.Add failed for part (COM variance).");
@@ -121,15 +107,10 @@ public class DocumentManager
         try
         {
             string templatePath = string.IsNullOrWhiteSpace(template) ? "" : template;
-            // Prefer .Documents (early); removed GetDocuments() ?? swDyn chain (repeated fragile pattern).
+            // Single attempt for Documents.Add (CRITICAL 4: no silent catch, let outer handler wrap failures).
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (Documents.Add/Open, SaveAs3 overloads)
             dynamic swDyn = App;
-            object? docObj = null;
-            try { docObj = swDyn.Documents.Add(SwDocASSEMBLY, templatePath, ""); } catch { }
-            if (docObj == null)
-            {
-                try { docObj = swDyn.Documents.Add(SwDocASSEMBLY, templatePath, ""); } catch { }
-            }
+            object? docObj = swDyn.Documents.Add(SwDocASSEMBLY, templatePath, "");
             if (docObj == null)
                 throw new InventorComException("Documents.Add failed for assembly (dyn variance).");
             ModelDoc2 doc = (ModelDoc2)docObj;
@@ -181,15 +162,10 @@ public class DocumentManager
             // Early-bound Extension.SaveAs3 (remove dyn SaveAs3 chain + repeated fallback pattern); fallback to SaveAs only.
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (SaveAs3 vs Extension.SaveAs3 + ref args)
             int errors = 0, warnings = 0;
-            bool ok = false;
-            try
-            {
-                ok = doc.Extension.SaveAs3(path, 0, 1, null, null, ref errors, ref warnings);
-            }
-            catch { }
+            bool ok = doc.Extension.SaveAs3(path, 0, 1, null, null, ref errors, ref warnings);
             if (!ok)
             {
-                try { ok = doc.SaveAs(path); } catch { }
+                ok = doc.SaveAs(path);
             }
             string fileName = doc.GetPathName() ?? path;
 
@@ -247,6 +223,6 @@ public class DocumentManager
             if (t.IndexOf("Drawing", StringComparison.OrdinalIgnoreCase) >= 0 || t.EndsWith(".slddrw", StringComparison.OrdinalIgnoreCase)) return 3;
             return 1; // MVP: sufficient for doc_new_part flow; TODO verify GetTypeName2 variants on live SW.
         }
-        catch { return 1; }
+        catch (Exception) { return 1; }
     }
 }

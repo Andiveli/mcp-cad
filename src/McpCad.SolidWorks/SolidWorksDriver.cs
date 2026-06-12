@@ -174,7 +174,7 @@ public class SolidWorksDriver
         _connected = false;
         _explicitlyDisconnected = true;
         // Best-effort to help release (COM lifetime per issue; not guaranteed in all hosts)
-        try { GC.Collect(); GC.WaitForPendingFinalizers(); } catch { }
+        try { GC.Collect(); GC.WaitForPendingFinalizers(); } catch (Exception) { /* best-effort GC cleanup */ }
         return new Dictionary<string, object?> { ["status"] = "disconnected", ["provider"] = "SolidWorks" };
     }
 
