@@ -83,8 +83,20 @@ if (autoConnect)
     }
     else if (isSolidWorks)
     {
-        var driver = app.Services.GetRequiredService<SolidWorks.SolidWorksDriver>();
-        driver.Connect();
+        // SW provider reference is conditional (depends on SOLIDWORKS Interop availability at build time)
+        // Use runtime resolution since the type may not be available
+        try
+        {
+            dynamic driver = app.Services.GetRequiredService(
+                Type.GetType("McpCad.SolidWorks.SolidWorksDriver, McpCad.SolidWorks")!
+            );
+            driver.Connect();
+        }
+        catch (Exception ex)
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning(ex, "SolidWorks provider not available at runtime (SW Interop not installed).");
+        }
     }
 }
 

@@ -44,7 +44,7 @@ public class SketchManager
     private ModelDoc2 ActiveDocument()
     {
         var doc = _driver.ActiveDocument as ModelDoc2
-            ?? throw new CadConnectionException("No active document. Open or create a document first.");
+            ?? throw new InventorConnectionException("No active document. Open or create a document first.");
         return doc;
     }
 
@@ -84,7 +84,8 @@ public class SketchManager
             string sketchName = null;
             try
             {
-                var feat = _activeSketch.GetFeature() as IFeature;
+                var featRaw = _activeSketch.GetType().InvokeMember("GetFeature", System.Reflection.BindingFlags.InvokeMethod, null, _activeSketch, null);
+                var feat = featRaw as IFeature;
                 sketchName = feat?.Name;
             }
             catch { }
@@ -98,11 +99,11 @@ public class SketchManager
                 ["plane"] = plane.ToUpperInvariant(),
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to create sketch on plane '{plane}': {ex.Message}", ex);
+            throw new InventorComException($"Failed to create sketch on plane '{plane}': {ex.Message}", ex);
         }
     }
 
@@ -134,11 +135,11 @@ public class SketchManager
                 ["end"] = new[] { x2, y2 },
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to draw line: {ex.Message}", ex);
+            throw new InventorComException($"Failed to draw line: {ex.Message}", ex);
         }
     }
 
@@ -168,11 +169,11 @@ public class SketchManager
                 ["radius"] = radius,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to draw circle: {ex.Message}", ex);
+            throw new InventorComException($"Failed to draw circle: {ex.Message}", ex);
         }
     }
 
@@ -222,11 +223,11 @@ public class SketchManager
                 ["count"] = profileList.Count,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to list sketch profiles: {ex.Message}", ex);
+            throw new InventorComException($"Failed to list sketch profiles: {ex.Message}", ex);
         }
     }
 
@@ -301,7 +302,7 @@ public class SketchManager
                 }
             }
             catch { }
-            throw new CadComException("No active sketch. Call SketchCreate() first.");
+            throw new InventorComException("No active sketch. Call SketchCreate() first.");
         }
         return _activeSketch;
     }

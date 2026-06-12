@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using ModelDoc2 = SolidWorks.Interop.sldworks.ModelDoc2;
 using IFeature = SolidWorks.Interop.sldworks.IFeature;
+using IBody2 = SolidWorks.Interop.sldworks.IBody2;
 
 namespace McpCad.SolidWorks.Managers;
 
@@ -41,7 +42,7 @@ public class InspectionManager
     private ModelDoc2 ActiveDocument()
     {
         var doc = _driver.ActiveDocument as ModelDoc2
-            ?? throw new CadConnectionException("No active document. Open or create a document first.");
+            ?? throw new InventorConnectionException("No active document. Open or create a document first.");
         return doc;
     }
 
@@ -61,7 +62,7 @@ public class InspectionManager
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (GetActiveView / GetFirstView / IView orient)
             try
             {
-                object viewObj = doc.GetFirstView();
+                object viewObj = ((dynamic)doc).GetFirstView();
                 if (viewObj == null)
                 {
                     try { viewObj = ((dynamic)doc).GetActiveView(); } catch { }
@@ -85,7 +86,7 @@ public class InspectionManager
             // Improve capture reliability: try IView.SaveAsImageFile (common for viewport) before SaveAs3 (which often fails to produce usable image per issue).
             try
             {
-                dynamic v = doc.GetFirstView() ?? ((dynamic)doc).GetActiveView();
+                dynamic v = ((dynamic)doc).GetFirstView() ?? ((dynamic)doc).GetActiveView();
                 if (v != null)
                 {
                     try { v.SaveAsImageFile(tempPath, width, height); saved = File.Exists(tempPath); } catch { }
@@ -98,8 +99,8 @@ public class InspectionManager
                 {
                     // Early-bound Extension.SaveAs3; SaveAs last. Returns error dict on fail (known lim; TODO live).
                     // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (Extension.SaveAs vs SaveAs3 ref args count)
-                    int errors = 0, warnings = 0;
-                    saved = doc.Extension.SaveAs3(tempPath, 0, 1, ref errors, ref warnings);
+                    int saveErrors = 0, warnings = 0;
+                    saved = doc.Extension.SaveAs3(tempPath, 0, 1, null, null, ref saveErrors, ref warnings);
                     if (!saved)
                     {
                         saved = doc.SaveAs(tempPath);  // fallback; many SW installs treat image ext
@@ -145,11 +146,11 @@ public class InspectionManager
                 ["note"] = "Basic SaveAs capture; verify fidelity on live in sdd-verify."
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"CaptureViewportImage failed: {ex.Message}", ex);
+            throw new InventorComException($"CaptureViewportImage failed: {ex.Message}", ex);
         }
     }
 
@@ -179,11 +180,11 @@ public class InspectionManager
                 ["note"] = "Traversed via FirstFeature/GetNextFeature + GetFirstSubFeature recursion (dyn GetNextSubFeature). Includes suppressed state."
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"GetFeatureTree failed: {ex.Message}", ex);
+            throw new InventorComException($"GetFeatureTree failed: {ex.Message}", ex);
         }
     }
 
@@ -246,11 +247,11 @@ public class InspectionManager
                 var bodies = part.GetBodies(0 /* swBodyType */) as object[] ?? Array.Empty<object>();
                 if (bodies.Length > 0)
                 {
-                    var body0 = bodies[0] as SolidWorks.Interop.sldworks.IBody2;
+                    var body0 = bodies[0] as IBody2;
                     if (body0 != null)
                     {
-                        // Early IBody2.GetBox
-                        double[] box = body0.GetBox() as double[] ?? new double[6];
+                        // Early IBody2.GetBox — use dynamic (property/method does not exist on early-bound IBody2 in this interop assembly)
+                        double[] box = ((dynamic)body0).GetBox() as double[] ?? new double[6];
                         if (box.Length >= 6)
                         {
                             min = new[] { box[0], box[1], box[2] };
@@ -279,7 +280,7 @@ public class InspectionManager
 
             if (!got)
             {
-                throw new CadComException("Bounding box query returned no data (no bodies or API variant). TODO verify GetBox/MassProp/GetBoundingBox on live SW in verify phase.");
+                throw new InventorComException("Bounding box query returned no data (no bodies or API variant). TODO verify GetBox/MassProp/GetBoundingBox on live SW in verify phase.");
             }
 
             double cx = (min[0] + max[0]) / 2, cy = (min[1] + max[1]) / 2, cz = (min[2] + max[2]) / 2;
@@ -296,11 +297,11 @@ public class InspectionManager
                 ["note"] = "MVP via body.GetBox or fallback; verify precision on live."
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"GetBoundingBox failed: {ex.Message}", ex);
+            throw new InventorComException($"GetBoundingBox failed: {ex.Message}", ex);
         }
     }
 }

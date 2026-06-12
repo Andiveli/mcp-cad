@@ -45,7 +45,7 @@ public class FeatureManager
     private ModelDoc2 ActiveDocument()
     {
         var doc = _driver.ActiveDocument as ModelDoc2
-            ?? throw new CadConnectionException("No active document. Open or create a document first.");
+            ?? throw new InventorConnectionException("No active document. Open or create a document first.");
         return doc;
     }
 
@@ -79,11 +79,11 @@ public class FeatureManager
             if (!profileSelected)
             {
                 // Fallback per common SW: try select without name for active profile context
-                profileSelected = doc.Extension.SelectByID2("", "SKETCHSEGMENT", 0, 0, 0, false, 1, null, 0);
+                profileSelected = _selectionHelper.SelectById2(doc, "", "SKETCHSEGMENT", 0, 0, 0, false, 1, null, 0);
             }
             if (!profileSelected)
             {
-                throw new CadComException($"Profile selection failed for '{profile}'. Ensure sketch_profiles() returned usable index or tag set on create (ref captured from Create* lines/circles). TODO verify SelectByID2 behavior on live SW in verify phase.");
+                throw new InventorComException($"Profile selection failed for '{profile}'. Ensure sketch_profiles() returned usable index or tag set on create (ref captured from Create* lines/circles). TODO verify SelectByID2 behavior on live SW in verify phase.");
             }
 
             // Map params (use literals; full swconst.sw* later)
@@ -96,16 +96,16 @@ public class FeatureManager
             object? newFeat = null;
             try
             {
-                newFeat = featMgr.InsertExtrude2(endCond, false, distance, dir, 0, op, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                newFeat = ((dynamic)featMgr).InsertExtrude2(endCond, false, distance, dir, 0, op, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             }
             catch
             {
-                try { newFeat = featMgr.InsertExtrude(endCond, false, distance, dir); } catch { }
+                try { newFeat = ((dynamic)featMgr).InsertExtrude(endCond, false, distance, dir); } catch { }
             }
 
             if (newFeat == null)
             {
-                throw new CadComException("InsertExtrude returned no feature (selection or API variance). TODO verify exact InsertExtrude/SelectByID2 + mark on live SW in verify phase.");
+                throw new InventorComException("InsertExtrude returned no feature (selection or API variance). TODO verify exact InsertExtrude/SelectByID2 + mark on live SW in verify phase.");
             }
 
             return new Dictionary<string, object?>
@@ -120,11 +120,11 @@ public class FeatureManager
                 ["note"] = "Minimal extrude via SelectByID2(mark) + InsertExtrude. Full profile resolve + taper/op in follow-up."
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to extrude: {ex.Message}. TODO verify on live SW in verify phase.", ex);
+            throw new InventorComException($"Failed to extrude: {ex.Message}. TODO verify on live SW in verify phase.", ex);
         }
     }
 

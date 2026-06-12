@@ -39,7 +39,7 @@ public class SolidWorksDriver
     /// <summary>
     /// The active SolidWorks Application COM object.
     /// Auto-connects on first access if not already connected (unless explicitly disconnected).
-    /// Throws <see cref="CadConnectionException"/> if connection fails. State after Disconnect/RPC protected by explicit flag.
+    /// Throws <see cref="InventorConnectionException"/> if connection fails. State after Disconnect/RPC protected by explicit flag.
     /// </summary>
     public SldWorks SwApp
     {
@@ -49,13 +49,13 @@ public class SolidWorksDriver
                 return _swApp;
 
             if (_explicitlyDisconnected)
-                throw new CadConnectionException("Explicitly disconnected (via Disconnect()). Call Connect() to re-attach. Prevents stale auto-connect races post-RPC.");
+                throw new InventorConnectionException("Explicitly disconnected (via Disconnect()). Call Connect() to re-attach. Prevents stale auto-connect races post-RPC.");
 
             // Auto-connect on first use — Connect() is idempotent and handles all error cases (returns error dict on fail, does not throw)
             Connect();
 
             if (_swApp is null)
-                throw new CadConnectionException(
+                throw new InventorConnectionException(
                     "Not connected to SolidWorks. Make sure SolidWorks is running. (Connect returned error state; see prior health/Connect result)");
 
             return _swApp;
@@ -206,12 +206,11 @@ public class SolidWorksDriver
             int docsCount;
             try
             {
-                // Prefer early-bound .Documents (ISldWorks.Documents returns Object, typically the collection).
-                // Wrapped in try for COM variance / RPC; no dyn GetDocuments chain (removed per CRITICAL 4).
+                // Use dynamic to access .Documents (property does not exist on early-bound SldWorks interop in this build env).
                 // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (Documents collection)
-                var docsObj = _swApp.Documents;
-                if (docsObj is System.Collections.ICollection coll) docsCount = coll.Count;
-                else if (docsObj is Array arr) docsCount = arr.Length;
+                var docs = ((dynamic)_swApp).Documents;
+                if (docs is System.Collections.ICollection coll) docsCount = coll.Count;
+                else if (docs is Array arr) docsCount = arr.Length;
                 else docsCount = 0;
             }
             catch

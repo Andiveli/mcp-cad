@@ -34,7 +34,7 @@ public class DocumentManager
     private ModelDoc2 ActiveDocument()
     {
         var doc = _driver.ActiveDocument as ModelDoc2
-            ?? throw new CadConnectionException("No active document. Open or create a document first.");
+            ?? throw new InventorConnectionException("No active document. Open or create a document first.");
         return doc;
     }
 
@@ -43,7 +43,7 @@ public class DocumentManager
         try
         {
             if (string.IsNullOrWhiteSpace(path))
-                throw new CadComException("Path is required for DocOpen.");
+                throw new InventorComException("Path is required for DocOpen.");
 
             // Open via early-bound Documents.OpenDoc6 (with error/warn refs). No dyn GetDocuments chain (CRITICAL 4 fix).
             // TODO verify exact signature + behavior on live SolidWorks in sdd-verify phase (Documents.Add/Open, SaveAs3 overloads)
@@ -60,11 +60,11 @@ public class DocumentManager
                 ["document_type"] = docType,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to open document '{path}': {ex.Message}", ex);
+            throw new InventorComException($"Failed to open document '{path}': {ex.Message}", ex);
         }
     }
 
@@ -78,7 +78,7 @@ public class DocumentManager
             object? docObj = null;
             try
             {
-                var docs = App.Documents;
+                var docs = ((dynamic)App).Documents;
                 if (docs != null)
                 {
                     docObj = ((dynamic)docs).Add(SwDocPART, templatePath, "");
@@ -89,14 +89,14 @@ public class DocumentManager
             {
                 try
                 {
-                    var docs2 = App.Documents;
+                    var docs2 = ((dynamic)App).Documents;
                     if (docs2 != null)
                         docObj = ((dynamic)docs2).Add(SwDocPART, templatePath, "");
                 }
                 catch { }
             }
             if (docObj == null)
-                throw new CadComException("Documents.Add failed for part (COM variance).");
+                throw new InventorComException("Documents.Add failed for part (COM variance).");
             ModelDoc2 doc = (ModelDoc2)docObj;
             string fileName = doc?.GetPathName() ?? doc?.GetTitle() ?? string.Empty;
             int docType = GetDocType(doc);
@@ -108,11 +108,11 @@ public class DocumentManager
                 ["document_type"] = docType,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to create part document: {ex.Message}", ex);
+            throw new InventorComException($"Failed to create part document: {ex.Message}", ex);
         }
     }
 
@@ -131,7 +131,7 @@ public class DocumentManager
                 try { docObj = swDyn.Documents.Add(SwDocASSEMBLY, templatePath, ""); } catch { }
             }
             if (docObj == null)
-                throw new CadComException("Documents.Add failed for assembly (dyn variance).");
+                throw new InventorComException("Documents.Add failed for assembly (dyn variance).");
             ModelDoc2 doc = (ModelDoc2)docObj;
             string fileName = doc?.GetPathName() ?? doc?.GetTitle() ?? string.Empty;
             int docType = GetDocType(doc);
@@ -143,11 +143,11 @@ public class DocumentManager
                 ["document_type"] = docType,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to create assembly document: {ex.Message}", ex);
+            throw new InventorComException($"Failed to create assembly document: {ex.Message}", ex);
         }
     }
 
@@ -165,11 +165,11 @@ public class DocumentManager
                 ["document"] = fileName,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to save document: {ex.Message}", ex);
+            throw new InventorComException($"Failed to save document: {ex.Message}", ex);
         }
     }
 
@@ -184,7 +184,7 @@ public class DocumentManager
             bool ok = false;
             try
             {
-                ok = doc.Extension.SaveAs3(path, 0, 1, ref errors, ref warnings);
+                ok = doc.Extension.SaveAs3(path, 0, 1, null, null, ref errors, ref warnings);
             }
             catch { }
             if (!ok)
@@ -199,11 +199,11 @@ public class DocumentManager
                 ["document"] = fileName,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to save document as '{path}': {ex.Message}", ex);
+            throw new InventorComException($"Failed to save document as '{path}': {ex.Message}", ex);
         }
     }
 
@@ -227,11 +227,11 @@ public class DocumentManager
                 ["document"] = fileName,
             };
         }
-        catch (CadConnectionException) { throw; }
-        catch (CadComException) { throw; }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
         catch (Exception ex)
         {
-            throw new CadComException($"Failed to close document: {ex.Message}", ex);
+            throw new InventorComException($"Failed to close document: {ex.Message}", ex);
         }
     }
 
@@ -242,7 +242,7 @@ public class DocumentManager
         {
             // Early-bound GetTypeName2 on ModelDoc2 (removes dyn GetTypeName2/GetType/GetPathName chain + "always 1" fallback).
             // Returns "Part", "Assembly", "Drawing" (or filename hints); literal doc types per design.
-            string t = doc.GetTypeName2() ?? doc.GetPathName() ?? "";
+            string t = ((dynamic)doc).GetTypeName2() ?? doc.GetPathName() ?? "";
             if (t.IndexOf("Assembly", StringComparison.OrdinalIgnoreCase) >= 0 || t.EndsWith(".sldasm", StringComparison.OrdinalIgnoreCase)) return 2;
             if (t.IndexOf("Drawing", StringComparison.OrdinalIgnoreCase) >= 0 || t.EndsWith(".slddrw", StringComparison.OrdinalIgnoreCase)) return 3;
             return 1; // MVP: sufficient for doc_new_part flow; TODO verify GetTypeName2 variants on live SW.

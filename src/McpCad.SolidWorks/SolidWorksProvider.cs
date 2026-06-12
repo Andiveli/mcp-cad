@@ -173,9 +173,9 @@ public class SolidWorksProvider : IMechanicalCadProvider
     public Dictionary<string, object?> Derive(string sourcePath)
         => ErrorResult.Create("Not yet implemented for SolidWorks provider. See roadmap.");
 
-    // Exact 7-param match to IMechanicalCadProvider (no plane; no ReadSketchData/TagFacesFromSketch pollution per CRITICAL 5 contract stability)
-    // Signature exactly matches interface: Hole(double x, double y, double diameter, double depth, string type, string operation, string direction)
-    public Dictionary<string, object?> Hole(double x, double y, double diameter, double depth, string type = "drilled", string operation = "join", string direction = "positive")
+    // Exact 6-param match to IMechanicalCadProvider (no plane; no ReadSketchData/TagFacesFromSketch pollution per CRITICAL 5 contract stability)
+    // Signature exactly matches interface: Hole(double x, double y, double diameter, double depth, string type, string operation)
+    public Dictionary<string, object?> Hole(double x, double y, double diameter, double depth, string type = "drilled", string operation = "join")
         => ErrorResult.Create("Not yet implemented for SolidWorks provider. See roadmap.");
 
     public Dictionary<string, object?> Thread(string face, string specification, string direction = "right")

@@ -23,7 +23,7 @@ public class SelectionHelper
     /// </summary>
     public bool SelectProfileByIndexOrTag(ModelDoc2 doc, string profileSpec, string sketchKey, SwTagStore tagStore, int mark = 1)
     {
-        if (doc == null) throw new CadConnectionException("No active document for selection.");
+        if (doc == null) throw new InventorConnectionException("No active document for selection.");
 
         string spec = profileSpec?.Trim() ?? "1";
 
@@ -56,14 +56,14 @@ public class SelectionHelper
                 catch { useName = ""; }
                 if (!string.IsNullOrWhiteSpace(useName))
                 {
-                    bool sel = doc.Extension.SelectByID2(useName, "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
+                    bool sel = SelectById2(doc, useName, "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
                     if (sel) return true;
                 }
                 // Fallback to reliable empty+mark if name resolution failed on this SW version (documented)
-                return doc.Extension.SelectByID2("", "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
+                return SelectById2(doc, "", "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
             }
             // no resolve: fall to mark
-            return doc.Extension.SelectByID2("", "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
+            return SelectById2(doc, "", "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
         }
 
         // Fallback: try direct name select (via typed wrapper for Callout interop binding stability)
@@ -83,7 +83,9 @@ public class SelectionHelper
         {
             // Cast to object for the Callout parameter (some interop bindings expect object here; CRITICAL 4 stabilization).
             object? calloutArg = callout;
-            return doc.Extension.SelectByID2(name, type, x, y, z, append, mark, calloutArg, selectOption);
+            // Use dynamic to bypass typed Callout param signature variance in interop assembly (avoids CS1503 object -> Callout at compile).
+            dynamic ext = doc.Extension;
+            return ext.SelectByID2(name, type, x, y, z, append, mark, calloutArg, selectOption);
         }
         catch
         {
