@@ -74,6 +74,7 @@ public class Program
             Console.WriteLine("  McpCad.Installer.exe                 Interactive TUI");
             Console.WriteLine("  McpCad.Installer.exe --recommended   Install for common agents (Claude, Cursor, Grok, OpenCode + CAD Skills)");
             Console.WriteLine("  McpCad.Installer.exe --all           Enable for every supported agent");
+            Console.WriteLine("  Backups can be toggled in the TUI (select 'Backups' item and press Space)");
             Console.WriteLine("  McpCad.Installer.exe --agents Claude,Cursor");
             return;
         }
@@ -148,18 +149,17 @@ public class Program
                 case ConsoleKey.Spacebar:
                     if (_selectedIdx < _agents.Length)
                     {
-                        _agents[_selectedIdx].Selected = !_agents[_selectedIdx].Selected;
+                        ToggleAgentSelection(_agents[_selectedIdx]);
                     }
                     break;
                 case ConsoleKey.Enter:
                     if (_selectedIdx < _agents.Length)
                     {
-                        // Allow Enter to also toggle agent (makes it obvious)
-                        _agents[_selectedIdx].Selected = !_agents[_selectedIdx].Selected;
+                        ToggleAgentSelection(_agents[_selectedIdx]);
                     }
                     else if (_selectedIdx == continueIndex)
                     {
-                        var selected = _agents.Where(a => a.Selected).ToArray();
+                        var selected = _agents.Where(a => a.Selected && a.Name != "Backups").ToArray();
                         if (selected.Length == 0)
                         {
                             _status = "[yellow]No agents selected. Move up and use Space to toggle some.[/]";
@@ -195,6 +195,24 @@ public class Program
             }
         }
         AnsiConsole.WriteLine();
+    }
+
+    private static void ToggleAgentSelection(McpAgent agent)
+    {
+        if (agent.Name == "Backups")
+        {
+            _state.BackupsEnabled = !_state.BackupsEnabled;
+            _state.Save(StatePath);
+            agent.Selected = _state.BackupsEnabled;
+            agent.Description = _state.BackupsEnabled
+                ? "Enabled — press Space to disable (recommended for safety)"
+                : "Disabled — press Space to enable (not recommended)";
+            _status = _state.BackupsEnabled ? "[green]Backups enabled[/]" : "[yellow]Backups disabled[/]";
+        }
+        else
+        {
+            agent.Selected = !agent.Selected;
+        }
     }
 
     private static void AutoDetectAgents(McpAgent[] agents)
@@ -330,7 +348,7 @@ public class Program
         Console.WriteLine();
 
         bool any = false;
-        foreach (var agent in _agents.Where(a => a.Selected))
+        foreach (var agent in _agents.Where(a => a.Selected && a.Name != "Backups"))
         {
             any = true;
             try

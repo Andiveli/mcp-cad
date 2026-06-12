@@ -14,6 +14,12 @@ public class State
     public Dictionary<string, string> CustomPaths { get; set; } = new();
     public Dictionary<string, string> Preferences { get; set; } = new();
 
+    public bool BackupsEnabled
+    {
+        get => !Preferences.TryGetValue("backups_enabled", out var v) || !v.Equals("false", StringComparison.OrdinalIgnoreCase);
+        set => Preferences["backups_enabled"] = value ? "true" : "false";
+    }
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         WriteIndented = true,

@@ -6,7 +6,7 @@ namespace McpCad.Installer;
 public class McpAgent
 {
     public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public string Description { get; set; } = "";
     public bool Selected { get; set; } = true;
     public string? ConfigPath { get; init; }
     public string? SkillsPath { get; init; }
@@ -34,8 +34,8 @@ public static class McpAgents
                 SkillsPath = Path.Combine(userProfile, ".config", "opencode", "skills"),
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcp", "local");
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcp", "local", a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -48,8 +48,8 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio", a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -62,8 +62,8 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio", a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -76,8 +76,8 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio");
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "servers", "stdio", a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -90,8 +90,8 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio");
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterWithSchema(a.ConfigPath!, serverPath, "mcpServers", "stdio", a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -104,8 +104,8 @@ public static class McpAgents
                 Selected = false,
                 Run = (s, a) =>
                 {
-                    var cfg = RegisterGrok(a.ConfigPath!, serverPath);
-                    var sk = TryInstallSkills(a.SkillsPath);
+                    var cfg = RegisterGrok(a.ConfigPath!, serverPath, a.Name, s);
+                    var sk = TryInstallSkills(a.SkillsPath, a.Name, s);
                     return cfg + " | " + sk;
                 },
             },
@@ -114,7 +114,19 @@ public static class McpAgents
                 Name = "CAD Skills",
                 Description = "Install CAD skills to ALL supported agents' skills directories at once",
                 Selected = true,
-                Run = (s, a) => InstallSkillsToAllAgents(),
+                Run = (s, a) => InstallSkillsToAllAgents(s),
+            },
+            new McpAgent
+            {
+                Name = "Backups",
+                Description = state.BackupsEnabled 
+                    ? "Enabled — press Space to disable (recommended for safety)" 
+                    : "Disabled — press Space to enable (not recommended)",
+                Selected = state.BackupsEnabled,
+                Run = (s, a) =>
+                {
+                    return s.BackupsEnabled ? "Backups are enabled" : "Backups are disabled";
+                },
             },
         };
     }
@@ -198,19 +210,29 @@ public static class McpAgents
         return idx >= 0 && int.TryParse(name[(idx + 1)..], out var v) ? v : -1;
     }
 
-    private static string RegisterWithSchema(string configPath, string serverPath, string parentKey, string type)
+    private static string RegisterWithSchema(string configPath, string serverPath, string parentKey, string type, string agentName, State? state = null)
     {
+        // Backup config files before modifying (unless user disabled backups)
+        var backupPath = BackupConfigFile(configPath, agentName, state);
+
         var config = ConfigManager.Read(configPath);
         var entry = type == "local"
             ? new Dictionary<string, object?> { ["type"] = "local", ["command"] = new[] { serverPath } }
             : new Dictionary<string, object?> { ["command"] = serverPath, ["args"] = Array.Empty<string>() };
         ConfigManager.MergeEntry(config, parentKey, new Dictionary<string, object?> { ["mcp-cad"] = entry });
         ConfigManager.Write(configPath, config);
-        return configPath;
+
+        var result = configPath;
+        if (backupPath is not null)
+            result += $" [backup: {Path.GetFileName(backupPath)}]";
+        return result;
     }
 
-    private static string RegisterGrok(string configPath, string serverPath)
+    private static string RegisterGrok(string configPath, string serverPath, string agentName, State? state = null)
     {
+        // Backup config files before modifying (unless user disabled backups)
+        var backupPath = BackupConfigFile(configPath, agentName, state);
+
         var dir = Path.GetDirectoryName(configPath);
         if (dir is not null) Directory.CreateDirectory(dir);
 
@@ -268,7 +290,11 @@ public static class McpAgents
         var tmp = configPath + ".tmp";
         File.WriteAllText(tmp, newToml.TrimEnd() + Environment.NewLine);
         File.Move(tmp, configPath, overwrite: true);
-        return configPath;
+
+        var result = configPath;
+        if (backupPath is not null)
+            result += $" [backup: {Path.GetFileName(backupPath)}]";
+        return result;
     }
 
     // ============================================================
@@ -279,43 +305,44 @@ public static class McpAgents
     // The "CAD Skills" item installs to every supported agent's skills dir at once.
     // ============================================================
 
-    public static string InstallSkillsToAllAgents()
+    public static string InstallSkillsToAllAgents(State? state = null)
     {
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-        var paths = new[]
+        // Map of (target skills dir, agent name for backup folder)
+        var targets = new (string Path, string AgentName)[]
         {
-            Path.Combine(userProfile, ".config", "opencode", "skills"),
-            Path.Combine(appData, "Claude", "skills"),
-            Path.Combine(userProfile, ".pi", "skills"),
-            Path.Combine(appData, "Code", "User", "skills"),
-            Path.Combine(userProfile, ".cursor", "skills"),
-            Path.Combine(userProfile, ".grok", "skills"),
+            (Path.Combine(userProfile, ".config", "opencode", "skills"), "OpenCode"),
+            (Path.Combine(appData, "Claude", "skills"), "Claude"),
+            (Path.Combine(userProfile, ".pi", "skills"), "Pi"),
+            (Path.Combine(appData, "Code", "User", "skills"), "VS Code"),
+            (Path.Combine(userProfile, ".cursor", "skills"), "Cursor"),
+            (Path.Combine(userProfile, ".grok", "skills"), "Grok"),
         };
 
         var results = new List<string>();
-        foreach (var p in paths.Distinct())
+        foreach (var (path, agentName) in targets.Distinct())
         {
             try
             {
-                results.Add(InstallSkills(p));
+                results.Add(InstallSkills(path, agentName, state));
             }
             catch (Exception ex)
             {
-                results.Add($"Skipped {Path.GetFileName(p)}: {ex.Message}");
+                results.Add($"Skipped {agentName}: {ex.Message}");
             }
         }
         return string.Join(" ; ", results);
     }
 
-    private static string TryInstallSkills(string? targetDir)
+    private static string TryInstallSkills(string? targetDir, string agentName, State? state = null)
     {
         if (string.IsNullOrWhiteSpace(targetDir))
             return "Skills: no target dir for this agent";
         try
         {
-            return InstallSkills(targetDir);
+            return InstallSkills(targetDir, agentName, state);
         }
         catch (Exception ex)
         {
@@ -323,7 +350,7 @@ public static class McpAgents
         }
     }
 
-    private static string InstallSkills(string targetBaseDir)
+    private static string InstallSkills(string targetBaseDir, string agentName, State? state = null)
     {
         if (string.IsNullOrWhiteSpace(targetBaseDir))
             throw new ArgumentException("Target skills directory is required");
@@ -340,6 +367,7 @@ public static class McpAgents
         Directory.CreateDirectory(targetBaseDir);
 
         int installed = 0;
+        int backedUp = 0;
         foreach (var skillDir in Directory.GetDirectories(sourceDir))
         {
             if (!File.Exists(Path.Combine(skillDir, "SKILL.md")))
@@ -348,11 +376,19 @@ public static class McpAgents
             var skillName = Path.GetFileName(skillDir);
             var targetDir = Path.Combine(targetBaseDir, skillName);
 
+            // Quirúrgico: only backup if the skill already exists in the target
+            var backupPath = BackupExistingSkill(targetDir, agentName, state);
+            if (backupPath is not null)
+                backedUp++;
+
             CopyDirectory(skillDir, targetDir, overwrite: true);
             installed++;
         }
 
-        return $"CAD skills installed/updated ({installed}) → {targetBaseDir}";
+        var msg = $"CAD skills installed/updated ({installed}) → {targetBaseDir}";
+        if (backedUp > 0)
+            msg += $" [{backedUp} existing skill(s) backed up to ~/.mcp-cad/backups/skills/]";
+        return msg;
     }
 
     private static string FindSkillsDir()
@@ -401,5 +437,57 @@ public static class McpAgents
             var destSubDir = Path.Combine(destDir, Path.GetFileName(subDir));
             CopyDirectory(subDir, destSubDir, overwrite);
         }
+    }
+
+    // ============================================================
+    // Backups (quirúrgico / surgical approach)
+    // - Config files: always backed up before modification (they are critical).
+    // - Skills: only backed up if the target skill directory already exists.
+    // Backups go to ~/.mcp-cad/backups/
+    // ============================================================
+
+    private static string GetBackupRoot()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".mcp-cad", "backups");
+    }
+
+    private static string? BackupConfigFile(string originalPath, string agentName, State? state)
+    {
+        if (state != null && !state.BackupsEnabled)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(originalPath) || !File.Exists(originalPath))
+            return null;
+
+        var backupDir = Path.Combine(GetBackupRoot(), "configs");
+        Directory.CreateDirectory(backupDir);
+
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+        var fileName = Path.GetFileName(originalPath);
+        var backupPath = Path.Combine(backupDir, $"{timestamp}_{agentName}_{fileName}");
+
+        File.Copy(originalPath, backupPath, overwrite: true);
+        return backupPath;
+    }
+
+    private static string? BackupExistingSkill(string targetSkillDir, string agentName, State? state)
+    {
+        if (state != null && !state.BackupsEnabled)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(targetSkillDir) || !Directory.Exists(targetSkillDir))
+            return null;
+
+        var backupRoot = Path.Combine(GetBackupRoot(), "skills", agentName.ToLowerInvariant());
+        Directory.CreateDirectory(backupRoot);
+
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+        var skillName = Path.GetFileName(targetSkillDir);
+        var backupDir = Path.Combine(backupRoot, $"{timestamp}_{skillName}");
+
+        CopyDirectory(targetSkillDir, backupDir, overwrite: true);
+        return backupDir;
     }
 }
