@@ -4,12 +4,13 @@
   <img src="logomcp.jpg" alt="mcp-cad banner" width="80%">
 </p>
 
-**Give any AI coding agent direct parametric control over Autodesk Inventor.**  
+**Give any AI coding agent direct parametric control over desktop CAD.**  
 Not an app. Not a plugin. An MCP server — infrastructure for the agent-first era of CAD.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/)
 [![80+ tools](https://img.shields.io/badge/tools-80%2B-orange)](docs/tools-reference.md)
+[![Release](https://img.shields.io/badge/release-v0.2.0-brightgreen)](docs/RELEASE.md)
 
 ---
 
@@ -31,7 +32,7 @@ Not an app. Not a plugin. An MCP server — infrastructure for the agent-first e
 | **Model** | Plugin (paid per seat) | Web app (SaaS) | MCP server (free, open source) |
 | **Runs in** | Desktop CAD only | Browser tab | Claude, OpenCode, Cursor, Windsurf, VS Code, Pi — any agent |
 | **Source** | Closed | Closed | MIT — fully open |
-| **CAD engines** | Tied to one vendor | None (browser-only) | Inventor now, SolidWorks & KiCad planned |
+| **CAD engines** | Tied to one vendor | None (browser-only) | Provider-agnostic — Inventor today, SolidWorks in development, KiCad planned |
 | **Control** | High-level prompts | High-level prompts | 80+ atomic tools + 22 composable skills |
 | **Privacy** | Cloud-dependent | Cloud-only | Local — your data never leaves your machine |
 | **Setup** | Manual per-machine | Sign up + account | Download zip + double-click installer (no git/terminal) |
@@ -42,13 +43,13 @@ Existing tools are **apps**. They force you into their UI, their workflow, their
 
 ### What mcp-cad unlocks
 
-**mcp-cad is not an app.** It's an MCP server that any AI coding agent can use as a tool. You stay in your agent (Claude, OpenCode, Cursor, Windsurf, VS Code, Pi) and the agent drives Inventor directly — sketch by sketch, feature by feature, parameter by parameter.
+**mcp-cad is not an app.** It's an MCP server that any AI coding agent can use as a tool. You stay in your agent (Claude, OpenCode, Cursor, Windsurf, VS Code, Pi) and the agent drives your CAD application directly — sketch by sketch, feature by feature, parameter by parameter.
 
 - **80+ atomic tools** — not "generate a bracket", but `sketch_line`, `extrude`, `circular_pattern`, `combine`. Full parametric control.
 - **Tag-based entity resolution** — name geometry `@hole_center` and reference it reliably across operations.
 - **Composable skills** — higher-level abstractions built on the atomic tools, reducing tool calls for common workflows.
 - **Early-bound COM** — no `dynamic`/reflection hacks. Real type safety, real reliability.
-- **Provider-agnostic** — Inventor today, SolidWorks and KiCad tomorrow. Same MCP protocol, any CAD engine.
+- **Provider-agnostic** — same MCP protocol and tool surface across CAD backends. Swap the engine via config, not client changes.
 
 ### Built at AI speed — 8 days, 80+ tools
 
@@ -71,22 +72,21 @@ May 26 → Jun 3, 2026
 
 **Download and click. No git. No terminal. No .NET SDK required.**
 
-1. Go to the [Releases page](https://github.com/Andiveli/mcp-cad/releases)
-2. Download the latest portable package (`mcp-cad-*-portable.zip` or similar)
-3. Extract the zip to any folder (Desktop, Documents, etc.)
-4. **Double-click `McpCad-Install.bat`** (recommended)  
+1. Go to the [Releases page](https://github.com/Andiveli/mcp-cad/releases) and download **v0.2.0** (`mcp-cad-v0.2.0-portable.zip`)
+2. Extract the zip to any folder (Desktop, Documents, etc.)
+3. **Double-click `McpCad-Install.bat`** (recommended)  
    — or directly run `McpCad.Installer.exe`
-5. The **GUI wizard** opens by default (welcome → agent checkboxes + CAD Skills + Backups toggle → progress → finish). Recommended agents are pre-selected.
-6. When you select **any agent** (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), the installer will:
+4. The **GUI wizard** opens by default (welcome → agent checkboxes + CAD Skills + Backups toggle → progress → finish). Recommended agents are pre-selected.
+5. When you select **any agent** (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), the installer will:
    - Register the mcp-cad MCP server for that client
    - Copy the CAD skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, ...) into that agent's skills directory (e.g. `~/.grok/skills/`, `~/.cursor/skills/`, `%APPDATA%/Claude/skills/`, etc.)
    This makes the high-level skills available natively/global to the agent.
-7. The standalone "**CAD Skills**" item deploys the skills to *all* supported agents in one go.
-8. **Advanced:** `McpCad.Installer.exe --tui` for the classic keyboard TUI; `--recommended` / `--all` for non-interactive CLI.
+6. The standalone "**CAD Skills**" item deploys the skills to *all* supported agents in one go.
+7. **Advanced:** `McpCad.Installer.exe --tui` for the classic keyboard TUI; `--recommended` / `--all` for non-interactive CLI.
 
-After it says configured, **restart your AI client** and make sure Inventor is open.
+After it says configured, **restart your AI client** and open your CAD application (**Autodesk Inventor 2025+** in v0.2.0).
 
-That's it. Your AI can now drive Inventor directly.
+That's it. Your AI can now drive CAD directly.
 
 > Tip: `McpCad-Install.bat` launches the GUI wizard. Pass `--tui` or `--recommended` as extra args if needed.
 
@@ -102,12 +102,15 @@ cd mcp-cad
 dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 
+# Or use the portable release script (adds .bat, skills/, README.txt)
+.\scripts\publish-portable.ps1
+
 # Run the installer (GUI default; add -- --tui for Spectre TUI)
 dotnet run --project src/McpCad.Installer
 # or double-click McpCad-Install.bat / McpCad.Installer.exe
 ```
 
-**Prerequisites (dev builds):** Windows 10/11 + Autodesk Inventor 2025+ + .NET 8 SDK (only needed to build).
+**Prerequisites (dev builds):** Windows 10/11 + a supported CAD backend (Inventor 2025+ for v0.2.0) + .NET 8 SDK (only needed to build).
 
 ---
 
@@ -131,7 +134,7 @@ You → AI Agent (Claude / OpenCode / Cursor / Windsurf / VS Code / Pi)
         └── ...
         │
         ▼
-   Early-bound COM → Autodesk Inventor
+   Early-bound COM → CAD backend (Inventor in v0.2.0)
 ```
 
 ---
@@ -154,10 +157,10 @@ src/
 ```
 MCP → ICadProvider (connection, docs, export)
        ├── IMechanicalCadProvider (sketch, 3D, assembly)
-       │   ├── InventorProvider (COM)          ← today
-       │   └── SolidWorksProvider (future)
+       │   ├── InventorProvider (COM)          ← v0.2.0 release
+       │   └── SolidWorksProvider (in development)
        └── IElectronicCadProvider
-           └── KiCadProvider (future)
+           └── KiCadProvider (planned)
 ```
 
 ---
@@ -181,13 +184,24 @@ sketch_circle 3 0 1 tag=perfil   →  extrude profile=@perfil
 
 ## Reliability through feedback
 
-After performing operations, the agent should request feedback to verify the actual state in Inventor (close the loop).
+After performing operations, the agent should request feedback to verify the actual state in your CAD application (close the loop).
 
 mcp-cad supports two complementary approaches:
 - **Visual/multimodal**: `capture_viewport_image` returns Base64 PNG screenshots from standard views (Iso, Front, Top, Right, "Current", etc.). Vision models can directly inspect geometry, bosses, grooves, crown shape, etc.
-- **Structured data**: `get_feature_tree` (Árbol de Operaciones), `get_bounding_box`, and `inspect_edges` give exact names, structure, and measurements without relying on vision.
+- **Structured data**: `get_feature_tree` (feature tree / Árbol de Operaciones), `get_bounding_box`, and `inspect_edges` give exact names, structure, and measurements without relying on vision.
 
 See the [Inspection & Verification section](docs/tools-reference.md#inspection--verification) in the tool reference for details and recommended patterns.
+
+---
+
+## Releases
+
+| Version | Highlights |
+|---------|------------|
+| **[v0.2.0](docs/RELEASE.md#v020)** | GUI installer wizard, portable self-contained package, CAD skills deploy, config backups |
+| [v0.1.0](docs/RELEASE.md#v010) | Initial public release — 80+ Inventor tools, TUI installer, MIT |
+
+Full changelog and publishing instructions: [docs/RELEASE.md](docs/RELEASE.md)
 
 ---
 

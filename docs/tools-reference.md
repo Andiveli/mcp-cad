@@ -1,6 +1,6 @@
 # mcp-cad
 
-MCP server for CAD automation — give AI agents direct parametric control over Autodesk Inventor. Built in C#/.NET 8 with early-bound COM interop for maximum reliability.
+MCP server for CAD automation — give AI agents direct parametric control over desktop CAD. Built in C#/.NET 8 with early-bound COM interop for maximum reliability.
 
 **80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. GUI installer wizard (Spectre TUI via `--tui`).
 
@@ -8,9 +8,10 @@ Works with OpenCode, Claude Desktop, Cursor, Grok, VS Code, Pi, and others.
 
 ## Requirements
 
-- **Windows** with Autodesk Inventor 2025+ installed
+- **Windows** 10/11
+- **CAD application** — Autodesk Inventor 2025+ (v0.2.0 release). SolidWorks support in development.
 
-For the portable release: nothing else (self-contained binaries include everything needed).
+For the [portable release](RELEASE.md#v020): nothing else (self-contained binaries include everything needed).
 
 For building from source: .NET 8 SDK.
 
@@ -20,7 +21,7 @@ For building from source: .NET 8 SDK.
 2. Extract the zip.
 3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`) — opens the **GUI wizard** by default.
 4. Confirm or adjust agent checkboxes (CAD Skills + Backups toggle available), then continue through progress → finish.
-5. Restart your AI client (Claude Desktop, Cursor…). Keep Inventor running.
+5. Restart your AI client (Claude Desktop, Cursor…). Keep your CAD application open (Inventor in v0.2.0).
 
 No git, no `dotnet`, no manual JSON editing.
 
@@ -31,11 +32,14 @@ For developers building from source, see the main [README.md](../README.md).
 ## Tools
 
 ### Connection
+
+> **Note:** v0.2.0 registers `inventor_*` connection tools (Inventor backend). A future release will promote `cad_connect` / `cad_health` / `cad_disconnect` as the primary names, with `inventor_*` kept as backward-compatible aliases.
+
 | Tool | Description |
 |------|-------------|
-| `inventor_connect` | Connect to running Inventor instance |
-| `inventor_health` | Check connection and document state |
-| `inventor_disconnect` | Release COM reference |
+| `inventor_connect` | Connect to the running CAD instance (Inventor in v0.2.0) |
+| `inventor_health` | Check connection and active document state |
+| `inventor_disconnect` | Release COM reference to the CAD application |
 
 ### Documents
 | Tool | Description |
@@ -137,7 +141,7 @@ For developers building from source, see the main [README.md](../README.md).
 
 ### Inspection & Verification
 
-These tools let agents **observe and verify** what actually happened in Inventor after modeling operations (the critical feedback loop for reliable agent-driven CAD).
+These tools let agents **observe and verify** what actually happened in the CAD application after modeling operations (the critical feedback loop for reliable agent-driven CAD).
 
 mcp-cad supports two complementary approaches:
 
@@ -156,7 +160,7 @@ mcp-cad supports two complementary approaches:
 2. Immediately call `capture_viewport_image` (one or more views) + `get_feature_tree` + `get_bounding_box`.
 3. The agent compares the returned state against the intended result and corrects in subsequent steps if needed.
 
-See also `inventor_health` for quick connection + active document status.
+See also `inventor_health` (or `cad_health` in a future release) for quick connection + active document status.
 
 ### Export
 | Tool | Description |
@@ -212,8 +216,8 @@ src/
 ```
 MCP → McpCad.Server → ICadProvider (common: connection, docs, export)
                      ├── IMechanicalCadProvider (sketch, 3D features, …)
-                     │   ├── InventorProvider (COM)
-                     │   └── SolidWorksProvider (future)
+                     │   ├── InventorProvider (COM)   ← v0.2.0
+                     │   └── SolidWorksProvider (in development)
                      └── IElectronicCadProvider (KiCad, future)
 ```
 
@@ -297,6 +301,9 @@ dotnet test tests/McpCad.Tests --filter "FullyQualifiedName~Integration"
 # Publish server + installer (self-contained single-file, best for distribution)
 dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
+
+# End-user portable package (adds .bat, skills/, README.txt) — see docs/RELEASE.md
+.\scripts\publish-portable.ps1
 ```
 
 ## Tags
