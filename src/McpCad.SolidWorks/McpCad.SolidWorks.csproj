@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>McpCad.SolidWorks</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Overridable for CI/non-SW machines (skeleton sufficient when interop absent; ref conditioned).
+         Use SolidWorksPath (or SolidWorksApiRedist) to point to redist dir containing the interop DLLs.
+         When not available (no SolidWorks SDK on machine), the project produces a minimal skeleton assembly
+         (Compile Remove of sources) so that sln builds succeed on non-dev/CI; Server/Tests condition their refs
+         on the path check so they do not depend on SW types. Set SolidWorksPath to enable full SW assembly build. -->
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">$(SolidWorksApiRedist)</SolidWorksPath>
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\api\redist</SolidWorksPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- SolidWorks interop (dev machine only; Private=false per design/tasks for skeleton).
+         Typical path; adjust if multiple SW versions installed. See design.md and tasks.md for alternatives.
+         Conditioned to support non-SW/CI builds of skeleton (types require dll when ref active). -->
+    <Reference Include="SolidWorks.Interop.sldworks" Condition="Exists('$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll')">
+      <HintPath>$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SolidWorks.Interop.swconst" Condition="Exists('$(SolidWorksPath)\SolidWorks.Interop.swconst.dll')">
+      <HintPath>$(SolidWorksPath)\SolidWorks.Interop.swconst.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Source condition for non-SW/CI skeleton builds (per CRITICAL 1, design, tasks CI notes, proposal "build on non-SW machines").
+       When redist absent, do not compile SW-specific sources (avoids unresolved interop types at compile).
+       Project still produces assembly (empty skeleton ok for ref graph); runtime selection requires real build + live SW.
+       This is the mechanism that allows the sln to build on non-dev/CI machines (skeleton sufficient) while still producing a real SW assembly on dev machines with the SDK. -->
+  <ItemGroup Condition="!Exists('$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll')">
+    <Compile Remove="**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\McpCad.Core\McpCad.Core.csproj" />
+  </ItemGroup>
+
+</Project>

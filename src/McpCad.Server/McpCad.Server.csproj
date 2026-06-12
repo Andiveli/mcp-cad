@@ -8,6 +8,11 @@
     <RootNamespace>McpCad.Server</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">$(SolidWorksApiRedist)</SolidWorksPath>
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\api\redist</SolidWorksPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="1.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
@@ -16,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\McpCad.Tools\McpCad.Tools.csproj" />
     <ProjectReference Include="..\McpCad.Inventor\McpCad.Inventor.csproj" />
+    <ProjectReference Include="..\McpCad.SolidWorks\McpCad.SolidWorks.csproj" Condition="Exists('$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll')" />
   </ItemGroup>
 
 </Project>

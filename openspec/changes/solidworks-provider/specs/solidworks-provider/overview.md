@@ -1,0 +1,1 @@
+(Placeholder for additional cross-refs if needed; main content in spec.md and sub-specs)

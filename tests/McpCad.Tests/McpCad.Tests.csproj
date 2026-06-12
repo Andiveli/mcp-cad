@@ -33,6 +33,7 @@
     <ProjectReference Include="..\..\src\McpCad.Core\McpCad.Core.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Tools\McpCad.Tools.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Inventor\McpCad.Inventor.csproj" />
+    <ProjectReference Include="..\..\src\McpCad.SolidWorks\McpCad.SolidWorks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

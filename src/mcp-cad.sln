@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.Tests", "..\tests\Mc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.Installer", "McpCad.Installer\McpCad.Installer.csproj", "{A915F059-886A-4D30-BD3D-2DD1844B4F45}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "McpCad.SolidWorks", "McpCad.SolidWorks\McpCad.SolidWorks.csproj", "{A1B2C3D4-0005-0005-0005-000000000005}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
 		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A915F059-886A-4D30-BD3D-2DD1844B4F45}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0005-0005-0005-000000000005}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
