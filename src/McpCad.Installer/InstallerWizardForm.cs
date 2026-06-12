@@ -11,23 +11,17 @@ namespace McpCad.Installer;
 /// WinForms GUI wizard for the installer (Batch 2 implementation).
 /// Pure code (no .Designer.cs), self-contained.
 /// 4 pages: Welcome, Selection (with Back button), Progress, Finish.
-/// Functional Back navigation between pages.
-/// Recommended set pre-checked by default.
-/// Special handling for "CAD Skills" and "Backups" (updates State.BackupsEnabled).
-/// Progress uses duplicated execution loop (per locked decision: no extraction, no touch to any TUI code in Program.cs).
-/// Real reuse: calls agent.Run?.Invoke(state, agent) exactly as before.
-/// Threading: Task for install work + Control.Invoke for UI updates.
-/// Electric orange accents (#FF5F00).
-/// State path: uses exact same "scripts/tui/state.json" (unchanged per lock).
 /// </summary>
 public class InstallerWizardForm : Form
 {
     private readonly McpAgent[] _agents;
     private readonly State _state;
     private readonly string _serverPath;
-    private readonly string _statePath = "scripts/tui/state.json"; // Exact same as original, unchanged per user lock
+    private readonly string _statePath = "scripts/tui/state.json";
 
-    private int _currentStep = 0; // 0=Welcome, 1=Selection, 2=Progress, 3=Finish
+    private int _currentStep = 0;
+    private readonly Panel _contentHost = new();
+    private readonly Panel _navPanel = new();
     private readonly Panel _welcomePanel = new();
     private readonly Panel _selectionPanel = new();
     private readonly Panel _progressPanel = new();
@@ -42,18 +36,18 @@ public class InstallerWizardForm : Form
     private readonly Label _statusLabel = new();
     private readonly Label _finishSummaryLabel = new();
     private Button? _startInstallButton;
+    private FlowLayoutPanel? _agentFlow;
+    private Panel? _selectionHelpers;
     private bool _installLaunched;
 
     private readonly List<(string Name, bool Success, string Message)> _results = new();
 
-    // Recommended set (from original logic and spec)
     private static readonly string[] Recommended = { "Claude", "Cursor", "Grok", "OpenCode", "CAD Skills" };
-
-    // Electric orange
     private static readonly Color ElectricOrange = Color.FromArgb(255, 95, 0);
 
     private const int NavBarHeight = 58;
-    private const int ContentBottomPadding = 24;
+    private const int PagePadding = 24;
+    private const int BottomActionHeight = 48;
 
     public InstallerWizardForm(McpAgent[] agents, State state, string serverPath)
     {
@@ -61,13 +55,10 @@ public class InstallerWizardForm : Form
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _serverPath = serverPath ?? "";
 
-        // Pre-check recommended + respect any prior Selected / auto-detect (per spec)
         foreach (var agent in _agents)
         {
             if (Recommended.Contains(agent.Name, StringComparer.OrdinalIgnoreCase))
-            {
                 agent.Selected = true;
-            }
         }
 
         InitializeComponents();
@@ -78,12 +69,12 @@ public class InstallerWizardForm : Form
     {
         Text = "mcp-cad Installer";
         StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(720, 560);
-        MinimumSize = new Size(640, 520);
+        Size = new Size(720, 580);
+        MinimumSize = new Size(640, 540);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
+        AutoScaleMode = AutoScaleMode.Font;
 
-        // Common buttons
         _backButton.Text = "Back";
         _backButton.Size = new Size(80, 30);
         _backButton.Click += (_, __) => OnBack();
@@ -99,45 +90,66 @@ public class InstallerWizardForm : Form
         _statusLabel.AutoSize = true;
         _statusLabel.ForeColor = ElectricOrange;
 
-        // Build each page (simple panels toggled by visibility)
         BuildWelcomePanel();
         BuildSelectionPanel();
         BuildProgressPanel();
         BuildFinishPanel();
 
-        // Add all panels (stacked, visibility controlled)
-        Controls.Add(_welcomePanel);
-        Controls.Add(_selectionPanel);
-        Controls.Add(_progressPanel);
-        Controls.Add(_finishPanel);
+        _contentHost.Dock = DockStyle.Fill;
+        _contentHost.Padding = new Padding(PagePadding);
+        _contentHost.Controls.Add(_welcomePanel);
+        _contentHost.Controls.Add(_selectionPanel);
+        _contentHost.Controls.Add(_progressPanel);
+        _contentHost.Controls.Add(_finishPanel);
 
-        // Bottom nav bar (extra height + padding so content does not hug the lower edge)
-        var navPanel = new Panel
+        _navPanel.Dock = DockStyle.Fill;
+        _navPanel.Padding = new Padding(16, 10, 16, 12);
+        _navPanel.BackColor = Color.FromArgb(245, 245, 245);
+        _navPanel.Controls.Add(_backButton);
+        _navPanel.Controls.Add(_nextButton);
+        _navPanel.Controls.Add(_exitButton);
+        _navPanel.Controls.Add(_statusLabel);
+
+        var layout = new TableLayoutPanel
         {
-            Dock = DockStyle.Bottom,
-            Height = NavBarHeight,
-            Padding = new Padding(16, 10, 16, 14),
-            BackColor = Color.FromArgb(245, 245, 245)
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
         };
-        navPanel.Controls.Add(_backButton);
-        navPanel.Controls.Add(_nextButton);
-        navPanel.Controls.Add(_exitButton);
-        navPanel.Controls.Add(_statusLabel);
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, NavBarHeight));
+        layout.Controls.Add(_contentHost, 0, 0);
+        layout.Controls.Add(_navPanel, 0, 1);
+        Controls.Add(layout);
 
+        Resize += (_, __) => LayoutNavButtons();
+        LayoutNavButtons();
+    }
+
+    private void LayoutNavButtons()
+    {
+        var w = _navPanel.ClientSize.Width;
         _backButton.Location = new Point(16, 10);
         _nextButton.Location = new Point(116, 10);
-        _exitButton.Location = new Point(Width - 126, 10);
+        _exitButton.Location = new Point(Math.Max(116, w - 96), 10);
         _statusLabel.Location = new Point(236, 14);
+        _statusLabel.MaximumSize = new Size(Math.Max(120, w - 250), 0);
+    }
 
-        Controls.Add(navPanel);
-
-        // Ensure TUI is never reached from here (GUI path only)
+    private static void ConfigurePagePanel(Panel panel)
+    {
+        panel.Dock = DockStyle.Fill;
+        panel.Visible = false;
+        panel.Padding = Padding.Empty;
     }
 
     private void BuildWelcomePanel()
     {
-        _welcomePanel.Dock = DockStyle.Fill;
-        _welcomePanel.Visible = false;
+        ConfigurePagePanel(_welcomePanel);
+
+        var body = new Panel { Dock = DockStyle.Fill };
 
         var title = new Label
         {
@@ -145,7 +157,7 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 24, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(40, 40)
+            Location = new Point(16, 16)
         };
 
         var subtitle = new Label
@@ -154,7 +166,7 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 14),
             ForeColor = Color.DimGray,
             AutoSize = true,
-            Location = new Point(40, 90)
+            Location = new Point(16, 66)
         };
 
         var explanation = new Label
@@ -162,15 +174,11 @@ public class InstallerWizardForm : Form
             Text = "Connect your AI tools (Claude, Cursor, Grok, etc.) to Autodesk Inventor.\nNo terminal or complex setup needed.\n\nDownload the portable package, double-click, and follow the simple wizard.\n\nThe mcp-cad server gives your AI direct parametric control over Inventor\n(sketch, extrude, patterns, assemblies, and more).",
             Font = new Font("Segoe UI", 11),
             AutoSize = true,
-            MaximumSize = new Size(620, 200),
-            Location = new Point(40, 140)
+            MaximumSize = new Size(620, 220),
+            Location = new Point(16, 110)
         };
 
-        var nextBtn = new Button { Text = "Get Started", Size = new Size(140, 36), Location = new Point(40, 360) };
-        nextBtn.Click += (_, __) => OnNext();
-
-        var exitBtn = new Button { Text = "Exit", Size = new Size(80, 36), Location = new Point(200, 360) };
-        exitBtn.Click += (_, __) => Close();
+        body.Controls.AddRange(new Control[] { title, subtitle, explanation });
 
         if (string.IsNullOrEmpty(_serverPath))
         {
@@ -181,18 +189,35 @@ public class InstallerWizardForm : Form
                 ForeColor = Color.DarkRed,
                 AutoSize = true,
                 MaximumSize = new Size(620, 60),
-                Location = new Point(40, 340)
+                Location = new Point(16, 300)
             };
-            _welcomePanel.Controls.Add(serverWarning);
+            body.Controls.Add(serverWarning);
         }
 
-        _welcomePanel.Controls.AddRange(new Control[] { title, subtitle, explanation, nextBtn, exitBtn });
+        var actions = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = BottomActionHeight,
+            Padding = new Padding(16, 8, 16, 0)
+        };
+
+        var nextBtn = new Button { Text = "Get Started", Size = new Size(140, 36), Location = new Point(0, 4) };
+        nextBtn.Click += (_, __) => OnNext();
+
+        var exitBtn = new Button { Text = "Exit", Size = new Size(80, 36), Location = new Point(150, 4) };
+        exitBtn.Click += (_, __) => Close();
+
+        actions.Controls.AddRange(new Control[] { nextBtn, exitBtn });
+
+        _welcomePanel.Controls.Add(body);
+        _welcomePanel.Controls.Add(actions);
     }
 
     private void BuildSelectionPanel()
     {
-        _selectionPanel.Dock = DockStyle.Fill;
-        _selectionPanel.Visible = false;
+        ConfigurePagePanel(_selectionPanel);
+
+        var header = new Panel { Dock = DockStyle.Top, Height = 88, Padding = new Padding(6, 0, 6, 0) };
 
         var title = new Label
         {
@@ -200,7 +225,7 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(30, 20)
+            Location = new Point(0, 0)
         };
 
         var hint = new Label
@@ -209,18 +234,36 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 9),
             ForeColor = Color.DimGray,
             AutoSize = true,
-            MaximumSize = new Size(650, 40),
-            Location = new Point(30, 55)
+            MaximumSize = new Size(640, 44),
+            Location = new Point(0, 34)
         };
 
-        var flow = new FlowLayoutPanel
+        header.Controls.Add(title);
+        header.Controls.Add(hint);
+
+        _selectionHelpers = new Panel
         {
-            Location = new Point(30, 100),
-            Size = new Size(650, 248),
+            Dock = DockStyle.Bottom,
+            Height = BottomActionHeight,
+            Padding = new Padding(6, 8, 6, 0)
+        };
+
+        var recBtn = new Button { Text = "Recommended", Size = new Size(110, 28), Location = new Point(0, 4) };
+        recBtn.Click += (_, __) => SetRecommended();
+        var allBtn = new Button { Text = "Select All", Size = new Size(90, 28), Location = new Point(120, 4) };
+        allBtn.Click += (_, __) => SetAll(true);
+        var noneBtn = new Button { Text = "None", Size = new Size(70, 28), Location = new Point(220, 4) };
+        noneBtn.Click += (_, __) => SetAll(false);
+
+        _selectionHelpers.Controls.AddRange(new Control[] { recBtn, allBtn, noneBtn });
+
+        _agentFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
             AutoScroll = true,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Padding = new Padding(0, 0, 0, ContentBottomPadding)
+            Padding = new Padding(6, 4, 6, 8)
         };
 
         _agentCheckBoxes.Clear();
@@ -248,7 +291,7 @@ public class InstallerWizardForm : Form
                 MaximumSize = new Size(455, 44)
             };
 
-            cb.CheckedChanged += (s, e) =>
+            cb.CheckedChanged += (_, __) =>
             {
                 agent.Selected = cb.Checked;
 
@@ -275,34 +318,19 @@ public class InstallerWizardForm : Form
 
             container.Controls.Add(cb);
             container.Controls.Add(desc);
-            flow.Controls.Add(container);
+            _agentFlow.Controls.Add(container);
             _agentCheckBoxes.Add(cb);
         }
 
-        var helpers = new Panel { Location = new Point(30, 358), Size = new Size(650, 30) };
-        var recBtn = new Button { Text = "Recommended", Size = new Size(110, 26), Location = new Point(0, 0) };
-        recBtn.Click += (_, __) => SetRecommended();
-        var allBtn = new Button { Text = "Select All", Size = new Size(90, 26), Location = new Point(120, 0) };
-        allBtn.Click += (_, __) => SetAll(true);
-        var noneBtn = new Button { Text = "None", Size = new Size(70, 26), Location = new Point(220, 0) };
-        noneBtn.Click += (_, __) => SetAll(false);
-
-        helpers.Controls.AddRange(new Control[] { recBtn, allBtn, noneBtn });
-
-        _selectionPanel.Controls.Add(title);
-        _selectionPanel.Controls.Add(hint);
-        _selectionPanel.Controls.Add(flow);
-        _selectionPanel.Controls.Add(helpers);
-
-        // Navigation will be handled by common _backButton / _nextButton
+        _selectionPanel.Controls.Add(_agentFlow);
+        _selectionPanel.Controls.Add(_selectionHelpers);
+        _selectionPanel.Controls.Add(header);
     }
 
     private void SetRecommended()
     {
         foreach (var agent in _agents)
-        {
             agent.Selected = Recommended.Contains(agent.Name, StringComparer.OrdinalIgnoreCase);
-        }
         RefreshSelectionCheckboxes();
     }
 
@@ -310,7 +338,8 @@ public class InstallerWizardForm : Form
     {
         foreach (var agent in _agents)
         {
-            if (agent.Name != "Backups") agent.Selected = value; // Backups is separate toggle
+            if (agent.Name != "Backups")
+                agent.Selected = value;
         }
         RefreshSelectionCheckboxes();
     }
@@ -318,15 +347,12 @@ public class InstallerWizardForm : Form
     private void RefreshSelectionCheckboxes()
     {
         for (int i = 0; i < _agents.Length && i < _agentCheckBoxes.Count; i++)
-        {
             _agentCheckBoxes[i].Checked = _agents[i].Selected;
-        }
     }
 
     private void BuildProgressPanel()
     {
-        _progressPanel.Dock = DockStyle.Fill;
-        _progressPanel.Visible = false;
+        ConfigurePagePanel(_progressPanel);
 
         var title = new Label
         {
@@ -334,23 +360,31 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(30, 20)
+            Dock = DockStyle.Top,
+            Padding = new Padding(6, 0, 6, 8)
         };
 
-        _progressListView.Location = new Point(30, 60);
-        _progressListView.Size = new Size(650, 290);
+        var progressActions = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = BottomActionHeight,
+            Padding = new Padding(6, 8, 6, 0)
+        };
+
+        _startInstallButton = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(0, 4) };
+        _startInstallButton.Click += async (_, __) => await RunInstallAsync(_startInstallButton);
+        progressActions.Controls.Add(_startInstallButton);
+
+        _progressListView.Dock = DockStyle.Fill;
         _progressListView.View = View.Details;
         _progressListView.FullRowSelect = true;
         _progressListView.Columns.Add("Agent", 140);
         _progressListView.Columns.Add("Status", 100);
         _progressListView.Columns.Add("Details", 400);
 
-        _startInstallButton = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(30, 368) };
-        _startInstallButton.Click += async (_, __) => await RunInstallAsync(_startInstallButton);
-
-        _progressPanel.Controls.Add(title);
         _progressPanel.Controls.Add(_progressListView);
-        _progressPanel.Controls.Add(_startInstallButton);
+        _progressPanel.Controls.Add(progressActions);
+        _progressPanel.Controls.Add(title);
     }
 
     private static bool HasInstallableSelection(McpAgent[] agents) =>
@@ -367,7 +401,6 @@ public class InstallerWizardForm : Form
         _progressListView.Items.Clear();
         _results.Clear();
 
-        // Collect selected (exclude Backups item itself from execution)
         var selected = _agents.Where(a => a.Selected && a.Name != "Backups").ToArray();
 
         if (selected.Length == 0)
@@ -387,12 +420,10 @@ public class InstallerWizardForm : Form
             })
             .ToArray();
 
-        // DUPLICATED execution loop (per explicit user lock: inside the form, no extraction, no touch to TUI code)
         await Task.Run(() =>
         {
             foreach (var (agent, item) in progressItems)
             {
-
                 UpdateProgressItem(item, agent.Name, "Running...", "");
 
                 try
@@ -400,7 +431,6 @@ public class InstallerWizardForm : Form
                     var msg = agent.Run?.Invoke(_state, agent) ?? "unknown";
                     _results.Add((agent.Name, true, msg));
                     _state.LastAgent = agent.Name;
-
                     UpdateProgressItem(item, agent.Name, "OK", msg.Length > 80 ? msg[..80] + "..." : msg);
                 }
                 catch (Exception ex)
@@ -413,7 +443,6 @@ public class InstallerWizardForm : Form
             _state.Save(_statePath);
         });
 
-        // Move to finish
         _currentStep = 3;
         ShowStep(3);
     }
@@ -437,8 +466,9 @@ public class InstallerWizardForm : Form
 
     private void BuildFinishPanel()
     {
-        _finishPanel.Dock = DockStyle.Fill;
-        _finishPanel.Visible = false;
+        ConfigurePagePanel(_finishPanel);
+
+        var header = new Panel { Dock = DockStyle.Top, Height = 72, Padding = new Padding(6, 0, 6, 0) };
 
         var title = new Label
         {
@@ -446,21 +476,24 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(30, 20)
+            Location = new Point(0, 0)
         };
 
         _finishSummaryLabel.Text = "";
         _finishSummaryLabel.Font = new Font("Segoe UI", 11);
         _finishSummaryLabel.AutoSize = true;
-        _finishSummaryLabel.Location = new Point(30, 55);
+        _finishSummaryLabel.Location = new Point(0, 36);
+        _finishSummaryLabel.MaximumSize = new Size(640, 40);
 
-        _finishListView.Location = new Point(30, 90);
-        _finishListView.Size = new Size(650, 200);
-        _finishListView.View = View.Details;
-        _finishListView.FullRowSelect = true;
-        _finishListView.Columns.Add("Agent", 140);
-        _finishListView.Columns.Add("Status", 80);
-        _finishListView.Columns.Add("Details", 420);
+        header.Controls.Add(title);
+        header.Controls.Add(_finishSummaryLabel);
+
+        var finishActions = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 96,
+            Padding = new Padding(6, 8, 6, 0)
+        };
 
         var nextSteps = new Label
         {
@@ -468,13 +501,14 @@ public class InstallerWizardForm : Form
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,
-            Location = new Point(30, 310)
+            Location = new Point(0, 0),
+            MaximumSize = new Size(640, 32)
         };
 
-        var closeBtn = new Button { Text = "Close", Size = new Size(100, 36), Location = new Point(30, 350) };
+        var closeBtn = new Button { Text = "Close", Size = new Size(100, 36), Location = new Point(0, 40) };
         closeBtn.Click += (_, __) => Application.Exit();
 
-        var backupsBtn = new Button { Text = "Open Backups Folder", Size = new Size(160, 36), Location = new Point(150, 350) };
+        var backupsBtn = new Button { Text = "Open Backups Folder", Size = new Size(160, 36), Location = new Point(120, 40) };
         backupsBtn.Click += (_, __) =>
         {
             try
@@ -487,9 +521,18 @@ public class InstallerWizardForm : Form
             catch { /* best effort */ }
         };
 
-        _finishPanel.Controls.AddRange(new Control[] { title, _finishSummaryLabel, _finishListView, nextSteps, closeBtn, backupsBtn });
+        finishActions.Controls.AddRange(new Control[] { nextSteps, closeBtn, backupsBtn });
 
-        // summary and list are populated in ShowStep(3)
+        _finishListView.Dock = DockStyle.Fill;
+        _finishListView.View = View.Details;
+        _finishListView.FullRowSelect = true;
+        _finishListView.Columns.Add("Agent", 140);
+        _finishListView.Columns.Add("Status", 80);
+        _finishListView.Columns.Add("Details", 420);
+
+        _finishPanel.Controls.Add(_finishListView);
+        _finishPanel.Controls.Add(finishActions);
+        _finishPanel.Controls.Add(header);
     }
 
     private void ShowStep(int step)
@@ -516,7 +559,7 @@ public class InstallerWizardForm : Form
         else if (step == 2)
         {
             _nextButton.Text = "Next";
-            _nextButton.Enabled = false; // enabled after progress or via finish
+            _nextButton.Enabled = false;
         }
 
         if (step == 3)
@@ -534,6 +577,8 @@ public class InstallerWizardForm : Form
             3 => "Done — follow the next steps below",
             _ => ""
         };
+
+        LayoutNavButtons();
     }
 
     private void PopulateFinish()
@@ -556,23 +601,17 @@ public class InstallerWizardForm : Form
             _finishListView.Items.Add(item);
         }
 
-        // If no results (e.g. only Backups or CAD Skills edge), show the agents that were selected
         if (_results.Count == 0)
         {
-            var selected = _agents.Where(a => a.Selected).ToList();
-            foreach (var a in selected)
-            {
+            foreach (var a in _agents.Where(a => a.Selected))
                 _finishListView.Items.Add(new ListViewItem(new[] { a.Name, "See details in progress", "" }));
-            }
         }
     }
 
     private void OnBack()
     {
         if (_currentStep > 0)
-        {
             ShowStep(_currentStep - 1);
-        }
     }
 
     private void OnNext()
@@ -609,11 +648,5 @@ public class InstallerWizardForm : Form
         {
             ShowStep(_currentStep + 1);
         }
-    }
-
-    protected override void OnFormClosing(FormClosingEventArgs e)
-    {
-        base.OnFormClosing(e);
-        // Ensure clean exit for the GUI path (TUI path is never reached from here)
     }
 }
