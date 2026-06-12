@@ -30,6 +30,7 @@ public class Program
         "                 MCP-CAD"
     };
 
+    [STAThread]
     public static void Main(string[] args)
     {
         _state = State.Load(StatePath);
@@ -174,15 +175,22 @@ public class Program
                     }
                     else if (_selectedIdx == continueIndex)
                     {
-                        var selected = _agents.Where(a => a.Selected && a.Name != "Backups").ToArray();
-                        if (selected.Length == 0)
+                        if (string.IsNullOrEmpty(serverPath))
                         {
-                            _status = "[yellow]No agents selected. Move up and use Space to toggle some.[/]";
+                            _status = "[red]Server not found. Place McpCad.Server.exe next to this installer before continuing.[/]";
                         }
                         else
                         {
-                            InstallSelected(selected);
-                            inSelection = false; // move to success screen
+                            var selected = _agents.Where(a => a.Selected && a.Name != "Backups").ToArray();
+                            if (selected.Length == 0)
+                            {
+                                _status = "[yellow]No agents selected. Move up and use Space to toggle some.[/]";
+                            }
+                            else
+                            {
+                                InstallSelected(selected);
+                                inSelection = false;
+                            }
                         }
                     }
                     else if (_selectedIdx == exitIndex)
@@ -363,6 +371,7 @@ public class Program
         Console.WriteLine();
 
         bool any = false;
+        var failures = 0;
         foreach (var agent in _agents.Where(a => a.Selected && a.Name != "Backups"))
         {
             any = true;
@@ -374,6 +383,7 @@ public class Program
             }
             catch (Exception ex)
             {
+                failures++;
                 Console.WriteLine($"❌ {agent.Name}: FAILED — {ex.Message}");
             }
         }
@@ -383,6 +393,11 @@ public class Program
         if (!any)
         {
             Console.WriteLine("No agents were selected. Use --recommended, --all or --agents ...");
+            Environment.ExitCode = 1;
+        }
+        else if (failures > 0)
+        {
+            Environment.ExitCode = 1;
         }
         else
         {

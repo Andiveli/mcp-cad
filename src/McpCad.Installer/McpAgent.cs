@@ -210,8 +210,18 @@ public static class McpAgents
         return idx >= 0 && int.TryParse(name[(idx + 1)..], out var v) ? v : -1;
     }
 
+    private static void EnsureServerPath(string serverPath)
+    {
+        if (string.IsNullOrWhiteSpace(serverPath))
+            throw new InvalidOperationException(
+                "Could not locate McpCad.Server.exe next to the installer. " +
+                "Extract the full portable package so McpCad.Server.exe and McpCad.Installer.exe are in the same folder.");
+    }
+
     private static string RegisterWithSchema(string configPath, string serverPath, string parentKey, string type, string agentName, State? state = null)
     {
+        EnsureServerPath(serverPath);
+
         // Backup config files before modifying (unless user disabled backups)
         var backupPath = BackupConfigFile(configPath, agentName, state);
 
@@ -230,6 +240,8 @@ public static class McpAgents
 
     private static string RegisterGrok(string configPath, string serverPath, string agentName, State? state = null)
     {
+        EnsureServerPath(serverPath);
+
         // Backup config files before modifying (unless user disabled backups)
         var backupPath = BackupConfigFile(configPath, agentName, state);
 

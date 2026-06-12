@@ -40,6 +40,8 @@ public class InstallerWizardForm : Form
     private readonly Button _nextButton = new();
     private readonly Button _exitButton = new();
     private readonly Label _statusLabel = new();
+    private readonly Label _finishSummaryLabel = new();
+    private Button? _startInstallButton;
 
     private readonly List<(string Name, bool Success, string Message)> _results = new();
 
@@ -160,6 +162,20 @@ public class InstallerWizardForm : Form
         var exitBtn = new Button { Text = "Exit", Size = new Size(80, 36), Location = new Point(200, 380) };
         exitBtn.Click += (_, __) => Close();
 
+        if (string.IsNullOrEmpty(_serverPath))
+        {
+            var serverWarning = new Label
+            {
+                Text = "Server not found — place McpCad.Server.exe next to this installer before continuing.",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.DarkRed,
+                AutoSize = true,
+                MaximumSize = new Size(620, 60),
+                Location = new Point(40, 340)
+            };
+            _welcomePanel.Controls.Add(serverWarning);
+        }
+
         _welcomePanel.Controls.AddRange(new Control[] { title, subtitle, explanation, nextBtn, exitBtn });
     }
 
@@ -228,11 +244,14 @@ public class InstallerWizardForm : Form
                 if (agent.Name == "Backups")
                 {
                     _state.BackupsEnabled = cb.Checked;
-                    // Update description live (mirrors original TUI behavior)
+                    _state.Save(_statePath);
                     desc.Text = _state.BackupsEnabled
                         ? "Enabled — uncheck to disable (recommended for safety)"
                         : "Disabled — check to enable (not recommended)";
                 }
+
+                if (_currentStep == 1)
+                    _nextButton.Enabled = HasInstallableSelection();
             };
 
             if (agent.Name == "Backups")
@@ -315,13 +334,18 @@ public class InstallerWizardForm : Form
         _progressListView.Columns.Add("Status", 100);
         _progressListView.Columns.Add("Details", 400);
 
-        var startBtn = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(30, 400) };
-        startBtn.Click += async (_, __) => await RunInstallAsync(startBtn);
+        _startInstallButton = new Button { Text = "Start Installation", Size = new Size(160, 32), Location = new Point(30, 400) };
+        _startInstallButton.Click += async (_, __) => await RunInstallAsync(_startInstallButton);
 
         _progressPanel.Controls.Add(title);
         _progressPanel.Controls.Add(_progressListView);
-        _progressPanel.Controls.Add(startBtn);
+        _progressPanel.Controls.Add(_startInstallButton);
     }
+
+    private static bool HasInstallableSelection(McpAgent[] agents) =>
+        agents.Any(a => a.Selected && a.Name != "Backups");
+
+    private bool HasInstallableSelection() => HasInstallableSelection(_agents);
 
     private async Task RunInstallAsync(Button startBtn)
     {
@@ -343,21 +367,20 @@ public class InstallerWizardForm : Form
             return;
         }
 
-        // Populate list
-        foreach (var agent in selected)
-        {
-            var item = new ListViewItem(new[] { agent.Name, "Pending...", "" });
-            _progressListView.Items.Add(item);
-        }
+        var progressItems = selected
+            .Select(agent =>
+            {
+                var item = new ListViewItem(new[] { agent.Name, "Pending...", "" });
+                _progressListView.Items.Add(item);
+                return (agent, item);
+            })
+            .ToArray();
 
         // DUPLICATED execution loop (per explicit user lock: inside the form, no extraction, no touch to TUI code)
-        // This mirrors the logic from InstallSelected / RunSelectedAgentsAndExit but is duplicated here.
         await Task.Run(() =>
         {
-            for (int i = 0; i < selected.Length; i++)
+            foreach (var (agent, item) in progressItems)
             {
-                var agent = selected[i];
-                var item = _progressListView.Items[i];
 
                 UpdateProgressItem(item, agent.Name, "Running...", "");
 
@@ -415,13 +438,10 @@ public class InstallerWizardForm : Form
             Location = new Point(30, 20)
         };
 
-        var summary = new Label
-        {
-            Text = "",
-            Font = new Font("Segoe UI", 11),
-            AutoSize = true,
-            Location = new Point(30, 55)
-        };
+        _finishSummaryLabel.Text = "";
+        _finishSummaryLabel.Font = new Font("Segoe UI", 11);
+        _finishSummaryLabel.AutoSize = true;
+        _finishSummaryLabel.Location = new Point(30, 55);
 
         _finishListView.Location = new Point(30, 90);
         _finishListView.Size = new Size(650, 220);
@@ -456,7 +476,7 @@ public class InstallerWizardForm : Form
             catch { /* best effort */ }
         };
 
-        _finishPanel.Controls.AddRange(new Control[] { title, summary, _finishListView, nextSteps, closeBtn, backupsBtn });
+        _finishPanel.Controls.AddRange(new Control[] { title, _finishSummaryLabel, _finishListView, nextSteps, closeBtn, backupsBtn });
 
         // summary and list are populated in ShowStep(3)
     }
@@ -480,7 +500,7 @@ public class InstallerWizardForm : Form
         if (step == 1)
         {
             _nextButton.Text = "Continue";
-            _nextButton.Enabled = _agents.Any(a => a.Selected && a.Name != "Backups" || a.Name == "CAD Skills");
+            _nextButton.Enabled = HasInstallableSelection();
         }
         else if (step == 2)
         {
@@ -511,6 +531,10 @@ public class InstallerWizardForm : Form
 
         var successCount = _results.Count(r => r.Success);
         var failCount = _results.Count - successCount;
+
+        _finishSummaryLabel.Text = failCount == 0
+            ? $"Successfully configured {successCount} agent(s)."
+            : $"Configured {successCount} agent(s); {failCount} had issues.";
 
         foreach (var (name, success, msg) in _results)
         {
@@ -544,17 +568,26 @@ public class InstallerWizardForm : Form
     {
         if (_currentStep == 1)
         {
-            // Validate selection
-            var hasSelection = _agents.Any(a => a.Selected && (a.Name != "Backups" || _state.BackupsEnabled));
-            if (!hasSelection)
+            if (!HasInstallableSelection())
             {
                 MessageBox.Show("Please select at least one agent (or CAD Skills).", "mcp-cad Installer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
+            if (string.IsNullOrEmpty(_serverPath))
+            {
+                MessageBox.Show(
+                    "Could not locate McpCad.Server.exe next to the installer.\n\n" +
+                    "Extract the full portable package so McpCad.Server.exe and McpCad.Installer.exe are in the same folder.",
+                    "mcp-cad Installer",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return;
+            }
+
             ShowStep(2);
-            // Auto-start progress for better UX (or user can click Start in progress panel)
-            // For simplicity, user clicks "Start Installation" in the progress panel as per design.
+            if (_startInstallButton is not null)
+                _ = RunInstallAsync(_startInstallButton);
         }
         else if (_currentStep < 3)
         {
