@@ -39,8 +39,20 @@ Added a Windows Forms GUI wizard to `McpCad.Installer` as the **default** experi
 - State path `scripts/tui/state.json` — **unchanged**
 - Strict TDD during apply batches — documented in apply-progress
 
-## Follow-ups (out of archive scope)
+## Post-Archive Completion (2026-06-12)
 
-- Manual GUI E2E on clean Windows VM (verify-report matrix)
-- Full portable publish when branch WIP (template/macro tools) no longer breaks Server build
-- Merge `feature/tui-improvements` → `main` when ready
+| Commit | Scope |
+|--------|-------|
+| `62c47d4` | Judgment Day Round 1 fixes (server guard, threading, validation, CLI exit codes) |
+| `1ffb13d` | Bat exit-code propagation; GUI double-click guard |
+| `e680159` | MCP path labels for all agents; initial padding |
+| `a6f0926` | TableLayoutPanel layout — page controls no longer under nav bar |
+
+**Judgment Day**: `JUDGMENT: APPROVED ✅` (installer slice)  
+**Manual E2E**: User confirmed GUI + TUI functional on Windows (2026-06-12)  
+**Merge**: `feature/tui-improvements` → `main` (closure commit)
+
+## Follow-ups (out of scope — installer slice closed)
+
+- Full portable publish when unrelated Server WIP no longer breaks `publish-portable.ps1`
+- Optional: `--no-backups` CLI flag

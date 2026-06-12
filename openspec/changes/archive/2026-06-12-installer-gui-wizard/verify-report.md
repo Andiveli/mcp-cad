@@ -79,8 +79,17 @@
 | TUI / CLI regressions | PASS (code review; no TUI loop edits) |
 | Manual Windows portable E2E | DEFERRED (user-driven) |
 
+## Post-Closure Update (2026-06-12)
+
+- Judgment Day Round 1–2 fixes applied (`62c47d4` … `a6f0926`)
+- User manual GUI walkthrough: **PASS** (layout, paths, install flow)
+- User manual TUI (`--tui`): **PASS**
+- Judgment Day final: **APPROVED**
+
+Deferred items from original verify (manual matrix, full Server+Installer portable) remain optional follow-ups; **installer slice declared complete**.
+
 ## Verdict
 
-**PASS WITH WARNINGS** — Implementation complete and faithful. Installer builds and publishes; CLI contract verified. Full portable zip (Server+Installer) and interactive GUI matrix pending clean branch + manual Windows session.
+**PASS** — Shipped on `main`. GUI default, Spectre `--tui`, CLI flags, skills, backups, JD fixes, and user E2E confirmed.
 
-**Ready for sdd-archive.**
+**SDD cycle closed.**
