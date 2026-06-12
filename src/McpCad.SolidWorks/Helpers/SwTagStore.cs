@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 
 namespace McpCad.SolidWorks.Helpers;
 
@@ -19,13 +20,20 @@ public class SwTagStore
     /// <summary>
     /// Store a tag for a sketch entity (called from SketchManager on create with tag=).
     /// entityRef: the real API object (ISketchSegment etc) returned by CreateLine/CreateCircle. Stored directly (not a string name).
+    /// Releases previous COM ref if overwriting (CRITICAL 3 fix).
     /// </summary>
     public void SetTag(string sketchKey, string tag, object entityRef)
     {
         if (string.IsNullOrWhiteSpace(sketchKey) || string.IsNullOrWhiteSpace(tag) || entityRef == null)
             return;
         string clean = tag.TrimStart('@');
-        _store[(sketchKey, clean)] = entityRef;
+        var key = (sketchKey, clean);
+
+        // Release previous value if overwriting (COM ref may have been replaced)
+        if (_store.TryRemove(key, out var oldRef))
+            ReleaseComObjectSafe(oldRef);
+
+        _store[key] = entityRef;
     }
 
     /// <summary>
@@ -43,7 +51,32 @@ public class SwTagStore
     }
 
     /// <summary>
-    /// Clear for test isolation (MVP).
+    /// Clear all tags, releasing any stored COM references (CRITICAL 3 fix).
+    /// Best-effort: swallows per-value exceptions so one bad ref doesn't block the rest.
     /// </summary>
-    public void Clear() => _store.Clear();
+    public void Clear()
+    {
+        foreach (var key in _store.Keys)
+        {
+            if (_store.TryRemove(key, out var refVal))
+                ReleaseComObjectSafe(refVal);
+        }
+    }
+
+    /// <summary>
+    /// Best-effort ReleaseComObject for potentially-COM references.
+    /// Safe for non-COM objects (string, plain object, etc.) — catches and swallows.
+    /// </summary>
+    private static void ReleaseComObjectSafe(object obj)
+    {
+        try
+        {
+            if (obj != null && Marshal.IsComObject(obj))
+                Marshal.ReleaseComObject(obj);
+        }
+        catch
+        {
+            // Best-effort per CRITICAL 3: COM release should never crash the caller
+        }
+    }
 }
