@@ -42,6 +42,7 @@ public class InstallerWizardForm : Form
     private readonly Label _statusLabel = new();
     private readonly Label _finishSummaryLabel = new();
     private Button? _startInstallButton;
+    private bool _installLaunched;
 
     private readonly List<(string Name, bool Success, string Message)> _results = new();
 
@@ -568,6 +569,9 @@ public class InstallerWizardForm : Form
     {
         if (_currentStep == 1)
         {
+            if (_installLaunched)
+                return;
+
             if (!HasInstallableSelection())
             {
                 MessageBox.Show("Please select at least one agent (or CAD Skills).", "mcp-cad Installer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -585,11 +589,13 @@ public class InstallerWizardForm : Form
                 return;
             }
 
+            _installLaunched = true;
+            _nextButton.Enabled = false;
             ShowStep(2);
             if (_startInstallButton is not null)
                 _ = RunInstallAsync(_startInstallButton);
         }
-        else if (_currentStep < 3)
+        else if (_currentStep < 3 && !_installLaunched)
         {
             ShowStep(_currentStep + 1);
         }

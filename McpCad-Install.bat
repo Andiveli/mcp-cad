@@ -28,8 +28,13 @@ echo (Pass --tui for classic keyboard TUI, or --recommended for one-click CLI.)
 echo.
 
 "%EXE%" %*
+set "INST_EXIT=%ERRORLEVEL%"
 
 echo.
+if not "%INST_EXIT%"=="0" (
+    echo [ERROR] Installer exited with code %INST_EXIT%.
+    echo.
+)
 echo ===============================================
 echo Installation finished (or check messages above).
 echo.
@@ -39,4 +44,4 @@ echo   - Keep Autodesk Inventor running when using the AI
 echo ===============================================
 echo.
 pause
-endlocal
+endlocal & exit /b %INST_EXIT%
