@@ -162,7 +162,7 @@ public class InstallerWizardForm : Form
 
         var subtitle = new Label
         {
-            Text = "AI + Autodesk Inventor",
+            Text = "AI + parametric CAD",
             Font = new Font("Segoe UI", 14),
             ForeColor = Color.DimGray,
             AutoSize = true,
@@ -171,7 +171,7 @@ public class InstallerWizardForm : Form
 
         var explanation = new Label
         {
-            Text = "Connect your AI tools (Claude, Cursor, Grok, etc.) to Autodesk Inventor.\nNo terminal or complex setup needed.\n\nDownload the portable package, double-click, and follow the simple wizard.\n\nThe mcp-cad server gives your AI direct parametric control over Inventor\n(sketch, extrude, patterns, assemblies, and more).",
+            Text = "Connect your AI tools (Claude, Cursor, Grok, etc.) to your CAD software.\nNo terminal or complex setup needed.\n\nDownload the portable package, double-click, and follow the simple wizard.\n\nThe mcp-cad server gives your AI direct parametric control over supported CAD engines\n(Inventor, SolidWorks — sketch, extrude, patterns, assemblies, and more).",
             Font = new Font("Segoe UI", 11),
             AutoSize = true,
             MaximumSize = new Size(620, 220),
@@ -497,7 +497,7 @@ public class InstallerWizardForm : Form
 
         var nextSteps = new Label
         {
-            Text = "Close & reopen your AI client(s). Keep Inventor running.",
+            Text = "Close & reopen your AI client(s). Keep your CAD app running (Inventor or SolidWorks).",
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
             ForeColor = ElectricOrange,
             AutoSize = true,

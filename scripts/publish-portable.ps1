@@ -63,7 +63,7 @@ if (Test-Path "skills") {
 
 # Copy a minimal user readme
 $readme = @"
-mcp-cad - AI control for Autodesk Inventor (MCP server)
+mcp-cad - AI control for parametric CAD (MCP server)
 
 EASIEST WAY:
   Double-click McpCad-Install.bat
@@ -75,11 +75,11 @@ ALTERNATIVE:
 
 REQUIREMENTS:
   - Windows 10/11
-  - Autodesk Inventor 2025 or newer (must be running when the AI uses tools)
+  - A supported CAD application (Inventor or SolidWorks) running when the AI uses tools
 
 After installation:
   1. Fully close and reopen your AI client (especially Grok).
-  2. Open Inventor.
+  2. Open your CAD application (Inventor or SolidWorks).
   3. Talk to your AI: "Create a 80x60mm plate with 4 holes..."
 
 When you select any agent (Grok, Cursor, Claude, VS Code, etc.), the installer now:

@@ -4,7 +4,7 @@ title mcp-cad Installer
 
 echo.
 echo ===============================================
-echo   mcp-cad - AI + Autodesk Inventor
+echo   mcp-cad - AI + parametric CAD
 echo   One-click installer for Claude, Cursor, etc.
 echo ===============================================
 echo.
@@ -40,7 +40,7 @@ echo Installation finished (or check messages above).
 echo.
 echo Remember:
 echo   - Restart your AI client (Claude Desktop / Cursor / ...)
-echo   - Keep Autodesk Inventor running when using the AI
+echo   - Keep your CAD app running when using the AI (Inventor or SolidWorks)
 echo ===============================================
 echo.
 pause

@@ -347,7 +347,7 @@ public class Program
             // After any successful registration, show friendly next steps once
             if (!_status.Contains("Next steps"))
             {
-                _status += "\n[green]Great![/] Close & reopen your AI client. Inventor must be running when you chat with the agent.";
+                _status += "\n[green]Great![/] Close & reopen your AI client. Your CAD app (Inventor or SolidWorks) must be running when you chat with the agent.";
             }
         }
         catch (Exception ex)
@@ -404,10 +404,10 @@ public class Program
             Console.WriteLine();
             Console.WriteLine("Done. Next steps:");
             Console.WriteLine("  1. Close completely and reopen the AI tool(s) you configured (Claude Desktop, Cursor, etc.).");
-            Console.WriteLine("  2. Have Autodesk Inventor 2025 or newer running.");
+            Console.WriteLine("  2. Have your CAD application running (Inventor or SolidWorks).");
             Console.WriteLine("  3. In the chat, say something like: \"Create a new part and sketch a 50mm square.\"");
             Console.WriteLine();
-            Console.WriteLine("The AI will now have direct access to Inventor's modeling tools via mcp-cad.");
+            Console.WriteLine("The AI will now have direct access to your CAD modeling tools via mcp-cad.");
         }
     }
 
