@@ -34,7 +34,7 @@ Not an app. Not a plugin. An MCP server — infrastructure for the agent-first e
 | **CAD engines** | Tied to one vendor | None (browser-only) | Inventor now, SolidWorks & KiCad planned |
 | **Control** | High-level prompts | High-level prompts | 80+ atomic tools + 22 composable skills |
 | **Privacy** | Cloud-dependent | Cloud-only | Local — your data never leaves your machine |
-| **Setup** | Manual per-machine | Sign up + account | One-command TUI installer |
+| **Setup** | Manual per-machine | Sign up + account | Download zip + double-click installer (no git/terminal) |
 
 ### The problem with CAD AI tools today
 
@@ -67,24 +67,47 @@ May 26 → Jun 3, 2026
 
 ---
 
-## Quick start
+## Quick start (easiest — for most users)
+
+**Download and click. No git. No terminal. No .NET SDK required.**
+
+1. Go to the [Releases page](https://github.com/Andiveli/mcp-cad/releases)
+2. Download the latest portable package (`mcp-cad-*-portable.zip` or similar)
+3. Extract the zip to any folder (Desktop, Documents, etc.)
+4. **Double-click `McpCad-Install.bat`** (recommended)  
+   — or directly run `McpCad.Installer.exe`
+5. The **GUI wizard** opens by default (welcome → agent checkboxes + CAD Skills + Backups toggle → progress → finish). Recommended agents are pre-selected.
+6. When you select **any agent** (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), the installer will:
+   - Register the mcp-cad MCP server for that client
+   - Copy the CAD skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, ...) into that agent's skills directory (e.g. `~/.grok/skills/`, `~/.cursor/skills/`, `%APPDATA%/Claude/skills/`, etc.)
+   This makes the high-level skills available natively/global to the agent.
+7. The standalone "**CAD Skills**" item deploys the skills to *all* supported agents in one go.
+8. **Advanced:** `McpCad.Installer.exe --tui` for the classic keyboard TUI; `--recommended` / `--all` for non-interactive CLI.
+
+After it says configured, **restart your AI client** and make sure Inventor is open.
+
+That's it. Your AI can now drive Inventor directly.
+
+> Tip: `McpCad-Install.bat` launches the GUI wizard. Pass `--tui` or `--recommended` as extra args if needed.
+
+---
+
+### For developers / building from source
 
 ```powershell
 git clone https://github.com/Andiveli/mcp-cad.git
 cd mcp-cad
 
-# Build and publish
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+# Publish server + installer (self-contained recommended for distribution)
+dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
+dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 
-# Run the TUI installer — registers with OpenCode, Claude, Cursor, Windsurf, VS Code, Pi
+# Run the installer (GUI default; add -- --tui for Spectre TUI)
 dotnet run --project src/McpCad.Installer
+# or double-click McpCad-Install.bat / McpCad.Installer.exe
 ```
 
-### Prerequisites
-
-- **OS:** Windows 10/11
-- **CAD:** Autodesk Inventor 2025+
-- **Runtime:** .NET 8.0 SDK
+**Prerequisites (dev builds):** Windows 10/11 + Autodesk Inventor 2025+ + .NET 8 SDK (only needed to build).
 
 ---
 
@@ -123,7 +146,7 @@ src/
 │   └── Helpers/              TagStore, AxisResolver, EdgeResolver, ComDispatch
 ├── McpCad.Tools/           MCP tool definitions (AtomicTools, SkillTools)
 ├── McpCad.Server/          MCP stdio transport
-└── McpCad.Installer/       TUI installer (Spectre.Console)
+└── McpCad.Installer/       Installer (GUI wizard default + Spectre TUI via --tui)
 ```
 
 **Provider pattern** — same protocol, multiple CAD engines:

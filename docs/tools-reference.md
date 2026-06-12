@@ -2,29 +2,31 @@
 
 MCP server for CAD automation — give AI agents direct parametric control over Autodesk Inventor. Built in C#/.NET 8 with early-bound COM interop for maximum reliability.
 
-**80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. Interactive TUI installer.
+**80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. GUI installer wizard (Spectre TUI via `--tui`).
 
 Works with OpenCode, Claude Desktop, Cursor, Grok, VS Code, Pi, and others.
 
 ## Requirements
 
 - **Windows** with Autodesk Inventor 2025+ installed
-- .NET 8.0 SDK
 
-## Quick start
+For the portable release: nothing else (self-contained binaries include everything needed).
 
-```powershell
-git clone https://github.com/Andiveli/mcp-cad.git
-cd mcp-cad
+For building from source: .NET 8 SDK.
 
-# Build and publish
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+## Quick start (easiest for end users)
 
-# Run the TUI installer
-dotnet run --project src/McpCad.Installer
-```
+1. Download the latest portable release from GitHub Releases.
+2. Extract the zip.
+3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`) — opens the **GUI wizard** by default.
+4. Confirm or adjust agent checkboxes (CAD Skills + Backups toggle available), then continue through progress → finish.
+5. Restart your AI client (Claude Desktop, Cursor…). Keep Inventor running.
 
-The **TUI** lets you select MCP clients (OpenCode, Claude, Cursor, Grok, Pi, VS Code) via keyboard navigation and registers the server automatically.
+No git, no `dotnet`, no manual JSON editing.
+
+The wizard (or `--recommended` / `--all` CLI flags, or `--tui` for keyboard navigation) registers `mcp-cad` in the supported clients' MCP configuration and deploys CAD skills.
+
+For developers building from source, see the main [README.md](../README.md).
 
 ## Tools
 
@@ -201,7 +203,7 @@ src/
 │   └── InventorDriver.cs    COM lifecycle (GetActiveObject via oleaut32)
 ├── McpCad.Tools/           MCP tool definitions (AtomicTools, SkillTools)
 ├── McpCad.Server/          Console app — MCP stdio transport
-├── McpCad.Installer/       TUI installer (Spectre.Console)
+├── McpCad.Installer/       Installer (GUI wizard + Spectre TUI via --tui)
 └── McpCad.sln
 ```
 
@@ -217,7 +219,7 @@ MCP → McpCad.Server → ICadProvider (common: connection, docs, export)
 
 ## Configuration
 
-Run the TUI installer (`dotnet run --project src/McpCad.Installer`) to register automatically. Manual config examples:
+Run the installer (`dotnet run --project src/McpCad.Installer`; add `-- --tui` for the classic TUI) to register automatically. Manual config examples:
 
 ### OpenCode (`~/.config/opencode/opencode.json`)
 ```json
@@ -274,6 +276,12 @@ command = "path/to/dist/mcp-cad/McpCad.Server.exe"
 args = []
 ```
 
+When you run the installer and select any agent (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), it automatically:
+- Registers the mcp-cad MCP server for that client
+- Copies the CAD skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, ...) from the package into that agent's skills directory (e.g. `~/.grok/skills/`, `~/.cursor/skills/`, `%APPDATA%/Claude/skills/`, etc.).
+
+The "CAD Skills" item deploys them to every supported agent at once. The skills become globally/native to the agent.
+
 ## Development
 
 ```bash
@@ -286,8 +294,9 @@ dotnet test tests/McpCad.Tests
 # Integration tests (require Inventor)
 dotnet test tests/McpCad.Tests --filter "FullyQualifiedName~Integration"
 
-# Publish server
-dotnet publish src/McpCad.Server -c Release -o dist/mcp-cad
+# Publish server + installer (self-contained single-file, best for distribution)
+dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
+dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 ```
 
 ## Tags
