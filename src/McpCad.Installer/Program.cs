@@ -1,4 +1,9 @@
-﻿using Spectre.Console;
+﻿using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using Spectre.Console;
+
+// Resolve Spectre.Console.Color after net8.0-windows brings System.Drawing.Color into scope.
+using Color = Spectre.Console.Color;
 
 namespace McpCad.Installer;
 
@@ -71,11 +76,21 @@ public class Program
         {
             Console.WriteLine("mcp-cad Installer");
             Console.WriteLine("Usage:");
-            Console.WriteLine("  McpCad.Installer.exe                 Interactive TUI");
+            Console.WriteLine("  McpCad.Installer.exe                 GUI wizard (default for double-click)");
+            Console.WriteLine("  McpCad.Installer.exe --tui           Interactive TUI (keyboard navigation)");
             Console.WriteLine("  McpCad.Installer.exe --recommended   Install for common agents (Claude, Cursor, Grok, OpenCode + CAD Skills)");
             Console.WriteLine("  McpCad.Installer.exe --all           Enable for every supported agent");
             Console.WriteLine("  Backups can be toggled in the TUI (select 'Backups' item and press Space)");
             Console.WriteLine("  McpCad.Installer.exe --agents Claude,Cursor");
+            return;
+        }
+
+        // --- GUI wizard default (no args / double-click). --tui falls through to Spectre TUI below. ---
+        if (!args.Any(a => a.Equals("--tui", StringComparison.OrdinalIgnoreCase)))
+        {
+            HideConsoleWindow();
+            ApplicationConfiguration.Initialize();
+            Application.Run(new InstallerWizardForm(_agents, _state, serverPath));
             return;
         }
 
@@ -379,5 +394,20 @@ public class Program
             Console.WriteLine();
             Console.WriteLine("The AI will now have direct access to Inventor's modeling tools via mcp-cad.");
         }
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetConsoleWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    private const int SW_HIDE = 0;
+
+    private static void HideConsoleWindow()
+    {
+        var hWnd = GetConsoleWindow();
+        if (hWnd != IntPtr.Zero)
+            ShowWindow(hWnd, SW_HIDE);
     }
 }

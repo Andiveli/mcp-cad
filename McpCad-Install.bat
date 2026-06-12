@@ -23,10 +23,11 @@ if not exist "%EXE%" (
     exit /b 1
 )
 
-echo Launching installer...
+echo Launching mcp-cad installer wizard...
+echo (Pass --tui for classic keyboard TUI, or --recommended for one-click CLI.)
 echo.
 
-"%EXE%" --recommended
+"%EXE%" %*
 
 echo.
 echo ===============================================
