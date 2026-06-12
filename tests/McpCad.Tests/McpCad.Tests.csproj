@@ -10,6 +10,11 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">$(SolidWorksApiRedist)</SolidWorksPath>
+    <SolidWorksPath Condition=" '$(SolidWorksPath)' == '' ">C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\api\redist</SolidWorksPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,7 +38,11 @@
     <ProjectReference Include="..\..\src\McpCad.Core\McpCad.Core.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Tools\McpCad.Tools.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Inventor\McpCad.Inventor.csproj" />
-    <ProjectReference Include="..\..\src\McpCad.SolidWorks\McpCad.SolidWorks.csproj" />
+    <ProjectReference Include="..\..\src\McpCad.SolidWorks\McpCad.SolidWorks.csproj" Condition="Exists('$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll')" />
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(SolidWorksPath)\SolidWorks.Interop.sldworks.dll')">
+    <Compile Remove="SolidWorks\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
