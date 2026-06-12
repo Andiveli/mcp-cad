@@ -53,7 +53,7 @@ public class SelectionHelper
                     // Common SW segment properties for name: GetName(), Name, or the object itself may work as name in some SelectByID2 overloads.
                     useName = (seg.GetName?.ToString() ?? seg.Name?.ToString() ?? seg.ToString() ?? "");
                 }
-                catch { useName = ""; }
+                catch (Exception) { useName = ""; }
                 if (!string.IsNullOrWhiteSpace(useName))
                 {
                     bool sel = SelectById2(doc, useName, "SKETCHSEGMENT", 0, 0, 0, false, mark, null, 0);
@@ -87,7 +87,7 @@ public class SelectionHelper
             dynamic ext = doc.Extension;
             return ext.SelectByID2(name, type, x, y, z, append, mark, calloutArg, selectOption);
         }
-        catch
+        catch (Exception)
         {
             return false;
         }
@@ -98,6 +98,6 @@ public class SelectionHelper
     /// </summary>
     public void ClearSelection(ModelDoc2 doc)
     {
-        try { doc?.ClearSelection2(true); } catch { /* best effort */ }
+        try { doc?.ClearSelection2(true); } catch (Exception) { /* best effort */ }
     }
 }

@@ -94,7 +94,7 @@ public class SolidWorksDriver
                 version = _swApp.RevisionNumber() ?? "unknown";
                 // Optionally enrich: var build = _swApp.GetBuildNumbers(...) but keep simple for skeleton
             }
-            catch
+            catch (Exception)
             {
                 version = "unknown";
             }
@@ -157,7 +157,7 @@ public class SolidWorksDriver
             {
                 Marshal.ReleaseComObject(_swApp);
             }
-            catch
+            catch (Exception)
             {
                 // Best-effort release — COM object may already be gone or RPC stale
             }
@@ -165,7 +165,7 @@ public class SolidWorksDriver
             {
                 Marshal.FinalReleaseComObject(_swApp);
             }
-            catch
+            catch (Exception)
             {
                 // Best-effort final release for robust repeated connect/disconnect cycles
             }
@@ -198,7 +198,7 @@ public class SolidWorksDriver
             {
                 version = _swApp.RevisionNumber() ?? "unknown";
             }
-            catch
+            catch (Exception)
             {
                 version = "unknown";
             }
@@ -213,7 +213,7 @@ public class SolidWorksDriver
                 else if (docs is Array arr) docsCount = arr.Length;
                 else docsCount = 0;
             }
-            catch
+            catch (Exception)
             {
                 docsCount = 0;
             }
@@ -229,7 +229,7 @@ public class SolidWorksDriver
                         activeDoc = doc.GetTitle();
                 }
             }
-            catch
+            catch (Exception)
             {
                 // No active document or COM reference is stale
             }
@@ -251,7 +251,7 @@ public class SolidWorksDriver
             _connected = false;
             return DisconnectedHealth();
         }
-        catch
+        catch (Exception)
         {
             _swApp = null;
             _connected = false;
@@ -265,7 +265,7 @@ public class SolidWorksDriver
         get
         {
             try { return SwApp.ActiveDoc; }
-            catch { return null; }
+            catch (Exception) { return null; }
         }
     }
 

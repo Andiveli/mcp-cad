@@ -74,7 +74,7 @@ public class SwTagStore
             if (obj != null && Marshal.IsComObject(obj))
                 Marshal.ReleaseComObject(obj);
         }
-        catch
+        catch (Exception)
         {
             // Best-effort per CRITICAL 3: COM release should never crash the caller
         }
