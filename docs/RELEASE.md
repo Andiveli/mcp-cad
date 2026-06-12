@@ -7,7 +7,7 @@
 
 ### Highlights
 
-- **GUI installer wizard** — default experience on double-click (`McpCad-Install.bat` / `McpCad.Installer.exe`). Welcome → agent selection + CAD Skills + Backups → progress → finish.
+- **GUI installer wizard** — default experience on double-click `McpCad.Installer.exe`. Welcome → agent selection + CAD Skills + Backups → progress → finish.
 - **Portable self-contained package** — two single-file executables (`McpCad.Server.exe`, `McpCad.Installer.exe`) with no .NET SDK required on the end-user machine.
 - **CAD skills deploy** — installer copies bundled skills (`macro-basic-part`, `inventor-new-part`, `macro-selector`, …) into each selected agent's global skills directory.
 - **Config backups** — optional surgical backup of MCP config files before overwrite (toggle in GUI).
@@ -18,7 +18,7 @@
 
 1. Get `mcp-cad-v0.2.0-portable.zip` from [GitHub Releases](https://github.com/Andiveli/mcp-cad/releases/tag/v0.2.0).
 2. Extract anywhere.
-3. Double-click `McpCad-Install.bat`.
+3. Double-click `McpCad.Installer.exe`.
 4. Restart your AI client and open Inventor.
 
 ### Package contents
@@ -27,7 +27,6 @@
 mcp-cad-v0.2.0-portable/
 ├── McpCad.Server.exe       # MCP server (Inventor backend)
 ├── McpCad.Installer.exe    # GUI wizard (default) + TUI/CLI flags
-├── McpCad-Install.bat      # Double-click helper
 ├── skills/                 # CAD skills deployed by installer
 ├── appsettings.json        # Server config (Cad provider defaults to Inventor)
 └── README.txt              # End-user quick instructions
@@ -56,7 +55,7 @@ Then create the release on GitHub with the zip asset and these notes.
 
 1. Download the new portable zip.
 2. Extract to a new folder (or overwrite an old install).
-3. Re-run `McpCad-Install.bat` — the wizard re-registers MCP paths and redeploys skills.
+3. Re-run `McpCad.Installer.exe` — the wizard re-registers MCP paths and redeploys skills.
 4. Restart your AI client.
 
 No manual JSON editing required.

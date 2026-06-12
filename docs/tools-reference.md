@@ -19,7 +19,7 @@ For building from source: .NET 8 SDK.
 
 1. Download the latest portable release from GitHub Releases.
 2. Extract the zip.
-3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`) — opens the **GUI wizard** by default.
+3. Double-click `McpCad.Installer.exe` — opens the **GUI wizard** by default (no console window).
 4. Confirm or adjust agent checkboxes (CAD Skills + Backups toggle available), then continue through progress → finish.
 5. Restart your AI client (Claude Desktop, Cursor…). Keep your CAD application open (Inventor in v0.2.0).
 
@@ -302,7 +302,7 @@ dotnet test tests/McpCad.Tests --filter "FullyQualifiedName~Integration"
 dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 
-# End-user portable package (adds .bat, skills/, README.txt) — see docs/RELEASE.md
+# End-user portable package (adds skills/, README.txt) — see docs/RELEASE.md
 .\scripts\publish-portable.ps1
 ```
 

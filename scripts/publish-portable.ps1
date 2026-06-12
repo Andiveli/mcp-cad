@@ -6,7 +6,6 @@
     - McpCad.Server.exe (self-contained)
     - McpCad.Installer.exe (self-contained)
     - All required runtime DLLs + appsettings.json
-    - McpCad-Install.bat (double-click helper)
     - A small README.txt
 
   Then you can zip that folder and upload to GitHub Releases.
@@ -48,13 +47,6 @@ dotnet publish src/McpCad.Installer `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -o "$OutputRoot" | Out-Host
 
-# Copy the user-friendly .bat from repo root if present
-$batSrc = "McpCad-Install.bat"
-if (Test-Path $batSrc) {
-    Copy-Item $batSrc -Destination $OutputRoot -Force
-    Write-Host "Copied McpCad-Install.bat"
-}
-
 # Copy the CAD skills (SKILL.md files) so the installer can deploy them as global skills for Grok
 if (Test-Path "skills") {
     Copy-Item "skills" -Destination (Join-Path $OutputRoot "skills") -Recurse -Force
@@ -66,12 +58,9 @@ $readme = @"
 mcp-cad - AI control for parametric CAD (MCP server)
 
 EASIEST WAY:
-  Double-click McpCad-Install.bat
+  Double-click McpCad.Installer.exe
 
-  It will register mcp-cad with your AI tools (Claude Desktop, Cursor, etc.).
-
-ALTERNATIVE:
-  Run McpCad.Installer.exe directly.
+  The GUI wizard will register mcp-cad with your AI tools (Claude Desktop, Cursor, etc.).
 
 REQUIREMENTS:
   - Windows 10/11

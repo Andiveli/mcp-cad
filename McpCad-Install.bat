@@ -1,4 +1,5 @@
 @echo off
+REM Optional dev/helper launcher. End users: double-click McpCad.Installer.exe instead.
 setlocal
 title mcp-cad Installer
 

@@ -74,8 +74,7 @@ May 26 → Jun 3, 2026
 
 1. Go to the [Releases page](https://github.com/Andiveli/mcp-cad/releases) and download **v0.2.0** (`mcp-cad-v0.2.0-portable.zip`)
 2. Extract the zip to any folder (Desktop, Documents, etc.)
-3. **Double-click `McpCad-Install.bat`** (recommended)  
-   — or directly run `McpCad.Installer.exe`
+3. **Double-click `McpCad.Installer.exe`** — the GUI wizard opens immediately (no console window)
 4. The **GUI wizard** opens by default (welcome → agent checkboxes + CAD Skills + Backups toggle → progress → finish). Recommended agents are pre-selected.
 5. When you select **any agent** (Grok, Cursor, Claude, VS Code, OpenCode, Pi...), the installer will:
    - Register the mcp-cad MCP server for that client
@@ -88,7 +87,7 @@ After it says configured, **restart your AI client** and open your CAD applicati
 
 That's it. Your AI can now drive CAD directly.
 
-> Tip: `McpCad-Install.bat` launches the GUI wizard. Pass `--tui` or `--recommended` as extra args if needed.
+> **Advanced:** run `McpCad.Installer.exe --tui` for the keyboard TUI, or `--recommended` / `--all` for non-interactive CLI.
 
 ---
 
@@ -102,12 +101,12 @@ cd mcp-cad
 dotnet publish src/McpCad.Server   -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 dotnet publish src/McpCad.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/mcp-cad
 
-# Or use the portable release script (adds .bat, skills/, README.txt)
+# Or use the portable release script (adds skills/, README.txt)
 .\scripts\publish-portable.ps1
 
 # Run the installer (GUI default; add -- --tui for Spectre TUI)
 dotnet run --project src/McpCad.Installer
-# or double-click McpCad-Install.bat / McpCad.Installer.exe
+# or double-click McpCad.Installer.exe
 ```
 
 **Prerequisites (dev builds):** Windows 10/11 + a supported CAD backend (Inventor 2025+ for v0.2.0) + .NET 8 SDK (only needed to build).
