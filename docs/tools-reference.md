@@ -2,7 +2,7 @@
 
 MCP server for CAD automation — give AI agents direct parametric control over Autodesk Inventor. Built in C#/.NET 8 with early-bound COM interop for maximum reliability.
 
-**80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. Interactive TUI installer.
+**80+ tools** across sketch, 3D features, assembly, work geometry, parameters, iProperties, and export. Tag-based entity resolution. GUI installer wizard (Spectre TUI via `--tui`).
 
 Works with OpenCode, Claude Desktop, Cursor, Grok, VS Code, Pi, and others.
 
@@ -18,13 +18,13 @@ For building from source: .NET 8 SDK.
 
 1. Download the latest portable release from GitHub Releases.
 2. Extract the zip.
-3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`).
-4. Toggle the AI clients you use with Space, then press Enter on them.
+3. Double-click `McpCad-Install.bat` (or run `McpCad.Installer.exe`) — opens the **GUI wizard** by default.
+4. Confirm or adjust agent checkboxes (CAD Skills + Backups toggle available), then continue through progress → finish.
 5. Restart your AI client (Claude Desktop, Cursor…). Keep Inventor running.
 
 No git, no `dotnet`, no manual JSON editing.
 
-The TUI (or `--recommended` / `--all` flags) automatically registers `mcp-cad` in the supported clients' MCP configuration.
+The wizard (or `--recommended` / `--all` CLI flags, or `--tui` for keyboard navigation) registers `mcp-cad` in the supported clients' MCP configuration and deploys CAD skills.
 
 For developers building from source, see the main [README.md](../README.md).
 
@@ -203,7 +203,7 @@ src/
 │   └── InventorDriver.cs    COM lifecycle (GetActiveObject via oleaut32)
 ├── McpCad.Tools/           MCP tool definitions (AtomicTools, SkillTools)
 ├── McpCad.Server/          Console app — MCP stdio transport
-├── McpCad.Installer/       TUI installer (Spectre.Console)
+├── McpCad.Installer/       Installer (GUI wizard + Spectre TUI via --tui)
 └── McpCad.sln
 ```
 
@@ -219,7 +219,7 @@ MCP → McpCad.Server → ICadProvider (common: connection, docs, export)
 
 ## Configuration
 
-Run the TUI installer (`dotnet run --project src/McpCad.Installer`) to register automatically. Manual config examples:
+Run the installer (`dotnet run --project src/McpCad.Installer`; add `-- --tui` for the classic TUI) to register automatically. Manual config examples:
 
 ### OpenCode (`~/.config/opencode/opencode.json`)
 ```json
