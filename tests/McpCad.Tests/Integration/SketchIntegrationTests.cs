@@ -58,4 +58,21 @@ public class SketchIntegrationTests
             $"Offset should succeed with Dispatch-wrapped entities. Error: {offsetResult.GetValueOrDefault("error")}");
         Assert.Equal("offset", offsetResult["operation"]);
     }
+
+    /// <summary>
+    /// TDD placeholder (strict TDD): documents + will exercise ReadSketchData + SketchReader.
+    /// Run manually with Inventor open after a sketch with entities exists.
+    /// Captured data must be consumable by macro_god_part sketch_entities.
+    /// </summary>
+    [Fact(Skip = "Requires Inventor — run manually")]
+    public void ReadSketchData_ReturnsEntities_AndParameters()
+    {
+        var driver = new InventorDriver();
+        driver.Connect();
+        var provider = new InventorProvider(driver); // real impl under test
+        // Assume a sketch exists (created by prior test or manual); index 1
+        var read = provider.ReadSketchData(1);
+        Assert.True((bool)read["success"]!, $"ReadSketchData should succeed. Error: {read.GetValueOrDefault("error")}");
+        Assert.NotNull(read["entities"]);
+    }
 }

@@ -468,4 +468,6 @@ internal class ThrowingMockProvider : IMechanicalCadProvider
     public Dictionary<string, object?> CaptureViewportImage(string view = "Iso", int width = 1024, int height = 768, string format = "png") => Throw();
     public Dictionary<string, object?> GetFeatureTree() => Throw();
     public Dictionary<string, object?> GetBoundingBox(string target = "") => Throw();
+    public Dictionary<string, object?> ReadSketchData(int sketchIndex = 1) => Throw();
+    public Dictionary<string, object?> ReadFeatureData() => Throw();
 }
