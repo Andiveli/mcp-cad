@@ -176,4 +176,156 @@ public class MacroToolsTests
             Assert.Equal(lines[i].Y2, lines[next].Y1, 6);
         }
     }
+
+    // ── Phase 2: features[] dispatch (PR2) ──────────────────────────────────────
+    // RED tests written BEFORE any production changes for dispatch
+
+    [Fact]
+    public void FeaturesArray_ExtrudeFilletHole_DispatchesInOrder()
+    {
+        var featsJson = @"[
+            {""feature_type"":""extrude"", ""profile"":""1"", ""distance"":5.0},
+            {""feature_type"":""fillet"", ""edges"":""1"", ""radius"":0.5},
+            {""feature_type"":""hole"", ""x"":1.0, ""y"":2.0, ""diameter"":3.0, ""depth"":10.0}
+        ]";
+
+        var result = _tools.macro_god_part(ask_before_modify: false, features: featsJson);
+
+        var calls = _mock.CallLog.Select(c => c.Method).ToList();
+        int extrudeIdx = calls.IndexOf("Extrude");
+        int filletIdx = calls.IndexOf("Fillet");
+        int holeIdx = calls.IndexOf("Hole");
+
+        Assert.True(extrudeIdx >= 0, "Extrude should have been called");
+        Assert.True(filletIdx >= 0, "Fillet should have been called");
+        Assert.True(holeIdx >= 0, "Hole should have been called");
+        Assert.True(extrudeIdx < filletIdx && filletIdx < holeIdx,
+            "Dispatch must preserve order: Extrude before Fillet before Hole");
+    }
+
+    [Fact]
+    public void FeaturesArray_EmptyOrNull_FallsBackToSingleFeatureType()
+    {
+        // Setup single feature path expectation
+        var sketchJson = @"[{""type"":""rect"",""x1"":0,""y1"":0,""x2"":10,""y2"":10}]";
+
+        // Call with explicit empty features + classic single feature params
+        var resultEmpty = _tools.macro_god_part(
+            ask_before_modify: false,
+            sketch_entities: sketchJson,
+            feature_type: "extrude",
+            feature_distance: 5.0,
+            features: "[]"
+        );
+
+        var resultNull = _tools.macro_god_part(
+            ask_before_modify: false,
+            sketch_entities: sketchJson,
+            feature_type: "extrude",
+            feature_distance: 5.0,
+            features: null
+        );
+
+        // Both should have executed the single-feature extrude path
+        Assert.True((bool)resultEmpty["success"]!);
+        Assert.True((bool)resultNull["success"]!);
+        Assert.True(WasCalled("Extrude"));
+        // Should NOT have a "features" phase list when falling back
+        var ps = (Dictionary<string, object?>)resultEmpty["phase_status"]!;
+        // When features absent we keep the legacy "feature" key behavior
+        Assert.True(ps.ContainsKey("feature") || ps.ContainsKey("features"));
+    }
+
+    [Fact]
+    public void FeaturesArray_OneEntryFails_DoesNotAbortOthers()
+    {
+        var featsJson = @"[
+            {""feature_type"":""extrude"", ""profile"":""1"", ""distance"":5.0},
+            {""feature_type"":""fillet"", ""edges"":""1"", ""radius"":0.5},
+            {""feature_type"":""hole"", ""x"":0,""y"":0,""diameter"":5,""depth"":10}
+        ]";
+
+        // Make the middle one (fillet) fail
+        _mock.SetFilletResult(new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["error"] = "fillet failed on purpose"
+        });
+
+        var result = _tools.macro_god_part(ask_before_modify: false, features: featsJson);
+
+        Assert.True((bool)result["success"]!); // overall can still be true if others succeeded
+
+        var warnings = (List<string>)result["warnings"]!;
+        Assert.Contains(warnings, w => w.Contains("fillet") && w.Contains("failed"));
+
+        // Extrude and Hole should still have been attempted (isolation)
+        var calls = _mock.CallLog.Select(c => c.Method).ToList();
+        Assert.Contains("Extrude", calls);
+        Assert.Contains("Hole", calls);
+
+        // phase_status should reflect per-entry results (we will store under "features")
+        var ps = (Dictionary<string, object?>)result["phase_status"]!;
+        Assert.True(ps.ContainsKey("features") || ps.ContainsKey("feature"));
+    }
+
+    [Fact]
+    public void FeaturesArray_PerEntryPatternAndModify_AreScoped()
+    {
+        var featsJson = @"[
+            {
+                ""feature_type"":""extrude"",
+                ""profile"":""1"",
+                ""distance"":5.0,
+                ""pattern_3d"": ""[{\""type\"":\""circular\"", \""profile\"":\""1\"", \""axis\"":\""Y\"", \""count\"":4, \""angle\"":360}]"",
+                ""modify_3d"": ""[{\""op\"":\""fillet\"", \""edges\"":\""1\"", \""radius\"":0.3}]""
+            }
+        ]";
+
+        var result = _tools.macro_god_part(ask_before_modify: false, features: featsJson);
+
+        // The base extrude + the scoped circular pattern + scoped fillet should have run
+        var calls = _mock.CallLog.Select(c => c.Method).ToList();
+        Assert.Contains("Extrude", calls);
+        Assert.Contains("CircularPattern", calls);
+        Assert.Contains("Fillet", calls);
+    }
+
+    [Fact]
+    public void FeaturesArray_MixedTypes_ReportsPerEntryStatus()
+    {
+        var featsJson = @"[
+            {""feature_type"":""extrude"", ""profile"":""1"", ""distance"":5},
+            {""feature_type"":""unknown_type"", ""profile"":""1""}
+        ]";
+
+        var result = _tools.macro_god_part(ask_before_modify: false, features: featsJson);
+
+        Assert.True((bool)result["success"]!);
+        var ps = (Dictionary<string, object?>)result["phase_status"]!;
+        Assert.True(ps.ContainsKey("features"));
+
+        var warnings = (List<string>)result["warnings"]!;
+        Assert.Contains(warnings, w => w.Contains("unknown_type"));
+    }
+
+    [Fact]
+    public void FeaturesArray_Absent_UsesLegacyFeatureTypePath()
+    {
+        var sketchJson = @"[{""type"":""rect"",""x1"":0,""y1"":0,""x2"":10,""y2"":10}]";
+
+        var result = _tools.macro_god_part(
+            ask_before_modify: false,
+            sketch_entities: sketchJson,
+            feature_type: "extrude",
+            feature_distance: 5.0
+            // features intentionally omitted
+        );
+
+        Assert.True((bool)result["success"]!);
+        var ps = (Dictionary<string, object?>)result["phase_status"]!;
+        // Legacy path populates "feature", not "features"
+        Assert.True(ps.ContainsKey("feature"));
+        Assert.False(ps.ContainsKey("features") && ps["features"] is List<MacroPhaseStatus> { Count: > 0 });
+    }
 }

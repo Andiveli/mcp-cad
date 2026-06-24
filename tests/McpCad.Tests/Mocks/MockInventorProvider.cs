@@ -41,6 +41,8 @@ public class MockInventorProvider : IMechanicalCadProvider
     private Dictionary<string, object?>? _sketchMirrorResult;
     private Dictionary<string, object?>? _sketchLineCloseResult;
     private Dictionary<string, object?>? _sketchProfilesResult;
+    private Dictionary<string, object?>? _readSketchDataResult;
+    private Dictionary<string, object?>? _readFeatureDataResult;
     private Dictionary<string, object?>? _extrudeResult;
     private Dictionary<string, object?>? _revolveResult;
     private Dictionary<string, object?>? _sweepResult;
@@ -136,8 +138,10 @@ public class MockInventorProvider : IMechanicalCadProvider
         mock._sketchScaleResult = errorResult;
         mock._sketchMirrorResult = errorResult;
         mock._sketchLineCloseResult = errorResult;
-        mock._sketchProfilesResult = errorResult;
-        mock._extrudeResult = errorResult;
+         mock._sketchProfilesResult = errorResult;
+         mock._readSketchDataResult = errorResult;
+         mock._readFeatureDataResult = errorResult;
+         mock._extrudeResult = errorResult;
         mock._revolveResult = errorResult;
         mock._sweepResult = errorResult;
         mock._filletResult = errorResult;
@@ -197,6 +201,14 @@ public class MockInventorProvider : IMechanicalCadProvider
     { _sketchLineResult = result; return this; }
     public MockInventorProvider SetExtrudeResult(Dictionary<string, object?> result)
     { _extrudeResult = result; return this; }
+    public MockInventorProvider SetFilletResult(Dictionary<string, object?> result)
+    { _filletResult = result; return this; }
+    public MockInventorProvider SetHoleResult(Dictionary<string, object?> result)
+    { _holeResult = result; return this; }
+    public MockInventorProvider SetCircularPatternResult(Dictionary<string, object?> result)
+    { _circularPatternResult = result; return this; }
+    public MockInventorProvider SetChamferResult(Dictionary<string, object?> result)
+    { _chamferResult = result; return this; }
     public MockInventorProvider SetRevolveResult(Dictionary<string, object?> result)
     { _revolveResult = result; return this; }
     public MockInventorProvider SetSweepResult(Dictionary<string, object?> result)
@@ -220,8 +232,23 @@ public class MockInventorProvider : IMechanicalCadProvider
 
     public MockInventorProvider SetGetFeatureTreeResult(Dictionary<string, object?> result)
     { _getFeatureTreeResult = result; return this; }
+    public MockInventorProvider SetGetBoundingBoxResult(Dictionary<string, object?> result)
+    { _getBoundingBoxResult = result; return this; }
     public MockInventorProvider SetConvertToWeldmentResult(Dictionary<string, object?> result)
     { _convertToWeldmentResult = result; return this; }
+
+    // Added for template tools tests (item 2) — Health + DocNewPart (ReadSketchDataResult already present from item 1)
+    public MockInventorProvider SetHealthResult(Dictionary<string, object?> result)
+    { _healthResult = result; return this; }
+    public MockInventorProvider SetDocNewPartResult(Dictionary<string, object?> result)
+    { _docNewPartResult = result; return this; }
+
+    public MockInventorProvider SetReadSketchDataResult(Dictionary<string, object?> result)
+    { _readSketchDataResult = result; return this; }
+    public MockInventorProvider SetReadFeatureDataResult(Dictionary<string, object?> result)
+    { _readFeatureDataResult = result; return this; }
+    public MockInventorProvider SetParamListResult(Dictionary<string, object?> result)
+    { _paramListResult = result; return this; }
 
     // ── ICadProvider implementation ──
 
@@ -584,6 +611,30 @@ public class MockInventorProvider : IMechanicalCadProvider
             {
                 new() { ["index"] = 1, ["area"] = 78.54, ["perimeter"] = 31.42, ["loops"] = 1 },
             },
+        };
+    }
+
+    public Dictionary<string, object?> ReadSketchData(int sketchIndex = 1)
+    {
+        CallLog.Add(("ReadSketchData", new Dictionary<string, object?> { ["sketch_index"] = sketchIndex }));
+        return _readSketchDataResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["entities"] = new List<Dictionary<string, object?>>(),
+            ["warnings"] = new List<string>(),
+            ["sketch_index"] = sketchIndex,
+            ["parameters"] = new List<Dictionary<string, object?>>(),
+        };
+    }
+
+    public Dictionary<string, object?> ReadFeatureData()
+    {
+        CallLog.Add(("ReadFeatureData", new Dictionary<string, object?>()));
+        return _readFeatureDataResult ?? new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["features"] = new List<Dictionary<string, object?>>(),
+            ["warnings"] = new List<string>(),
         };
     }
 

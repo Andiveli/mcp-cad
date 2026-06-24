@@ -169,6 +169,55 @@ public record Modify3DOp(
 );
 
 /// <summary>
+/// DTO for a single feature descriptor in the features[] array (PR2 multi-feature dispatch).
+/// Uses snake_case via [JsonPropertyName] to match SketchEntity / existing JSON conventions.
+/// Covers extrude, revolve, fillet, hole, chamfer, shell, draft, thread, split, combine,
+/// thicken, emboss, derive, patterns, mirror, sweep, loft, coil, rib, etc.
+/// Each entry may carry its own scoped pattern_3d and modify_3d.
+/// </summary>
+public record FeatureDescriptor(
+    [property: JsonPropertyName("feature_type")] string FeatureType,
+    string? Profile = null,
+    double? Distance = null,
+    string? Direction = null,
+    double? Taper = null,
+    string? Operation = null,
+    string? Axis = null,
+    double? Angle = null,
+    double? Radius = null,
+    string? Edges = null,
+    string? Mode = null,
+    string? Path = null,
+    string? Profiles = null,
+    double? Pitch = null,
+    double? Revolutions = null,
+    double? Thickness = null,
+    string? Specification = null,
+    string? Face = null,
+    string? Faces = null,
+    [property: JsonPropertyName("pull_direction")] string? PullDirection = null,
+    [property: JsonPropertyName("fixed_entity")] string? FixedEntity = null,
+    double? X = null,
+    double? Y = null,
+    double? Diameter = null,
+    double? Depth = null,
+    [property: JsonPropertyName("hole_type")] string? HoleType = null,
+    [property: JsonPropertyName("split_tool")] string? SplitTool = null,
+    [property: JsonPropertyName("target_body")] string? TargetBody = null,
+    [property: JsonPropertyName("remove_side")] string? RemoveSide = null,
+    [property: JsonPropertyName("base_body")] string? BaseBody = null,
+    [property: JsonPropertyName("tool_bodies")] string? ToolBodies = null,
+    [property: JsonPropertyName("source_path")] string? SourcePath = null,
+    [property: JsonPropertyName("emboss_type")] string? EmbossType = null,
+    int? Count = null,
+    [property: JsonPropertyName("mirror_plane")] string? MirrorPlane = null,
+    [property: JsonPropertyName("sketch_ref")] int? SketchRef = null,
+    [property: JsonPropertyName("parent_feature_index")] int? ParentFeatureIndex = null,
+    [property: JsonPropertyName("pattern_3d")] string? Pattern3d = null,
+    [property: JsonPropertyName("modify_3d")] string? Modify3d = null
+);
+
+/// <summary>
 /// Macro tools — high-level single-call workflows that compose multiple atomic
 /// operations (sketch entities + constraints + dimensions + 3D feature + patterns + modify + verify).
 /// This class is the home for `macro_god_part` (implemented in PR 2).
@@ -497,6 +546,9 @@ public class MacroTools(IMechanicalCadProvider provider)
 
         // ── Modify 3D (post-feature edits) ──
         [Description("Optional JSON array of 3D modify operations. Supported ops: fillet, chamfer, shell, draft, thread, split. Example: '[{\"op\":\"fillet\",\"edges\":\"1,2\",\"radius\":0.5,\"mode\":\"constant\"},{\"op\":\"shell\",\"faces\":\"1\",\"thickness\":0.2,\"direction\":\"inside\"}]'")] string? modify_3d = null,
+
+        // ── PR2: Multi-feature dispatch via features[] (replaces or augments single feature_type) ──
+        [Description("Optional JSON array of feature descriptors for multi-feature replay. Each entry has feature_type + typed params + optional scoped pattern_3d/modify_3d. When present (and non-empty), the single-feature path (feature_type + feature_* params) is skipped and global pattern_3d/modify_3d are ignored. Backward compatible: absent or empty falls back to classic single-feature behavior.")] string? features = null,
 
         // ── iProperties (applied best-effort after verify) ──
         [Description("Optional part number to set via IPropertySet (Summary set).")] string? part_number = null,
@@ -892,210 +944,420 @@ public class MacroTools(IMechanicalCadProvider provider)
             if (sketchEntityCount > 0)
                 geometryCreated = true;
 
-            // ── 3. Feature phase (type dispatch) ─────────────────────────────────
+            // ── 3. Feature phase (PR2: features[] dispatch OR legacy single-feature) ─────────────
+            // Backward compat: if features[] present and non-empty, we DISPATCH per entry
+            // and SKIP the legacy single-feature path + global pattern_3d/modify_3d.
+            // When absent/empty we fall back to the existing feature_type + feature_* + global pattern/modify.
             MacroPhaseStatus? featureStatus = null;
-            string? ft = string.IsNullOrWhiteSpace(feature_type) ? null : feature_type.Trim().ToLowerInvariant();
-            if (!string.IsNullOrWhiteSpace(ft))
+            List<MacroPhaseStatus>? featuresPhaseList = null;
+
+            var (featureDescs, fparseErr) = ParseSketchJson<FeatureDescriptor>(features, "features");
+
+            bool hasFeaturesArray = featureDescs != null && featureDescs.Count > 0;
+
+            if (fparseErr != null)
             {
-                var profRes = Catch(() => _provider.SketchProfiles());
-                int profileCount = 0;
-                if (!IsSuccess(profRes))
-                {
-                    var err = profRes?["error"]?.ToString() ?? "unknown";
-                    warnings.Add($"feature requested but SketchProfiles() failed: {err} — skipping feature phase");
-                    featureStatus = new MacroPhaseStatus(false, "feature", Error: $"SketchProfiles() failed: {err}");
-                }
-                else if (profRes != null && profRes.TryGetValue("profile_count", out var pcObj) && pcObj is int pc && pc > 0)
-                    profileCount = pc;
+                warnings.Add(fparseErr["error"]?.ToString() ?? "features parse error");
+                phaseStatus["features"] = new MacroPhaseStatus(false, "features", Error: fparseErr["error"]?.ToString());
+            }
+            else if (hasFeaturesArray)
+            {
+                // Multi-feature dispatch path (PR2)
+                featuresPhaseList = new List<MacroPhaseStatus>();
+                int featureOkCount = 0;
 
-                if (profileCount == 0 && featureStatus == null)
+                foreach (var fd in featureDescs!)
                 {
-                    warnings.Add("feature requested but no closed profiles detected via SketchProfiles() — skipping feature phase");
-                    featureStatus = new MacroPhaseStatus(false, "feature", Error: "No closed sketch profile found (profile_count == 0 after sketch phase). Provide sketch_entities producing a closed profile or draw one before requesting a feature.");
-                }
+                    string ftype = (fd.FeatureType ?? "").Trim().ToLowerInvariant();
+                    MacroPhaseStatus entryStatus;
+                    Dictionary<string, object?> fres;
 
-                if (featureStatus == null)
-                {
                     try
                     {
-                        Dictionary<string, object?> featRes;
-                        switch (ft)
+                        switch (ftype)
                         {
                             case "extrude":
-                                featRes = Catch(() => _provider.Extrude(
-                                    feature_profile ?? "1",
-                                    feature_distance ?? 10.0,
-                                    feature_direction ?? "positive",
-                                    feature_taper ?? 0.0,
-                                    feature_operation ?? "new_body"));
+                                fres = Catch(() => _provider.Extrude(
+                                    fd.Profile ?? "1",
+                                    fd.Distance ?? 10.0,
+                                    fd.Direction ?? "positive",
+                                    fd.Taper ?? 0.0,
+                                    fd.Operation ?? "new_body"));
                                 break;
                             case "revolve":
-                                featRes = Catch(() => _provider.Revolve(
-                                    feature_profile ?? "1",
-                                    feature_axis ?? "Y",
-                                    feature_angle ?? 360.0,
-                                    feature_direction ?? "positive",
-                                    feature_operation ?? "new_body"));
+                                fres = Catch(() => _provider.Revolve(
+                                    fd.Profile ?? "1",
+                                    fd.Axis ?? "Y",
+                                    fd.Angle ?? 360.0,
+                                    fd.Direction ?? "positive",
+                                    fd.Operation ?? "new_body"));
                                 break;
                             case "sweep":
-                                featRes = Catch(() => _provider.Sweep(
-                                    feature_profile ?? "1",
-                                    feature_path ?? "1",
+                                fres = Catch(() => _provider.Sweep(
+                                    fd.Profile ?? "1",
+                                    fd.Path ?? "1",
                                     "path",
-                                    feature_operation ?? "new_body",
-                                    feature_taper ?? 0.0,
+                                    fd.Operation ?? "new_body",
+                                    fd.Taper ?? 0.0,
                                     "",
                                     ""));
                                 break;
                             case "loft":
-                                featRes = Catch(() => _provider.Loft(
-                                    feature_profiles ?? "1,2",
-                                    feature_operation ?? "new_body"));
+                                fres = Catch(() => _provider.Loft(
+                                    fd.Profiles ?? "1,2",
+                                    fd.Operation ?? "new_body"));
                                 break;
                             case "coil":
-                                featRes = Catch(() => _provider.Coil(
-                                    feature_profile ?? "1",
-                                    feature_axis ?? "Y",
-                                    feature_pitch ?? 1.0,
-                                    feature_revolutions ?? 5.0,
-                                    feature_operation ?? "new_body"));
+                                fres = Catch(() => _provider.Coil(
+                                    fd.Profile ?? "1",
+                                    fd.Axis ?? "Y",
+                                    fd.Pitch ?? 1.0,
+                                    fd.Revolutions ?? 5.0,
+                                    fd.Operation ?? "new_body"));
                                 break;
                             case "rib":
-                                featRes = Catch(() => _provider.Rib(
-                                    feature_profile ?? "1",
-                                    feature_thickness ?? 0.5,
-                                    feature_direction ?? "normal",
-                                    feature_operation ?? "new_body"));
+                                fres = Catch(() => _provider.Rib(
+                                    fd.Profile ?? "1",
+                                    fd.Thickness ?? 0.5,
+                                    fd.Direction ?? "normal",
+                                    fd.Operation ?? "new_body"));
+                                break;
+                            case "fillet":
+                                fres = Catch(() => _provider.Fillet(fd.Edges ?? "", fd.Radius ?? 0.5, fd.Mode ?? "constant"));
+                                break;
+                            case "chamfer":
+                                fres = Catch(() => _provider.Chamfer(fd.Edges ?? "", fd.Distance ?? 0.1, fd.Mode ?? "equal_distance"));
+                                break;
+                            case "hole":
+                                fres = Catch(() => _provider.Hole(fd.X ?? 0, fd.Y ?? 0, fd.Diameter ?? 5.0, fd.Depth ?? 10.0, fd.HoleType ?? "drilled", fd.Operation ?? "join"));
+                                break;
+                            case "thread":
+                                fres = Catch(() => _provider.Thread(fd.Face ?? "", fd.Specification ?? "M10x1.5", fd.Direction ?? "right"));
+                                break;
+                            case "shell":
+                                fres = Catch(() => _provider.Shell(fd.Faces ?? "", fd.Thickness ?? 0.1, fd.Direction ?? "inside", fd.Operation ?? "new_body"));
+                                break;
+                            case "draft":
+                                fres = Catch(() => _provider.Draft(fd.Faces ?? "", fd.Angle ?? 5.0, fd.Mode ?? "fixed_edge", fd.PullDirection ?? "z", fd.FixedEntity ?? ""));
+                                break;
+                            case "split":
+                                fres = Catch(() => _provider.Split(fd.SplitTool ?? "", fd.RemoveSide ?? "positive", fd.TargetBody ?? ""));
+                                break;
+                            case "combine":
+                                fres = Catch(() => _provider.Combine(fd.BaseBody ?? "", fd.ToolBodies ?? "", fd.Operation ?? "join", false));
+                                break;
+                            case "thicken":
+                                fres = Catch(() => _provider.Thicken(fd.Faces ?? "", fd.Thickness ?? 0.1, fd.Direction ?? "positive", fd.Operation ?? "new_body"));
+                                break;
+                            case "emboss":
+                                fres = Catch(() => _provider.Emboss(fd.Profile ?? "1", fd.Distance ?? 1.0, fd.EmbossType ?? "emboss_from_face"));
+                                break;
+                            case "derive":
+                                fres = Catch(() => _provider.Derive(fd.SourcePath ?? ""));
+                                break;
+                            case "circular_pattern":
+                            case "circularpattern":
+                                fres = Catch(() => _provider.CircularPattern(fd.Profile ?? "1", fd.Axis ?? "Y", fd.Count ?? 4, fd.Angle ?? 360.0, true, true));
+                                break;
+                            case "rectangular_pattern":
+                            case "rectangularpattern":
+                                fres = Catch(() => _provider.RectangularPattern(fd.Profile ?? "1", fd.Axis ?? "", fd.Count ?? 2, fd.Distance ?? 1.0, "", 1, 0));
+                                break;
+                            case "mirror":
+                            case "mirror_feature":
+                                fres = Catch(() => _provider.MirrorFeature(fd.Profile ?? "1", fd.MirrorPlane ?? "YZ"));
                                 break;
                             default:
-                                featRes = ToolHelpers.Error($"unknown feature_type '{feature_type}' (supported: extrude,revolve,sweep,loft,coil,rib)");
+                                fres = ToolHelpers.Error($"unknown feature_type '{fd.FeatureType}' in features[]");
                                 break;
                         }
 
-                        if (IsSuccess(featRes))
+                        bool entryOk = IsSuccess(fres);
+                        if (entryOk)
                         {
                             geometryCreated = true;
-                            featureStatus = new MacroPhaseStatus(true, "feature", FeatureType: ft, FeatureName: null);
+                            featureOkCount++;
+                            entryStatus = new MacroPhaseStatus(true, "feature", FeatureType: ftype, FeatureName: null);
                         }
                         else
                         {
-                            warnings.Add($"Feature '{ft}' failed: {featRes?["error"]?.ToString() ?? "unknown"}");
-                            featureStatus = new MacroPhaseStatus(false, "feature", Error: featRes?["error"]?.ToString(), FeatureType: ft);
+                            warnings.Add($"features[] '{ftype}' failed: {fres?["error"]?.ToString() ?? "unknown"}");
+                            entryStatus = new MacroPhaseStatus(false, "feature", Error: fres?["error"]?.ToString() ?? "unknown", FeatureType: ftype);
                         }
                     }
                     catch (Exception ex)
                     {
-                        warnings.Add($"Feature phase error: {ex.Message}");
-                        featureStatus = new MacroPhaseStatus(false, "feature", Error: ex.Message, FeatureType: ft);
+                        warnings.Add($"features[] '{ftype}' exception: {ex.Message}");
+                        entryStatus = new MacroPhaseStatus(false, "feature", Error: ex.Message, FeatureType: ftype);
+                    }
+
+                    featuresPhaseList.Add(entryStatus);
+
+                    // Per-entry scoped pattern_3d / modify_3d (only when features[] present)
+                    if (!string.IsNullOrWhiteSpace(fd.Pattern3d))
+                    {
+                        var (p3ds, _) = ParsePhaseJson<Pattern3DOp>(fd.Pattern3d, "pattern_3d");
+                        if (p3ds != null)
+                        {
+                            foreach (var p in p3ds)
+                            {
+                                var ptype = (p.Type ?? "").Trim().ToLowerInvariant();
+                                Dictionary<string, object?> pres = ptype switch
+                                {
+                                    "circular" => Catch(() => _provider.CircularPattern(p.Profile, p.Axis ?? "Y", p.Count ?? 6, p.Angle ?? 360, p.FitWithinAngle ?? true, p.NaturalDirection ?? true)),
+                                    "rectangular" => Catch(() => _provider.RectangularPattern(p.Profile, p.XAxis ?? "", p.XCount ?? 2, p.XSpacing ?? 1, p.YAxis ?? "", p.YCount ?? 1, p.YSpacing ?? 0)),
+                                    "mirror" => Catch(() => _provider.MirrorFeature(p.Profile, p.MirrorPlane ?? "YZ")),
+                                    _ => ToolHelpers.Error($"unknown per-entry pattern_3d '{p.Type}'")
+                                };
+                                if (!IsSuccess(pres))
+                                    warnings.Add($"features[] scoped pattern_3d '{ptype}' failed: {pres?["error"]?.ToString() ?? "unknown"}");
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(fd.Modify3d))
+                    {
+                        var (m3ds, _) = ParsePhaseJson<Modify3DOp>(fd.Modify3d, "modify_3d");
+                        if (m3ds != null)
+                        {
+                            foreach (var m in m3ds)
+                            {
+                                var op = (m.Op ?? "").Trim().ToLowerInvariant();
+                                Dictionary<string, object?> mres = op switch
+                                {
+                                    "fillet" => Catch(() => _provider.Fillet(m.Edges ?? "", m.Radius ?? 0.5, m.Mode ?? "constant")),
+                                    "chamfer" => Catch(() => _provider.Chamfer(m.Edges ?? "", m.Distance ?? 0.1, m.Mode ?? "equal_distance")),
+                                    "shell" => Catch(() => _provider.Shell(m.Faces ?? "", m.Thickness ?? 0.1, m.Direction ?? "inside", m.Operation ?? "new_body")),
+                                    "draft" => Catch(() => _provider.Draft(m.Faces ?? "", m.Angle ?? 5, m.Mode ?? "fixed_edge", m.PullDirection ?? "z", m.FixedEntity ?? "")),
+                                    "thread" => Catch(() => _provider.Thread(m.Face ?? "", m.Specification ?? "M10x1.5", m.Direction ?? "right")),
+                                    "split" => Catch(() => _provider.Split(m.SplitTool ?? "", m.RemoveSide ?? "positive", m.TargetBody ?? "")),
+                                    "hole" => Catch(() => _provider.Hole(m.X ?? 0, m.Y ?? 0, m.Diameter ?? 5, m.Depth ?? 10, m.HoleType ?? "drilled", m.Operation ?? "join")),
+                                    _ => ToolHelpers.Error($"unknown per-entry modify_3d '{m.Op}'")
+                                };
+                                if (!IsSuccess(mres))
+                                    warnings.Add($"features[] scoped modify_3d '{op}' failed: {mres?["error"]?.ToString() ?? "unknown"}");
+                            }
+                        }
                     }
                 }
+
+                featureStatus = new MacroPhaseStatus(featureOkCount > 0, "features", EntityCount: featureOkCount);
+                phaseStatus["features"] = featuresPhaseList;
             }
-            phaseStatus["feature"] = featureStatus;
+            else
+            {
+                // ── LEGACY single-feature path (unchanged behavior when features absent/empty) ──
+                string? ft = string.IsNullOrWhiteSpace(feature_type) ? null : feature_type.Trim().ToLowerInvariant();
+                if (!string.IsNullOrWhiteSpace(ft))
+                {
+                    var profRes = Catch(() => _provider.SketchProfiles());
+                    int profileCount = 0;
+                    if (!IsSuccess(profRes))
+                    {
+                        var err = profRes?["error"]?.ToString() ?? "unknown";
+                        warnings.Add($"feature requested but SketchProfiles() failed: {err} — skipping feature phase");
+                        featureStatus = new MacroPhaseStatus(false, "feature", Error: $"SketchProfiles() failed: {err}");
+                    }
+                    else if (profRes != null && profRes.TryGetValue("profile_count", out var pcObj) && pcObj is int pc && pc > 0)
+                        profileCount = pc;
+
+                    if (profileCount == 0 && featureStatus == null)
+                    {
+                        warnings.Add("feature requested but no closed profiles detected via SketchProfiles() — skipping feature phase");
+                        featureStatus = new MacroPhaseStatus(false, "feature", Error: "No closed sketch profile found (profile_count == 0 after sketch phase). Provide sketch_entities producing a closed profile or draw one before requesting a feature.");
+                    }
+
+                    if (featureStatus == null)
+                    {
+                        try
+                        {
+                            Dictionary<string, object?> featRes;
+                            switch (ft)
+                            {
+                                case "extrude":
+                                    featRes = Catch(() => _provider.Extrude(
+                                        feature_profile ?? "1",
+                                        feature_distance ?? 10.0,
+                                        feature_direction ?? "positive",
+                                        feature_taper ?? 0.0,
+                                        feature_operation ?? "new_body"));
+                                    break;
+                                case "revolve":
+                                    featRes = Catch(() => _provider.Revolve(
+                                        feature_profile ?? "1",
+                                        feature_axis ?? "Y",
+                                        feature_angle ?? 360.0,
+                                        feature_direction ?? "positive",
+                                        feature_operation ?? "new_body"));
+                                    break;
+                                case "sweep":
+                                    featRes = Catch(() => _provider.Sweep(
+                                        feature_profile ?? "1",
+                                        feature_path ?? "1",
+                                        "path",
+                                        feature_operation ?? "new_body",
+                                        feature_taper ?? 0.0,
+                                        "",
+                                        ""));
+                                    break;
+                                case "loft":
+                                    featRes = Catch(() => _provider.Loft(
+                                        feature_profiles ?? "1,2",
+                                        feature_operation ?? "new_body"));
+                                    break;
+                                case "coil":
+                                    featRes = Catch(() => _provider.Coil(
+                                        feature_profile ?? "1",
+                                        feature_axis ?? "Y",
+                                        feature_pitch ?? 1.0,
+                                        feature_revolutions ?? 5.0,
+                                        feature_operation ?? "new_body"));
+                                    break;
+                                case "rib":
+                                    featRes = Catch(() => _provider.Rib(
+                                        feature_profile ?? "1",
+                                        feature_thickness ?? 0.5,
+                                        feature_direction ?? "normal",
+                                        feature_operation ?? "new_body"));
+                                    break;
+                                default:
+                                    featRes = ToolHelpers.Error($"unknown feature_type '{feature_type}' (supported: extrude,revolve,sweep,loft,coil,rib)");
+                                    break;
+                            }
+
+                            if (IsSuccess(featRes))
+                            {
+                                geometryCreated = true;
+                                featureStatus = new MacroPhaseStatus(true, "feature", FeatureType: ft, FeatureName: null);
+                            }
+                            else
+                            {
+                                warnings.Add($"Feature '{ft}' failed: {featRes?["error"]?.ToString() ?? "unknown"}");
+                                featureStatus = new MacroPhaseStatus(false, "feature", Error: featRes?["error"]?.ToString(), FeatureType: ft);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            warnings.Add($"Feature phase error: {ex.Message}");
+                            featureStatus = new MacroPhaseStatus(false, "feature", Error: ex.Message, FeatureType: ft);
+                        }
+                    }
+                }
+                phaseStatus["feature"] = featureStatus;
+            }
 
             // ── 4. 3D Pattern phase ──────────────────────────────────────────────
+            // SKIP global pattern_3d when features[] was present (per-entry scoping is handled above)
             MacroPhaseStatus? pat3dStatus = null;
-            var (p3ds, p3derr) = ParsePhaseJson<Pattern3DOp>(pattern_3d, "pattern_3d");
-            if (p3derr != null)
+            if (!hasFeaturesArray)
             {
-                warnings.Add(p3derr["error"]?.ToString() ?? "pattern_3d parse error");
-                pat3dStatus = new MacroPhaseStatus(false, "pattern_3d", Error: p3derr["error"]?.ToString());
-            }
-            else if (p3ds != null && p3ds.Count > 0)
-            {
-                int okCount = 0;
-                foreach (var p in p3ds)
+                var (p3ds, p3derr) = ParsePhaseJson<Pattern3DOp>(pattern_3d, "pattern_3d");
+                if (p3derr != null)
                 {
-                    var ptype = (p.Type ?? "").Trim().ToLowerInvariant();
-                    Dictionary<string, object?> pres;
-                    switch (ptype)
+                    warnings.Add(p3derr["error"]?.ToString() ?? "pattern_3d parse error");
+                    pat3dStatus = new MacroPhaseStatus(false, "pattern_3d", Error: p3derr["error"]?.ToString());
+                }
+                else if (p3ds != null && p3ds.Count > 0)
+                {
+                    int okCount = 0;
+                    foreach (var p in p3ds)
                     {
-                        case "circular":
-                            pres = Catch(() => _provider.CircularPattern(
-                                p.Profile, p.Axis ?? "Y", p.Count ?? 6, p.Angle ?? 360.0, p.FitWithinAngle ?? true, p.NaturalDirection ?? true));
-                            break;
-                        case "rectangular":
-                            pres = Catch(() => _provider.RectangularPattern(
-                                p.Profile, p.XAxis ?? "", p.XCount ?? 2, p.XSpacing ?? 1.0, p.YAxis ?? "", p.YCount ?? 1, p.YSpacing ?? 0.0));
-                            break;
-                        case "mirror":
-                            pres = Catch(() => _provider.MirrorFeature(p.Profile, p.MirrorPlane ?? "YZ"));
-                            break;
-                        default:
-                            pres = ToolHelpers.Error($"unknown pattern_3d type '{p.Type}'");
-                            break;
+                        var ptype = (p.Type ?? "").Trim().ToLowerInvariant();
+                        Dictionary<string, object?> pres;
+                        switch (ptype)
+                        {
+                            case "circular":
+                                pres = Catch(() => _provider.CircularPattern(
+                                    p.Profile, p.Axis ?? "Y", p.Count ?? 6, p.Angle ?? 360.0, p.FitWithinAngle ?? true, p.NaturalDirection ?? true));
+                                break;
+                            case "rectangular":
+                                pres = Catch(() => _provider.RectangularPattern(
+                                    p.Profile, p.XAxis ?? "", p.XCount ?? 2, p.XSpacing ?? 1.0, p.YAxis ?? "", p.YCount ?? 1, p.YSpacing ?? 0.0));
+                                break;
+                            case "mirror":
+                                pres = Catch(() => _provider.MirrorFeature(p.Profile, p.MirrorPlane ?? "YZ"));
+                                break;
+                            default:
+                                pres = ToolHelpers.Error($"unknown pattern_3d type '{p.Type}'");
+                                break;
+                        }
+                        if (IsSuccess(pres))
+                            okCount++;
+                        else
+                            warnings.Add($"pattern_3d '{ptype}' on {p.Profile} failed: {pres?["error"]?.ToString() ?? "unknown"}");
                     }
-                    if (IsSuccess(pres))
-                        okCount++;
+                    if (okCount > 0)
+                    {
+                        geometryCreated = true;
+                        pat3dStatus = new MacroPhaseStatus(true, "pattern_3d", EntityCount: okCount);
+                    }
                     else
-                        warnings.Add($"pattern_3d '{ptype}' on {p.Profile} failed: {pres?["error"]?.ToString() ?? "unknown"}");
-                }
-                if (okCount > 0)
-                {
-                    geometryCreated = true;
-                    pat3dStatus = new MacroPhaseStatus(true, "pattern_3d", EntityCount: okCount);
-                }
-                else
-                {
-                    pat3dStatus = new MacroPhaseStatus(false, "pattern_3d", Error: $"all {p3ds.Count} pattern_3d operations failed", EntityCount: 0);
+                    {
+                        pat3dStatus = new MacroPhaseStatus(false, "pattern_3d", Error: $"all {p3ds.Count} pattern_3d operations failed", EntityCount: 0);
+                    }
                 }
             }
             phaseStatus["pattern_3d"] = pat3dStatus;
 
             // ── 5. Modify 3D phase ───────────────────────────────────────────────
+            // SKIP global modify_3d when features[] was present (per-entry scoping handled in dispatch)
             MacroPhaseStatus? mod3dStatus = null;
-            var (m3ds, m3derr) = ParsePhaseJson<Modify3DOp>(modify_3d, "modify_3d");
-            if (m3derr != null)
+            if (!hasFeaturesArray)
             {
-                warnings.Add(m3derr["error"]?.ToString() ?? "modify_3d parse error");
-                mod3dStatus = new MacroPhaseStatus(false, "modify_3d", Error: m3derr["error"]?.ToString());
-            }
-            else if (m3ds != null && m3ds.Count > 0)
-            {
-                int okCount = 0;
-                foreach (var m in m3ds)
+                var (m3ds, m3derr) = ParsePhaseJson<Modify3DOp>(modify_3d, "modify_3d");
+                if (m3derr != null)
                 {
-                    var op = (m.Op ?? "").Trim().ToLowerInvariant();
-                    Dictionary<string, object?> mres;
-                    switch (op)
+                    warnings.Add(m3derr["error"]?.ToString() ?? "modify_3d parse error");
+                    mod3dStatus = new MacroPhaseStatus(false, "modify_3d", Error: m3derr["error"]?.ToString());
+                }
+                else if (m3ds != null && m3ds.Count > 0)
+                {
+                    int okCount = 0;
+                    foreach (var m in m3ds)
                     {
-                        case "fillet":
-                            mres = Catch(() => _provider.Fillet(m.Edges ?? "", m.Radius ?? 0.1, m.Mode ?? "constant"));
-                            break;
-                        case "chamfer":
-                            mres = Catch(() => _provider.Chamfer(m.Edges ?? "", m.Distance ?? 0.1, m.Mode ?? "equal_distance"));
-                            break;
-                        case "shell":
-                            mres = Catch(() => _provider.Shell(m.Faces ?? "", m.Thickness ?? 0.1, m.Direction ?? "inside", m.Operation ?? "new_body"));
-                            break;
-                        case "draft":
-                            mres = Catch(() => _provider.Draft(m.Faces ?? "", m.Angle ?? 5.0, m.Mode ?? "fixed_edge", m.PullDirection ?? "z", m.FixedEntity ?? ""));
-                            break;
-                        case "thread":
-                            mres = Catch(() => _provider.Thread(m.Face ?? "", m.Specification ?? "M10x1.5", m.Direction ?? "right"));
-                            break;
-                        case "split":
-                            mres = Catch(() => _provider.Split(m.SplitTool ?? "", m.RemoveSide ?? "positive", m.TargetBody ?? ""));
-                            break;
-                        case "hole":
-                            mres = Catch(() => _provider.Hole(m.X ?? 0, m.Y ?? 0, m.Diameter ?? 1.0, m.Depth ?? 1.0, m.HoleType ?? "drilled", m.Operation ?? "join"));
-                            break;
-                        default:
-                            mres = ToolHelpers.Error($"unknown modify_3d op '{m.Op}'");
-                            break;
+                        var op = (m.Op ?? "").Trim().ToLowerInvariant();
+                        Dictionary<string, object?> mres;
+                        switch (op)
+                        {
+                            case "fillet":
+                                mres = Catch(() => _provider.Fillet(m.Edges ?? "", m.Radius ?? 0.1, m.Mode ?? "constant"));
+                                break;
+                            case "chamfer":
+                                mres = Catch(() => _provider.Chamfer(m.Edges ?? "", m.Distance ?? 0.1, m.Mode ?? "equal_distance"));
+                                break;
+                            case "shell":
+                                mres = Catch(() => _provider.Shell(m.Faces ?? "", m.Thickness ?? 0.1, m.Direction ?? "inside", m.Operation ?? "new_body"));
+                                break;
+                            case "draft":
+                                mres = Catch(() => _provider.Draft(m.Faces ?? "", m.Angle ?? 5.0, m.Mode ?? "fixed_edge", m.PullDirection ?? "z", m.FixedEntity ?? ""));
+                                break;
+                            case "thread":
+                                mres = Catch(() => _provider.Thread(m.Face ?? "", m.Specification ?? "M10x1.5", m.Direction ?? "right"));
+                                break;
+                            case "split":
+                                mres = Catch(() => _provider.Split(m.SplitTool ?? "", m.RemoveSide ?? "positive", m.TargetBody ?? ""));
+                                break;
+                            case "hole":
+                                mres = Catch(() => _provider.Hole(m.X ?? 0, m.Y ?? 0, m.Diameter ?? 1.0, m.Depth ?? 1.0, m.HoleType ?? "drilled", m.Operation ?? "join"));
+                                break;
+                            default:
+                                mres = ToolHelpers.Error($"unknown modify_3d op '{m.Op}'");
+                                break;
+                        }
+                        if (IsSuccess(mres))
+                            okCount++;
+                        else
+                            warnings.Add($"modify_3d '{op}' failed: {mres?["error"]?.ToString() ?? "unknown"}");
                     }
-                    if (IsSuccess(mres))
-                        okCount++;
+                    if (okCount > 0)
+                    {
+                        geometryCreated = true;
+                        mod3dStatus = new MacroPhaseStatus(true, "modify_3d", EntityCount: okCount);
+                    }
                     else
-                        warnings.Add($"modify_3d '{op}' failed: {mres?["error"]?.ToString() ?? "unknown"}");
-                }
-                if (okCount > 0)
-                {
-                    geometryCreated = true;
-                    mod3dStatus = new MacroPhaseStatus(true, "modify_3d", EntityCount: okCount);
-                }
-                else
-                {
-                    mod3dStatus = new MacroPhaseStatus(false, "modify_3d", Error: $"all {m3ds.Count} modify_3d operations failed", EntityCount: 0);
+                    {
+                        mod3dStatus = new MacroPhaseStatus(false, "modify_3d", Error: $"all {m3ds.Count} modify_3d operations failed", EntityCount: 0);
+                    }
                 }
             }
             phaseStatus["modify_3d"] = mod3dStatus;
