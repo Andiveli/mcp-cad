@@ -31,6 +31,23 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> SketchLineClose();
     Dictionary<string, object?> SketchProfiles();
 
+    /// <summary>
+    /// Reads existing sketch geometry (entities) by 1-based sketch index into
+    /// structured data (entities + warnings + parameters) compatible with
+    /// macro_god_part sketch_* phases and the template capture system.
+    /// Implementation uses SketchReader (COM traversal in Inventor layer).
+    /// </summary>
+    Dictionary<string, object?> ReadSketchData(int sketchIndex = 1);
+
+    /// <summary>
+    /// Reads the feature tree (all PartFeature objects) in creational order into
+    /// typed descriptors for template capture and multi-feature replay.
+    /// Returns envelope: { "success": bool, "features": FeatureDescriptor[], "warnings": string[] }
+    /// Implementation uses FeatureReader (COM traversal in Inventor layer).
+    /// Mirrors ReadSketchData pattern exactly.
+    /// </summary>
+    Dictionary<string, object?> ReadFeatureData();
+
     #endregion
 
     #region Features

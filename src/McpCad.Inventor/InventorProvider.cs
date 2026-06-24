@@ -1,4 +1,6 @@
 using McpCad.Core;
+using McpCad.Core.Models;
+using McpCad.Inventor.Helpers;
 using McpCad.Inventor.Managers;
 
 namespace McpCad.Inventor;
@@ -123,6 +125,68 @@ public class InventorProvider : IMechanicalCadProvider
 
     public Dictionary<string, object?> SketchLineClose() => _sketch.SketchLineClose();
     public Dictionary<string, object?> SketchProfiles() => _sketch.SketchProfiles();
+
+    public Dictionary<string, object?> ReadSketchData(int sketchIndex = 1)
+    {
+        try
+        {
+            var compDef = _driver.ComponentDefinition;
+            if (compDef is null)
+                return ErrorResult.Create("No active component definition. Create or open a part first.");
+
+            dynamic dynCompDef = ComDispatchHelper.WrapDispatch(compDef);
+            dynamic sketches = dynCompDef.Sketches;
+            if (sketches.Count < sketchIndex)
+                return ErrorResult.Create($"Sketch index {sketchIndex} not found (total: {sketches.Count}).");
+
+            dynamic planarSketch = sketches.Item(sketchIndex);
+            var sketchRead = SketchReader.ReadSketchEntities(planarSketch);
+            var entities = sketchRead.Item1;
+            var warnings = sketchRead.Item2;
+
+            // Parameters help template substitution (design contract)
+            var paramResult = _parameter.ParamList();
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["entities"] = entities,
+                ["warnings"] = warnings,
+                ["sketch_index"] = sketchIndex,
+                ["parameters"] = paramResult.TryGetValue("parameters", out var pars) ? pars : paramResult
+            };
+        }
+        catch (Exception ex)
+        {
+            return ErrorResult.Create($"ReadSketchData failed: {ex.Message}");
+        }
+    }
+
+    public Dictionary<string, object?> ReadFeatureData()
+    {
+        try
+        {
+            var compDef = _driver.ComponentDefinition;
+            if (compDef is null)
+                return ErrorResult.Create("No active component definition. Create or open a part first.");
+
+            dynamic dynCompDef = ComDispatchHelper.WrapDispatch(compDef);
+            var readResult = FeatureReader.ReadFeatures(dynCompDef);
+            var features = readResult.Item1;
+            var warnings = readResult.Item2;
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["features"] = features,
+                ["warnings"] = warnings
+            };
+        }
+        catch (Exception ex)
+        {
+            return ErrorResult.Create($"ReadFeatureData failed: {ex.Message}");
+        }
+    }
 
     // ── Features ──────────────────────────────────────────────────────
 
