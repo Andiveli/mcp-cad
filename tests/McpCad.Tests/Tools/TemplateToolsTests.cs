@@ -99,6 +99,189 @@ public class TemplateToolsTests : IDisposable
     }
 
     [Fact]
+    public void TemplateCapture_MultiSketch_LoopsAllSketches()
+    {
+        // Multi-sketch v2: template_capture reads all sketches and emits sketches[] with each entry
+        var sketch1Entities = new List<Dictionary<string, object?>>
+        {
+            new() { ["type"] = "circle", ["cx"] = 0, ["cy"] = 0, ["radius"] = 5 }
+        };
+        var sketch2Entities = new List<Dictionary<string, object?>>
+        {
+            new() { ["type"] = "rect", ["x1"] = 0, ["y1"] = 0, ["x2"] = 10, ["y2"] = 10 }
+        };
+
+        // Sketch 1 returns success with total_sketches=2
+        _mock.SetReadSketchDataResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["entities"] = sketch1Entities,
+            ["warnings"] = new List<string>(),
+            ["sketch_index"] = 1,
+            ["total_sketches"] = 2,
+            ["parameters"] = new List<Dictionary<string, object?>>()
+        }, sketchIndex: 1);
+
+        // Sketch 2 returns different entities
+        _mock.SetReadSketchDataResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["entities"] = sketch2Entities,
+            ["warnings"] = new List<string>(),
+            ["sketch_index"] = 2,
+            ["total_sketches"] = 2,
+            ["parameters"] = new List<Dictionary<string, object?>>()
+        }, sketchIndex: 2);
+
+        _mock.SetHealthResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["active_document"] = "MultiSketch.ipt",
+            ["connected"] = true
+        });
+        _mock.SetParamListResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["parameters"] = new List<Dictionary<string, object?>>()
+        });
+        _mock.SetGetFeatureTreeResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_count"] = 0,
+            ["features"] = new List<Dictionary<string, object?>>()
+        });
+        _mock.SetReadFeatureDataResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["features"] = new List<Dictionary<string, object?>>(),
+            ["warnings"] = new List<string>()
+        });
+
+        var name = _uniquePrefix + "-multisketch";
+        _createdTemplates.Add(name);
+
+        var res = _tools.template_capture(name, "Multi-sketch test capture");
+
+        Assert.NotNull(res);
+        Assert.True(res.TryGetValue("success", out var ok) && ok is bool bok && bok);
+
+        // Verify sketches[] in the saved template
+        var tpl = TemplateManager.Load(name);
+        Assert.NotNull(tpl);
+        Assert.True(tpl.Value.TryGetProperty("macro_config", out var mc));
+        Assert.True(mc.TryGetProperty("sketches", out var skArr));
+        Assert.Equal(JsonValueKind.Array, skArr.ValueKind);
+        Assert.Equal(2, skArr.GetArrayLength());
+
+        // Entry 1 should be sketch1 entities (circle)
+        var entry1 = skArr[0];
+        Assert.True(entry1.TryGetProperty("entities", out var e1));
+        Assert.Equal(JsonValueKind.Array, e1.ValueKind);
+        Assert.Equal(1, e1.GetArrayLength());
+        Assert.Equal("circle", e1[0].GetProperty("type").GetString());
+
+        // Entry 2 should be sketch2 entities (rect)
+        var entry2 = skArr[1];
+        Assert.True(entry2.TryGetProperty("entities", out var e2));
+        Assert.Equal(JsonValueKind.Array, e2.ValueKind);
+        Assert.Equal(1, e2.GetArrayLength());
+        Assert.Equal("rect", e2[0].GetProperty("type").GetString());
+
+        // Verify CallLog shows ReadSketchData was called for both indices
+        var readCalls = _mock.CallLog.Where(c => c.Method == "ReadSketchData").ToList();
+        Assert.Equal(2, readCalls.Count);
+        Assert.Equal(1, readCalls[0].Args.GetValueOrDefault("sketch_index"));
+        Assert.Equal(2, readCalls[1].Args.GetValueOrDefault("sketch_index"));
+
+        // Metadata should reflect sketch_count
+        Assert.True(tpl.Value.TryGetProperty("metadata", out var md));
+        Assert.True(md.TryGetProperty("sketch_count", out var sc));
+        Assert.Equal(2, sc.GetInt32());
+    }
+
+    [Fact]
+    public void TemplateRun_MultiSketch_ForwardsSketchesToGod()
+    {
+        // Round-trip: template with 2 sketches → run → verify macro_god_part created both sketches
+        var sketch1Entities = new List<Dictionary<string, object?>>
+        {
+            new() { ["type"] = "circle", ["cx"] = 0, ["cy"] = 0, ["radius"] = 5 }
+        };
+        var sketch2Entities = new List<Dictionary<string, object?>>
+        {
+            new() { ["type"] = "circle", ["cx"] = 10, ["cy"] = 0, ["radius"] = 3 }
+        };
+
+        SetupCaptureMocks(sketch1Entities);
+
+        // Override sketch 1 to return total_sketches=2
+        _mock.SetReadSketchDataResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["entities"] = sketch1Entities,
+            ["warnings"] = new List<string>(),
+            ["sketch_index"] = 1,
+            ["total_sketches"] = 2,
+            ["parameters"] = new List<Dictionary<string, object?>>()
+        }, sketchIndex: 1);
+
+        // Sketch 2
+        _mock.SetReadSketchDataResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["entities"] = sketch2Entities,
+            ["warnings"] = new List<string>(),
+            ["sketch_index"] = 2,
+            ["total_sketches"] = 2,
+            ["parameters"] = new List<Dictionary<string, object?>>()
+        }, sketchIndex: 2);
+
+        // Capture
+        var name = _uniquePrefix + "-msrun";
+        _createdTemplates.Add(name);
+
+        var capRes = _tools.template_capture(name, "Multi-sketch run test");
+        Assert.True(capRes.TryGetValue("success", out var s) && s is bool cb && cb);
+
+        // Prepare mock for run: god must get past ask_before_modify guard
+        _mock.SetGetFeatureTreeResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["feature_count"] = 0,
+            ["features"] = new List<Dictionary<string, object?>>()
+        });
+        _mock.SetDocNewPartResult(new Dictionary<string, object?> { ["success"] = true });
+        _mock.SetSketchCreateResult(new Dictionary<string, object?> { ["success"] = true });
+        // SketchCircle default success is sufficient (mock returns success=true, entity=1)
+        _mock.SetGetBoundingBoxResult(new Dictionary<string, object?>
+        {
+            ["success"] = true,
+            ["min"] = new[] { 0.0, 0.0, 0.0 },
+            ["max"] = new[] { 20.0, 20.0, 10.0 },
+            ["size"] = new[] { 20.0, 20.0, 10.0 },
+            ["center"] = new[] { 10.0, 10.0, 5.0 }
+        });
+
+        // Clear call log from capture
+        _mock.CallLog.Clear();
+
+        var runRes = _tools.template_run(name);
+
+        Assert.NotNull(runRes);
+        Assert.Equal(name, runRes.GetValueOrDefault("template_used")?.ToString());
+
+        // Verify macro_god_part created 2 sketches (one per entry in sketches[])
+        var sketchCalls = _mock.CallLog.Where(c => c.Method == "SketchCreate").ToList();
+        Assert.Equal(2, sketchCalls.Count);
+        Assert.Equal("YZ", sketchCalls[0].Args.GetValueOrDefault("plane")?.ToString());
+        Assert.Equal("YZ", sketchCalls[1].Args.GetValueOrDefault("plane")?.ToString());
+
+        // Each sketch had a circle drawn
+        var circleCalls = _mock.CallLog.Where(c => c.Method == "SketchCircle").ToList();
+        Assert.Equal(2, circleCalls.Count);
+    }
+
+    [Fact]
     public void TemplateManager_Substitute_ReplacesOverridesAndDefaults()
     {
         var config = JsonSerializer.Deserialize<JsonElement>(@"{

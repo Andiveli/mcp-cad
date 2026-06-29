@@ -1,0 +1,163 @@
+{
+  "name": "multi-test-v2",
+  "description": "Multi-sketch v2 real test: circle YZ \u002B rect XY",
+  "parameters": [
+    {
+      "name": "d0",
+      "value": 5,
+      "expression": "50 mm"
+    },
+    {
+      "name": "d1",
+      "value": 0,
+      "expression": "0 deg"
+    }
+  ],
+  "macro_config": {
+    "plane": "YZ",
+    "sketch_entities": [
+      {
+        "type": "circle",
+        "cx": 0,
+        "cy": 0,
+        "radius": 3
+      },
+      {
+        "type": "point",
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "sketches": [
+      {
+        "sketch_index": 1,
+        "plane": "YZ",
+        "entities": [
+          {
+            "type": "circle",
+            "cx": 0,
+            "cy": 0,
+            "radius": 3
+          },
+          {
+            "type": "point",
+            "x": 0,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "sketch_index": 2,
+        "plane": "YZ",
+        "entities": [
+          {
+            "type": "line",
+            "x1": -2,
+            "y1": -2,
+            "x2": 2,
+            "y2": -2
+          },
+          {
+            "type": "line",
+            "x1": 2,
+            "y1": -2,
+            "x2": 2,
+            "y2": 2
+          },
+          {
+            "type": "line",
+            "x1": 2,
+            "y1": 2,
+            "x2": -2,
+            "y2": 2
+          },
+          {
+            "type": "line",
+            "x1": -2,
+            "y1": 2,
+            "x2": -2,
+            "y2": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          }
+        ]
+      }
+    ],
+    "features": [
+      {
+        "name": "Extrusion1",
+        "feature_type": "unsupported",
+        "original_type": "",
+        "suppressed": false
+      }
+    ],
+    "verify": true
+  },
+  "metadata": {
+    "captured_at": "2026-06-25T00:05:43.9548782Z",
+    "success_sketch": true,
+    "sketch_count": 2,
+    "feature_count": 1,
+    "feature_reader_warnings": [
+      "Unsupported or unrecognized feature type \u0027\u0027 for feature \u0027Extrusion1\u0027. Descriptor emitted with minimal data."
+    ]
+  }
+}

@@ -243,8 +243,21 @@ public class MockInventorProvider : IMechanicalCadProvider
     public MockInventorProvider SetDocNewPartResult(Dictionary<string, object?> result)
     { _docNewPartResult = result; return this; }
 
-    public MockInventorProvider SetReadSketchDataResult(Dictionary<string, object?> result)
-    { _readSketchDataResult = result; return this; }
+    private Dictionary<int, Dictionary<string, object?>>? _readSketchDataPerIndex;
+
+    public MockInventorProvider SetReadSketchDataResult(Dictionary<string, object?> result, int? sketchIndex = null)
+    {
+        if (sketchIndex.HasValue)
+        {
+            _readSketchDataPerIndex ??= new();
+            _readSketchDataPerIndex[sketchIndex.Value] = result;
+        }
+        else
+        {
+            _readSketchDataResult = result;
+        }
+        return this;
+    }
     public MockInventorProvider SetReadFeatureDataResult(Dictionary<string, object?> result)
     { _readFeatureDataResult = result; return this; }
     public MockInventorProvider SetParamListResult(Dictionary<string, object?> result)
@@ -617,12 +630,15 @@ public class MockInventorProvider : IMechanicalCadProvider
     public Dictionary<string, object?> ReadSketchData(int sketchIndex = 1)
     {
         CallLog.Add(("ReadSketchData", new Dictionary<string, object?> { ["sketch_index"] = sketchIndex }));
+        if (_readSketchDataPerIndex != null && _readSketchDataPerIndex.TryGetValue(sketchIndex, out var perIndex))
+            return perIndex;
         return _readSketchDataResult ?? new Dictionary<string, object?>
         {
             ["success"] = true,
             ["entities"] = new List<Dictionary<string, object?>>(),
             ["warnings"] = new List<string>(),
             ["sketch_index"] = sketchIndex,
+            ["total_sketches"] = 1,
             ["parameters"] = new List<Dictionary<string, object?>>(),
         };
     }

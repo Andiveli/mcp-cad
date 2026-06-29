@@ -1,0 +1,195 @@
+{
+  "name": "multi-test-run-verify",
+  "description": "Verify template_run created multi-sketch",
+  "parameters": [],
+  "macro_config": {
+    "plane": "YZ",
+    "sketch_entities": [
+      {
+        "type": "circle",
+        "cx": 0,
+        "cy": 0,
+        "radius": 3
+      },
+      {
+        "type": "point",
+        "x": 0,
+        "y": 0
+      },
+      {
+        "type": "point",
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "sketches": [
+      {
+        "sketch_index": 1,
+        "plane": "YZ",
+        "entities": [
+          {
+            "type": "circle",
+            "cx": 0,
+            "cy": 0,
+            "radius": 3
+          },
+          {
+            "type": "point",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "type": "point",
+            "x": 0,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "sketch_index": 2,
+        "plane": "YZ",
+        "entities": [
+          {
+            "type": "line",
+            "x1": -2,
+            "y1": -2,
+            "x2": 2,
+            "y2": -2
+          },
+          {
+            "type": "line",
+            "x1": 2,
+            "y1": -2,
+            "x2": 2,
+            "y2": 2
+          },
+          {
+            "type": "line",
+            "x1": 2,
+            "y1": 2,
+            "x2": -2,
+            "y2": 2
+          },
+          {
+            "type": "line",
+            "x1": -2,
+            "y1": 2,
+            "x2": -2,
+            "y2": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": -2
+          },
+          {
+            "type": "point",
+            "x": 2,
+            "y": 2
+          },
+          {
+            "type": "point",
+            "x": -2,
+            "y": 2
+          }
+        ]
+      }
+    ],
+    "features": [],
+    "verify": true
+  },
+  "metadata": {
+    "captured_at": "2026-06-25T00:08:05.1762280Z",
+    "success_sketch": true,
+    "sketch_count": 2,
+    "feature_count": 0,
+    "feature_reader_warnings": [
+      "Part contained no supported features or feature tree was empty."
+    ]
+  }
+}

@@ -153,6 +153,7 @@ public class InventorProvider : IMechanicalCadProvider
                 ["entities"] = entities,
                 ["warnings"] = warnings,
                 ["sketch_index"] = sketchIndex,
+                ["total_sketches"] = sketches.Count,
                 ["parameters"] = paramResult.TryGetValue("parameters", out var pars) ? pars : paramResult
             };
         }

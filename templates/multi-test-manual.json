@@ -1,0 +1,14 @@
+{
+  "name": "multi-test-manual",
+  "description": "Manual multi-sketch test: circle on YZ \u002B rect on XY",
+  "parameters": [],
+  "macro_config": {
+    "plane": "YZ",
+    "sketch_entities": [],
+    "verify": true
+  },
+  "metadata": {
+    "captured_at": "2026-06-24T23:39:50.4025350Z",
+    "success_sketch": true
+  }
+}

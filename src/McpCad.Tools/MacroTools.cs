@@ -526,6 +526,9 @@ public class MacroTools(IMechanicalCadProvider provider)
         [Description("Optional JSON array of sketch-level modify ops executed after entities/constraints/dims. Ops: move/rotate/scale/offset/mirror/trim. Example: '[{\"op\":\"move\",\"entities\":\"1,2\",\"dx\":5,\"dy\":0},{\"op\":\"rotate\",\"entities\":\"3\",\"cx\":0,\"cy\":0,\"angle\":45,\"copy\":false}]'")] string? sketch_modify = null,
         [Description("Optional JSON array of sketch patterns. Types: circular, rectangular, mirror. Example: '[{\"type\":\"circular\",\"entities\":\"1\",\"axis\":\"X\",\"count\":6,\"angle\":360},{\"type\":\"mirror\",\"entities\":\"2,3\",\"mirror_entity\":\"1\"}]'")] string? sketch_pattern = null,
 
+        // ── Multi-sketch (v2: replaces single-sketch path when present) ──
+        [Description("Optional JSON array of sketch configs for multi-sketch parts. Each entry supports: plane (string), entities (array of sketch entities). When present, replaces the single-sketch path (sketch_entities etc are ignored) and creates each sketch + its entities sequentially. Example: '[{\"plane\":\"YZ\",\"entities\":[{\"type\":\"circle\",\"cx\":0,\"cy\":0,\"radius\":5}]},{\"plane\":\"XY\",\"entities\":[{\"type\":\"rect\",\"x1\":0,\"y1\":0,\"x2\":10,\"y2\":10}]}]'")] string? sketches = null,
+
         // ── Feature (type dispatch + shared params) ──
         [Description("3D feature type to create after sketch. One of: extrude, revolve, sweep, loft, coil, rib. If null/omitted, feature phase is skipped.")] string? feature_type = null,
         [Description("Profile selector for the feature (e.g. '1', '2,4' for multi-region, or named if supported). Default '1'.")] string? feature_profile = null,
@@ -652,18 +655,135 @@ public class MacroTools(IMechanicalCadProvider provider)
             }
 
             // ── 2. Sketch phase (create + entities + constraints + dimensions + modify + pattern) ──
-            bool hasSketchInput = !string.IsNullOrWhiteSpace(sketch_entities) ||
+            bool hasMultiSketch = !string.IsNullOrWhiteSpace(sketches);
+            bool hasSketchInput = !hasMultiSketch && (
+                                  !string.IsNullOrWhiteSpace(sketch_entities) ||
                                   !string.IsNullOrWhiteSpace(sketch_constraints) ||
                                   !string.IsNullOrWhiteSpace(sketch_dimensions) ||
                                   !string.IsNullOrWhiteSpace(sketch_modify) ||
-                                  !string.IsNullOrWhiteSpace(sketch_pattern);
+                                  !string.IsNullOrWhiteSpace(sketch_pattern));
 
             MacroPhaseStatus? sketchStatus = null;
             int sketchEntityCount = 0;
             int sketchConstraintCount = 0;
             bool skipRemaining = false;
 
-            if (hasSketchInput)
+            if (hasMultiSketch)
+            {
+                // Multi-sketch v2: loop through sketches[] entries, each with own plane + entities
+                try
+                {
+                    using var msDoc = JsonDocument.Parse(sketches!);
+                    var msArray = msDoc.RootElement.EnumerateArray();
+                    int msTotalEntities = 0;
+                    int msIndex = 0;
+                    bool msAllOk = true;
+
+                    foreach (var msEntry in msArray)
+                    {
+                        msIndex++;
+                        string msPlane = msEntry.TryGetProperty("plane", out var msPEl)
+                            ? msPEl.GetString() ?? "YZ" : "YZ";
+
+                        var msCreate = Catch(() => _provider.SketchCreate(msPlane));
+                        if (!IsSuccess(msCreate))
+                        {
+                            warnings.Add($"multi-sketch[{msIndex}] SketchCreate on '{msPlane}' failed: {msCreate?["error"]?.ToString() ?? "unknown"}");
+                            if (msAllOk)
+                            {
+                                sketchStatus = new MacroPhaseStatus(false, "sketch", Error: $"multi-sketch[{msIndex}] create failed on '{msPlane}'");
+                                msAllOk = false;
+                            }
+                            continue;
+                        }
+
+                        if (msEntry.TryGetProperty("entities", out var msEntsEl) && msEntsEl.ValueKind == JsonValueKind.Array)
+                        {
+                            var msEntities = JsonSerializer.Deserialize<List<SketchEntity>>(msEntsEl.GetRawText(), SketchParseOptions);
+                            if (msEntities != null)
+                            {
+                                int msEntryDrawn = 0;
+                                foreach (var mse in msEntities)
+                                {
+                                    Dictionary<string, object?> mres;
+                                    string mt = (mse.Type ?? "").Trim().ToLowerInvariant();
+                                    bool mpolySuccess = true;
+                                    int mlinesAdded = 0;
+                                    switch (mt)
+                                    {
+                                        case "line":
+                                            mres = Catch(() => _provider.SketchLine(mse.X1!.Value, mse.Y1!.Value, mse.X2!.Value, mse.Y2!.Value, mse.Tag));
+                                            break;
+                                        case "circle":
+                                            mres = Catch(() => _provider.SketchCircle(mse.Cx!.Value, mse.Cy!.Value, mse.Radius!.Value, mse.Tag));
+                                            break;
+                                        case "rect":
+                                            mres = Catch(() => _provider.SketchRectangle(mse.X1!.Value, mse.Y1!.Value, mse.X2!.Value, mse.Y2!.Value));
+                                            break;
+                                        case "arc":
+                                            mres = Catch(() => _provider.SketchArc(mse.Cx!.Value, mse.Cy!.Value, mse.Radius!.Value, mse.StartAngle!.Value, mse.EndAngle!.Value));
+                                            break;
+                                        case "spline":
+                                            mres = Catch(() => _provider.SketchSpline(mse.Points!, mse.FitMethod ?? "sweet"));
+                                            break;
+                                        case "point":
+                                            double mpx = mse.X ?? mse.X1 ?? 0;
+                                            double mpy = mse.Y ?? mse.Y1 ?? 0;
+                                            mres = Catch(() => _provider.SketchPoint(mpx, mpy));
+                                            break;
+                                        case "ellipse":
+                                            double mmaj = mse.MajorRadius ?? mse.Radius ?? 1.0;
+                                            double mmin = mse.MinorRadius ?? mse.Radius ?? 1.0;
+                                            mres = Catch(() => _provider.SketchEllipse(mse.Cx!.Value, mse.Cy!.Value, mmaj, mmin, mse.Angle ?? 0.0));
+                                            break;
+                                        case "polygon":
+                                            var mlines = GeneratePolygonLines(mse.Cx!.Value, mse.Cy!.Value, mse.Radius!.Value, mse.Sides!.Value, mse.StartAngleDeg ?? 0.0);
+                                            int mexpSides = mse.Sides!.Value;
+                                            foreach (var (mx1, my1, mx2, my2) in mlines)
+                                            {
+                                                var mlres = Catch(() => _provider.SketchLine(mx1, my1, mx2, my2, mse.Tag));
+                                                if (IsSuccess(mlres))
+                                                    mlinesAdded++;
+                                                else
+                                                {
+                                                    mpolySuccess = false;
+                                                    warnings.Add($"multi-sketch[{msIndex}] polygon line failed: {mlres?["error"]?.ToString() ?? "unknown"}");
+                                                }
+                                            }
+                                            mres = (mpolySuccess && mlinesAdded == mexpSides) ? ToolHelpers.Success() : ToolHelpers.Error("one or more polygon lines failed");
+                                            break;
+                                        default:
+                                            mres = ToolHelpers.Error($"unknown multi-sketch entity type '{mse.Type}'");
+                                            break;
+                                    }
+                                    if (IsSuccess(mres) && (mt != "polygon" || mpolySuccess))
+                                        msEntryDrawn++;
+                                    else
+                                        warnings.Add($"multi-sketch[{msIndex}] entity '{mt}' failed: {mres?["error"]?.ToString() ?? "unknown"}");
+                                }
+                                msTotalEntities += msEntryDrawn;
+                                if (msEntryDrawn < msEntities.Count && msAllOk)
+                                {
+                                    sketchStatus = new MacroPhaseStatus(false, "sketch", Error: $"multi-sketch[{msIndex}] partial entities ({msEntryDrawn}/{msEntities.Count})");
+                                    msAllOk = false;
+                                }
+                            }
+                        }
+                    }
+
+                    if (msAllOk)
+                    {
+                        sketchEntityCount = msTotalEntities;
+                        sketchStatus = new MacroPhaseStatus(true, "sketch", EntityCount: msTotalEntities);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    warnings.Add($"Multi-sketch phase error: {ex.Message}");
+                    sketchStatus = new MacroPhaseStatus(false, "sketch", Error: ex.Message);
+                }
+            }
+            else if (hasSketchInput)
             {
                 try
                 {

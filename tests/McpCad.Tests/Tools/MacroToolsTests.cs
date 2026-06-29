@@ -328,4 +328,59 @@ public class MacroToolsTests
         Assert.True(ps.ContainsKey("feature"));
         Assert.False(ps.ContainsKey("features") && ps["features"] is List<MacroPhaseStatus> { Count: > 0 });
     }
+
+    [Fact]
+    public void SketchesParam_CreatesMultipleSketches()
+    {
+        // Multi-sketch v2: sketches param creates each sketch with its own entities
+        var sketchesJson = @"[
+            {""plane"":""YZ"",""entities"":[{""type"":""circle"",""cx"":0,""cy"":0,""radius"":5}]},
+            {""plane"":""XY"",""entities"":[{""type"":""rect"",""x1"":0,""y1"":0,""x2"":10,""y2"":10}]}
+        ]";
+
+        var result = _tools.macro_god_part(
+            ask_before_modify: false,
+            sketches: sketchesJson
+            // sketch_entities intentionally omitted — multi-sketch path replaces it
+        );
+
+        Assert.True((bool)result["success"]!);
+        var ps = (Dictionary<string, object?>)result["phase_status"]!;
+        Assert.True(ps.ContainsKey("sketch"));
+        var sketchStatus = (MacroPhaseStatus)ps["sketch"]!;
+        Assert.True(sketchStatus.Success);
+
+        // Two SketchCreate calls: YZ + XY
+        var sketchCalls = _mock.CallLog.Where(c => c.Method == "SketchCreate").ToList();
+        Assert.Equal(2, sketchCalls.Count);
+        Assert.Equal("YZ", sketchCalls[0].Args.GetValueOrDefault("plane")?.ToString());
+        Assert.Equal("XY", sketchCalls[1].Args.GetValueOrDefault("plane")?.ToString());
+
+        // Entity calls: circle + rect
+        var circleCalls = _mock.CallLog.Where(c => c.Method == "SketchCircle").ToList();
+        Assert.Single(circleCalls);
+
+        var rectCalls = _mock.CallLog.Where(c => c.Method == "SketchRectangle").ToList();
+        Assert.Single(rectCalls);
+    }
+
+    [Fact]
+    public void SketchesParam_BackwardCompat_SingleSketchPathStillWorks()
+    {
+        // When sketches is NOT provided, existing single-sketch path still works
+        var sketchJson = @"[{""type"":""circle"",""cx"":0,""cy"":0,""radius"":5}]";
+
+        var result = _tools.macro_god_part(
+            ask_before_modify: false,
+            sketch_entities: sketchJson
+        );
+
+        Assert.True((bool)result["success"]!);
+        var ps = (Dictionary<string, object?>)result["phase_status"]!;
+        Assert.True(ps.ContainsKey("sketch"));
+
+        // Only ONE SketchCreate call (single-sketch path)
+        var sketchCalls = _mock.CallLog.Where(c => c.Method == "SketchCreate").ToList();
+        Assert.Single(sketchCalls);
+    }
 }

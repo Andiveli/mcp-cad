@@ -52,6 +52,32 @@ public class TemplateTools(IMechanicalCadProvider provider, MacroTools macroTool
                 ? wList
                 : new List<string>();
 
+            // Multi-sketch v2: collect all sketches, not just sketch 1
+            int totalSketches = sketchData.TryGetValue("total_sketches", out var ts) && ts is int tsi
+                ? tsi : 1;
+            var sketchesList = new List<object?>
+            {
+                new Dictionary<string, object?>
+                {
+                    ["sketch_index"] = 1,
+                    ["plane"] = "YZ",
+                    ["entities"] = sketchData.TryGetValue("entities", out var e1) ? e1 : null
+                }
+            };
+            for (int si = 2; si <= totalSketches; si++)
+            {
+                var sd = _provider.ReadSketchData(si);
+                if (sd.TryGetValue("success", out var skOk) && skOk is bool skb && skb)
+                {
+                    sketchesList.Add(new Dictionary<string, object?>
+                    {
+                        ["sketch_index"] = si,
+                        ["plane"] = "YZ",
+                        ["entities"] = sd.TryGetValue("entities", out var skEnts) ? skEnts : null
+                    });
+                }
+            }
+
             var template = new Dictionary<string, object?>
             {
                 ["name"] = name,
@@ -60,16 +86,9 @@ public class TemplateTools(IMechanicalCadProvider provider, MacroTools macroTool
                 ["macro_config"] = new Dictionary<string, object?>
                 {
                     ["plane"] = "YZ",
-                    // Keep sketch_entities for immediate god compat + introduce sketches[] for future multi-sketch
+                    // Keep sketch_entities for backward compat with older god versions
                     ["sketch_entities"] = sketchData.TryGetValue("entities", out var ents) ? ents : null,
-                    ["sketches"] = new List<object?>
-                    {
-                        new Dictionary<string, object?>
-                        {
-                            ["sketch_index"] = 1,
-                            ["entities"] = sketchData.TryGetValue("entities", out var e2) ? e2 : null
-                        }
-                    },
+                    ["sketches"] = sketchesList, // multi-sketch v2: all sketches
                     ["features"] = featuresList,
                     ["verify"] = true
                     // Other god fields (constraints, feature_*, etc.) can be added/edited by user in the saved JSON
@@ -77,7 +96,8 @@ public class TemplateTools(IMechanicalCadProvider provider, MacroTools macroTool
                 ["metadata"] = new Dictionary<string, object?>
                 {
                     ["captured_at"] = DateTime.UtcNow.ToString("O"),
-                    ["success_sketch"] = sketchData.TryGetValue("success", out var s) && s is bool sb && sb,
+                    ["success_sketch"] = sketchData.TryGetValue("success", out var s) && s is bool sb2 && sb2,
+                    ["sketch_count"] = totalSketches,
                     ["feature_count"] = featuresList is System.Collections.IList fl ? fl.Count : 0,
                     ["feature_reader_warnings"] = featureWarnings
                 }
@@ -174,6 +194,11 @@ public class TemplateTools(IMechanicalCadProvider provider, MacroTools macroTool
             double? GetDbl(string prop) => substituted.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : null;
             string? GetStrFromObj(string prop) => substituted.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
+            // Multi-sketch v2: sketches is an array in JSON, need GetRawText for proper serialization
+            string? sketchesJson = null;
+            if (substituted.TryGetProperty("sketches", out var skEl) && skEl.ValueKind == JsonValueKind.Array)
+                sketchesJson = skEl.GetRawText();
+
             // Call the real god macro with resolved values (this connects template to god)
             // PR3: forward features[] when present in the (substituted) macro_config.
             // Backward compat: if absent, god falls back to legacy single-feature path automatically.
@@ -187,6 +212,7 @@ public class TemplateTools(IMechanicalCadProvider provider, MacroTools macroTool
                 sketch_dimensions: GetStr("sketch_dimensions"),
                 sketch_modify: GetStr("sketch_modify"),
                 sketch_pattern: GetStr("sketch_pattern"),
+                sketches: sketchesJson,         // multi-sketch v2: forward all sketches array
                 feature_type: GetStr("feature_type"),
                 feature_profile: GetStr("feature_profile"),
                 feature_distance: GetDbl("feature_distance"),
