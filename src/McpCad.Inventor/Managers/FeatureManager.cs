@@ -1223,6 +1223,347 @@ public class FeatureManager
         catch (Exception ex) { throw new InventorComException($"Failed to thicken: {ex.Message}", ex); }
     }
 
+    // ── Weldment helper (best-effort programmatic conversion so weld calls can auto-prepare the document) ──
+    private void EnsureWeldmentContext(dynamic compDef)
+    {
+        try
+        {
+            // If the features collection is already accessible, we are (or already became) a weldment
+            _ = compDef.Features.FilletWeldFeatures;
+            return;
+        }
+        catch { /* not yet */ }
+
+        try
+        {
+            var cmdMgr = App.CommandManager;
+
+            // 1. Broad search for weldment-related commands
+            foreach (dynamic def in cmdMgr.ControlDefinitions)
+            {
+                string internalName = "";
+                try { internalName = (def.InternalName as string) ?? ""; } catch { continue; }
+                if (internalName.IndexOf("Weldment", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (internalName.IndexOf("Weld", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                     internalName.IndexOf("Convert", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    try
+                    {
+                        try { def.Execute2(true); } catch { def.Execute(); }
+                        System.Threading.Thread.Sleep(400);
+                        return;
+                    }
+                    catch { /* try next */ }
+                }
+            }
+
+            // 2. Expanded known command names for Inventor 2025/2026/2027
+            string[] candidates = new[]
+            {
+                "AssemblyConvertToWeldmentCmd",
+                "AssemblyWeldmentConvertCmd",
+                "ConvertToWeldmentCmd",
+                "WeldmentConvertCmd",
+                "AssemblyWeldmentCmd",
+                "AssemblyWeldmentEnvironmentCmd",
+                "WeldTabActivateCmd"
+            };
+            foreach (var name in candidates)
+            {
+                try
+                {
+                    dynamic def = cmdMgr.ControlDefinitions[name];
+                    try { def.Execute2(true); } catch { def.Execute(); }
+                    System.Threading.Thread.Sleep(500);
+                    return;
+                }
+                catch { /* not this name */ }
+            }
+        }
+        catch
+        {
+            // CommandManager not available or other issue — caller will get the helpful error
+        }
+    }
+
+    // ── Weld Features (fillet primary; groove/cosmetic basic per design) ──
+
+    /// <summary>
+    /// Create a fillet weld bead. Uses dynamic COM for FilletWeldFeatures (late-bound like Hole/Thread/Rib).
+    /// Face refs (legFaces*) support numeric indices or @name via FaceResolver (extended for tags).
+    /// </summary>
+    public Dictionary<string, object?> WeldFillet(
+        string legFaces1, string legFaces2, double legSize,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Best-effort: if not already weldment, try to convert programmatically via CommandManager
+            // so the caller (agent) does not need to touch the UI ribbon.
+            EnsureWeldmentContext(compDef);
+
+            // Guard for weldment context (FilletWeldFeatures only present/usable in weldment docs)
+            dynamic filletWeldFeatures;
+            try
+            {
+                filletWeldFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.FilletWeldFeatures);
+            }
+            catch (Exception)
+            {
+                return ErrorResult.Create(
+                    "Weld features are only available in weldment documents. " +
+                    "In Inventor: switch to Weld tab and use 'Convert to Weldment' on the assembly (or enable weld features on the part). " +
+                    "Standard parts/assemblies do not expose FilletWeldFeatures. (Auto-conversion attempt was made.)");
+            }
+
+            // Resolve the two leg face sets (supports "1,3" and "@tag" via extended FaceResolver)
+            dynamic leg1 = FaceResolver.ResolveFaces(compDef, legFaces1);
+            dynamic leg2 = FaceResolver.ResolveFaces(compDef, legFaces2);
+
+            // Try definition-based (common for weld beads) then fallback to direct Add
+            dynamic weldFeature;
+            try
+            {
+                dynamic def = filletWeldFeatures.CreateFilletWeldDefinition(leg1, leg2, legSize.ToString("G") + " cm");
+                // Optional length (full vs limited bead)
+                if (length.HasValue)
+                {
+                    try { def.Length = length.Value.ToString("G") + " cm"; } catch { /* property may vary */ }
+                }
+                if (intermittent)
+                {
+                    try { def.Intermittent = true; } catch { }
+                    if (pitch.HasValue)
+                        try { def.Pitch = pitch.Value.ToString("G") + " cm"; } catch { }
+                    if (gap.HasValue)
+                        try { def.Gap = gap.Value.ToString("G") + " cm"; } catch { }
+                }
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    try { def.Name = name; } catch { }
+                }
+                weldFeature = filletWeldFeatures.Add(def);
+            }
+            catch
+            {
+                // Fallback: direct Add (signatures vary by Inventor version; dynamic absorbs)
+                // Common positional guess: legs, size, length, etc. Let COM surface exact if wrong.
+                object[] args = new object[] { leg1, leg2, legSize.ToString("G") + " cm", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing };
+                weldFeature = filletWeldFeatures.Add(args);
+            }
+
+            var result = new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "fillet_weld",
+                ["feature_name"] = weldFeature.Name as string,
+                ["leg_size"] = legSize,
+            };
+            if (length.HasValue) result["length"] = length.Value;
+            if (intermittent) result["intermittent"] = true;
+            if (pitch.HasValue) result["pitch"] = pitch.Value;
+            if (gap.HasValue) result["gap"] = gap.Value;
+            if (!string.IsNullOrWhiteSpace(name)) result["name"] = name;
+            return result;
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create fillet weld: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Create a groove weld (basic implementation using dynamic).
+    /// </summary>
+    public Dictionary<string, object?> WeldGroove(
+        string faces1, string faces2, double size, string grooveType = "square", double? length = null)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            EnsureWeldmentContext(compDef);
+
+            dynamic grooveWeldFeatures;
+            try { grooveWeldFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.GrooveWeldFeatures); }
+            catch
+            {
+                return ErrorResult.Create("Groove weld features require a weldment document (use Convert to Weldment). (Auto-conversion attempt was made.)");
+            }
+
+            dynamic f1 = FaceResolver.ResolveFaces(compDef, faces1);
+            dynamic f2 = FaceResolver.ResolveFaces(compDef, faces2);
+
+            // Map groove type locally (values are Inventor WeldGrooveTypeEnum-ish; dynamic tolerates)
+            int grooveEnum = grooveType.ToLowerInvariant() switch
+            {
+                "v" => 1,
+                "bevel" => 2,
+                "j" => 3,
+                "u" => 4,
+                "square" => 0,
+                _ => 0
+            };
+
+            dynamic def;
+            try { def = grooveWeldFeatures.CreateGrooveWeldDefinition(f1, f2, size.ToString("G") + " cm", grooveEnum); }
+            catch { def = grooveWeldFeatures.CreateDefinition(); /* fallback */ }
+
+            if (length.HasValue)
+                try { def.Length = length.Value.ToString("G") + " cm"; } catch { }
+
+            dynamic result = grooveWeldFeatures.Add(def);
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "groove_weld",
+                ["feature_name"] = result.Name as string,
+                ["groove_type"] = grooveType,
+                ["size"] = size
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create groove weld: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Create a cosmetic weld (lightweight viz bead; basic dynamic impl).
+    /// </summary>
+    public Dictionary<string, object?> WeldCosmetic(string faces, double size, double? length = null)
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+            EnsureWeldmentContext(compDef);
+
+            dynamic cosmeticWeldFeatures;
+            try { cosmeticWeldFeatures = ComDispatchHelper.WrapDispatch(compDef.Features.CosmeticWeldFeatures); }
+            catch
+            {
+                return ErrorResult.Create("Cosmetic weld features require weldment support in the active document. (Auto-conversion attempt was made.)");
+            }
+
+            dynamic fs = FaceResolver.ResolveFaces(compDef, faces);
+            dynamic def;
+            try { def = cosmeticWeldFeatures.CreateCosmeticWeldDefinition(fs, size.ToString("G") + " cm"); }
+            catch { def = cosmeticWeldFeatures.CreateDefinition(); }
+
+            if (length.HasValue)
+                try { def.Length = length.Value.ToString("G") + " cm"; } catch { }
+
+            dynamic result = cosmeticWeldFeatures.Add(def);
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature_type"] = "cosmetic_weld",
+                ["feature_name"] = result.Name as string,
+                ["size"] = size
+            };
+        }
+        catch (InventorConnectionException) { throw; }
+        catch (InventorComException) { throw; }
+        catch (Exception ex) { throw new InventorComException($"Failed to create cosmetic weld: {ex.Message}", ex); }
+    }
+
+    /// <summary>
+    /// Public method to convert the active document to a weldment.
+    /// This allows subsequent weld calls to succeed without manual UI action.
+    /// </summary>
+    public Dictionary<string, object?> ConvertToWeldment()
+    {
+        try
+        {
+            var compDef = ComponentDefinition();
+
+            // Quick check
+            try
+            {
+                _ = compDef.Features.FilletWeldFeatures;
+                return new Dictionary<string, object?>
+                {
+                    ["success"] = true,
+                    ["already_weldment"] = true,
+                    ["message"] = "Document already supports weld features."
+                };
+            }
+            catch { }
+
+            var cmdMgr = App.CommandManager;
+            bool converted = false;
+
+            // 1. Search all control definitions for anything weldment-related
+            foreach (dynamic def in cmdMgr.ControlDefinitions)
+            {
+                string name = "";
+                try { name = (def.InternalName as string) ?? ""; } catch { continue; }
+
+                if (name.IndexOf("Weldment", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.IndexOf("Weld", StringComparison.OrdinalIgnoreCase) >= 0 && name.IndexOf("Convert", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    try
+                    {
+                        // Prefer Execute2 if available (can be silent in some cases)
+                        try { def.Execute2(true); } catch { def.Execute(); }
+                        System.Threading.Thread.Sleep(400);
+                        converted = true;
+                        break;
+                    }
+                    catch { }
+                }
+            }
+
+            if (!converted)
+            {
+                // 2. Known command names for Inventor (including 2025/2026/2027 variants)
+                string[] candidates = new[]
+                {
+                    "AssemblyConvertToWeldmentCmd",
+                    "AssemblyWeldmentConvertCmd",
+                    "ConvertToWeldmentCmd",
+                    "WeldmentConvertCmd",
+                    "AssemblyWeldmentCmd",
+                    "AssemblyWeldmentEnvironmentCmd",
+                    "WeldTabActivateCmd"
+                };
+
+                foreach (var cand in candidates)
+                {
+                    try
+                    {
+                        dynamic def = cmdMgr.ControlDefinitions[cand];
+                        try { def.Execute2(true); } catch { def.Execute(); }
+                        System.Threading.Thread.Sleep(500);
+                        converted = true;
+                        break;
+                    }
+                    catch { }
+                }
+            }
+
+            // Re-check
+            try
+            {
+                _ = compDef.Features.FilletWeldFeatures;
+                return new Dictionary<string, object?>
+                {
+                    ["success"] = true,
+                    ["converted"] = converted,
+                    ["message"] = converted ? "Assembly converted to weldment." : "Weld features now accessible (was already possible or partial conversion)."
+                };
+            }
+            catch
+            {
+                return ErrorResult.Create("Conversion attempt completed but weld features are still not available. Please convert manually via Weld tab → Convert to Weldment, or ensure the document is an assembly.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return ErrorResult.Create($"Failed to convert to weldment: {ex.Message}");
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────
 
     /// <summary>

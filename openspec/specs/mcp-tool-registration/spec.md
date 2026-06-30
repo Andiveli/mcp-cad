@@ -32,27 +32,31 @@ The system SHALL organize MCP tool implementations into domain-specific modules 
 
 ### Requirement: Generic register_tools Function
 
-The system SHALL provide a `register_tools(mcp_instance: FastMCP, provider: CADProvider)` function in `mcp_cad/tools/__init__.py` that registers all 32 MCP tools on the FastMCP instance.
+The system SHALL provide a `register_tools(mcp_instance: FastMCP, provider: CADProvider)` function in `mcp_cad/tools/__init__.py` that registers all 33 MCP tools on the FastMCP instance.
+
+(Previously: registered all 32 MCP tools on the FastMCP instance)
 
 #### Scenario: register_tools accepts protocol only
 
 - GIVEN the `register_tools` function
 - WHEN called with `mcp_instance` and a `CADProvider`
-- THEN it MUST register all 32 tools with identical names and signatures as before
+- THEN it MUST register all 33 tools with identical names and signatures as before
 - AND it MUST NOT accept individual manager instances (driver, doc_mgr, sketch_mgr, etc.)
 
-#### Scenario: All 32 tools preserved
+#### Scenario: All 33 tools preserved
 
 - GIVEN the new `register_tools` function
 - WHEN tools are registered
-- THEN the following 32 tools MUST exist with identical signatures:
+- THEN the following 33 tools MUST exist with identical signatures:
   `inventor_connect`, `inventor_health`, `inventor_disconnect`,
   `doc_open`, `doc_new_part`, `doc_new_assembly`, `doc_save`, `doc_save_as`, `doc_close`,
   `sketch_create`, `sketch_line`, `sketch_circle`, `sketch_arc`, `sketch_rectangle`, `sketch_dimension`,
   `extrude`, `revolve`, `fillet`, `chamfer`,
   `param_list`, `param_get`, `param_set`, `param_set_expression`,
   `iproperty_get`, `iproperty_set`, `iproperty_summary`, `iproperty_custom_get`, `iproperty_custom_set`,
-  `export_step`, `export_stl`, `export_pdf`, `export_dxf`
+  `export_step`, `export_stl`, `export_pdf`, `export_dxf`,
+  `macro_god_part`
+- AND `macro_god_part` follows the same error envelope pattern as all other tools
 
 ### Requirement: Error Envelope Pattern Preserved
 
@@ -90,6 +94,60 @@ The `mcp_cad/server.py` module MUST import ONLY from `mcp_cad.core.protocol` and
 - THEN NO import path contains `mcp_cad.inventor` or `mcp_cad.providers`
 - AND the ONLY mcp_cad imports are from `core.protocol`, `tools`, and `errors`
 
+### Requirement: macro_god_part Tool Registration
+
+The system MUST register `macro_god_part` as a new MCP tool in `src/McpCad.Tools/MacroTools.cs` using the `[McpServerTool]` attribute pattern. Every parameter MUST have a rich `[Description]` attribute.
+
+#### Scenario: Tool is discoverable via MCP
+
+- GIVEN the MCP server is running
+- WHEN the tool list is retrieved
+- THEN `macro_god_part` is listed among available tools
+- AND it accepts all documented parameters
+
+#### Scenario: Description attributes present
+
+- GIVEN the macro_god_part method declaration
+- WHEN inspected via reflection
+- THEN every parameter has a non-empty [Description] attribute
+- AND the method has a [Description] on the tool itself
+
+### Requirement: template_capture Feature Tree Capture
+
+The system MUST document that template_capture now captures the full feature tree alongside sketch entities. The capture result MUST include feature_reader_warnings when unsupported feature types are encountered.
+
+#### Scenario: Captured features in template JSON
+
+- GIVEN a part with 3 features (extrude, fillet, hole)
+- WHEN template_capture runs
+- THEN the template JSON includes a features[] array
+- AND each entry contains feature_type and typed parameters
+
+#### Scenario: FeatureReader warnings in capture result
+
+- GIVEN a part containing an unsupported iFeature
+- WHEN template_capture runs
+- THEN the result includes feature_reader_warnings
+- AND capture completes with partial success
+
+### Requirement: template_run Full Part Replay
+
+The system MUST document that template_run replays the features[] array via macro_god_part dispatch. Old templates without features[] MUST replay identically to pre-change behavior.
+
+#### Scenario: Full part template replays correctly
+
+- GIVEN a template with sketches[] and features[]
+- WHEN template_run is called with parameter overrides
+- THEN all features are recreated in creation order
+- AND geometry matches the original
+
+#### Scenario: Old template without features[] unchanged
+
+- GIVEN a pre-change template without features[]
+- WHEN template_run is called
+- THEN replay uses the single-feature path
+- AND result is identical to pre-change output
+
 ## MODIFIED Requirements
 
 ### Requirement: server.py register_tools Signature
@@ -114,7 +172,6 @@ The `register_tools` function signature changes from accepting 8 individual para
 
 ## Non-Goals
 
-- Adding new MCP tools — all 32 tools are preserved with identical signatures
 - Changing tool parameter types or default values
 - Modifying the `_ok()` or `_err()` helper functions — they remain unchanged
 - Implementing tool caching or lazy registration

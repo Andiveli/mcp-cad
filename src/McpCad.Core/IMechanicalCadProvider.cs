@@ -31,6 +31,23 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> SketchLineClose();
     Dictionary<string, object?> SketchProfiles();
 
+    /// <summary>
+    /// Reads existing sketch geometry (entities) by 1-based sketch index into
+    /// structured data (entities + warnings + parameters) compatible with
+    /// macro_god_part sketch_* phases and the template capture system.
+    /// Implementation uses SketchReader (COM traversal in Inventor layer).
+    /// </summary>
+    Dictionary<string, object?> ReadSketchData(int sketchIndex = 1);
+
+    /// <summary>
+    /// Reads the feature tree (all PartFeature objects) in creational order into
+    /// typed descriptors for template capture and multi-feature replay.
+    /// Returns envelope: { "success": bool, "features": FeatureDescriptor[], "warnings": string[] }
+    /// Implementation uses FeatureReader (COM traversal in Inventor layer).
+    /// Mirrors ReadSketchData pattern exactly.
+    /// </summary>
+    Dictionary<string, object?> ReadFeatureData();
+
     #endregion
 
     #region Features
@@ -56,6 +73,37 @@ public interface IMechanicalCadProvider : ICadProvider
     Dictionary<string, object?> Split(string splitTool, string removeSide = "positive", string targetBody = "");
     Dictionary<string, object?> Combine(string baseBody, string toolBodies, string operation = "join", bool keepToolBodies = false);
     Dictionary<string, object?> Thicken(string faces, double thickness, string direction = "positive", string operation = "new_body");
+
+    // Weld features (fillet/groove/cosmetic). String face refs support numeric indices or @name (resolved via FaceResolver).
+    // Requires weldment-capable document (assembly converted to weldment or part with weld support); errors helpfully otherwise.
+    Dictionary<string, object?> WeldFillet(
+        string legFaces1,   // faces for first leg (e.g. "1,2" or "@leg_a"); typically one set per adjoining part
+        string legFaces2,   // faces for second leg
+        double legSize,     // leg length (equal legs for v1; cm)
+        double? length = null,   // full length if null/omitted; limited bead length otherwise
+        bool intermittent = false,
+        double? pitch = null,    // spacing for intermittent welds
+        double? gap = null,      // gap between intermittent segments
+        string? name = null);    // optional feature name override
+
+    Dictionary<string, object?> WeldGroove(
+        string faces1,
+        string faces2,
+        double size,
+        string grooveType = "square", // square, v, bevel, j, u, etc. (mapped internally)
+        double? length = null);
+
+    Dictionary<string, object?> WeldCosmetic(
+        string faces,
+        double size,
+        double? length = null);
+
+    /// <summary>
+    /// Converts the active assembly (or part with weld support) to a weldment document.
+    /// This enables WeldFillet / WeldGroove / WeldCosmetic features.
+    /// Uses best-effort command execution; may require the document to be savable.
+    /// </summary>
+    Dictionary<string, object?> ConvertToWeldment();
 
     #endregion
 

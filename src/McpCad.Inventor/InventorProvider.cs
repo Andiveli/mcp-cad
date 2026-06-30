@@ -1,4 +1,6 @@
 using McpCad.Core;
+using McpCad.Core.Models;
+using McpCad.Inventor.Helpers;
 using McpCad.Inventor.Managers;
 
 namespace McpCad.Inventor;
@@ -124,6 +126,69 @@ public class InventorProvider : IMechanicalCadProvider
     public Dictionary<string, object?> SketchLineClose() => _sketch.SketchLineClose();
     public Dictionary<string, object?> SketchProfiles() => _sketch.SketchProfiles();
 
+    public Dictionary<string, object?> ReadSketchData(int sketchIndex = 1)
+    {
+        try
+        {
+            var compDef = _driver.ComponentDefinition;
+            if (compDef is null)
+                return ErrorResult.Create("No active component definition. Create or open a part first.");
+
+            dynamic dynCompDef = ComDispatchHelper.WrapDispatch(compDef);
+            dynamic sketches = dynCompDef.Sketches;
+            if (sketches.Count < sketchIndex)
+                return ErrorResult.Create($"Sketch index {sketchIndex} not found (total: {sketches.Count}).");
+
+            dynamic planarSketch = sketches.Item(sketchIndex);
+            var sketchRead = SketchReader.ReadSketchEntities(planarSketch);
+            var entities = sketchRead.Item1;
+            var warnings = sketchRead.Item2;
+
+            // Parameters help template substitution (design contract)
+            var paramResult = _parameter.ParamList();
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["entities"] = entities,
+                ["warnings"] = warnings,
+                ["sketch_index"] = sketchIndex,
+                ["total_sketches"] = sketches.Count,
+                ["parameters"] = paramResult.TryGetValue("parameters", out var pars) ? pars : paramResult
+            };
+        }
+        catch (Exception ex)
+        {
+            return ErrorResult.Create($"ReadSketchData failed: {ex.Message}");
+        }
+    }
+
+    public Dictionary<string, object?> ReadFeatureData()
+    {
+        try
+        {
+            var compDef = _driver.ComponentDefinition;
+            if (compDef is null)
+                return ErrorResult.Create("No active component definition. Create or open a part first.");
+
+            dynamic dynCompDef = ComDispatchHelper.WrapDispatch(compDef);
+            var readResult = FeatureReader.ReadFeatures(dynCompDef);
+            var features = readResult.Item1;
+            var warnings = readResult.Item2;
+
+            return new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["features"] = features,
+                ["warnings"] = warnings
+            };
+        }
+        catch (Exception ex)
+        {
+            return ErrorResult.Create($"ReadFeatureData failed: {ex.Message}");
+        }
+    }
+
     // ── Features ──────────────────────────────────────────────────────
 
     public Dictionary<string, object?> Extrude(
@@ -201,6 +266,23 @@ public Dictionary<string, object?> CircularPattern(
 
     public Dictionary<string, object?> Draft(string faces, double angle, string mode = "fixed_edge", string pullDirection = "z", string fixedEntity = "")
         => _feature.Draft(faces, angle, mode, pullDirection, fixedEntity);
+
+    // ── Welds ────────────────────────────────────────────────────────
+    public Dictionary<string, object?> WeldFillet(
+        string legFaces1, string legFaces2, double legSize,
+        double? length = null, bool intermittent = false,
+        double? pitch = null, double? gap = null, string? name = null)
+        => _feature.WeldFillet(legFaces1, legFaces2, legSize, length, intermittent, pitch, gap, name);
+
+    public Dictionary<string, object?> WeldGroove(
+        string faces1, string faces2, double size, string grooveType = "square", double? length = null)
+        => _feature.WeldGroove(faces1, faces2, size, grooveType, length);
+
+    public Dictionary<string, object?> WeldCosmetic(string faces, double size, double? length = null)
+        => _feature.WeldCosmetic(faces, size, length);
+
+    public Dictionary<string, object?> ConvertToWeldment()
+        => _feature.ConvertToWeldment();
 
     // ── Parameters ───────────────────────────────────────────────────
 

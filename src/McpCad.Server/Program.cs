@@ -20,12 +20,19 @@ builder.Services.AddSingleton<InventorDriver>();
 builder.Services.AddSingleton<IMechanicalCadProvider, InventorProvider>();
 builder.Services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<IMechanicalCadProvider>());
 
+// MacroTools must be registered as a DI service because TemplateTools depends on it
+// for template_run -> macro_god_part delegation. WithTools<T>() only registers MCP
+// discovery, not the service itself.
+builder.Services.AddSingleton<MacroTools>();
+
 // Register MCP server with stdio transport.
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<AtomicTools>()
-    .WithTools<SkillTools>();
+    .WithTools<SkillTools>()
+    .WithTools<MacroTools>()
+    .WithTools<TemplateTools>();
 
 var app = builder.Build();
 
