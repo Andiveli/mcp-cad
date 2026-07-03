@@ -1,3 +1,4 @@
+#if MCP_CAD_WINDOWS
 using McpCad.Tests.Mocks;
 using McpCad.Tools;
 
@@ -591,3 +592,4 @@ public class AtomicToolsTests
         Assert.Equal("Missing required parameter: z", result["error"]);
     }
 }
+#endif

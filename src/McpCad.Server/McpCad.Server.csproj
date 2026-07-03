@@ -2,19 +2,27 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>McpCad.Server</RootNamespace>
+    <UserSecretsId>mcp-cad-server-onshape</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="1.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\McpCad.Tools\McpCad.Tools.csproj" />
+    <ProjectReference Include="..\McpCad.Tools\Onshape\McpCad.Tools.Onshape.csproj" />
+    <ProjectReference Include="..\McpCad.Onshape\McpCad.Onshape.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <ProjectReference Include="..\McpCad.Inventor\McpCad.Inventor.csproj" />
   </ItemGroup>
 

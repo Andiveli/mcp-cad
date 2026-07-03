@@ -1,3 +1,4 @@
+#if MCP_CAD_WINDOWS
 namespace McpCad.Tests.Integration;
 
 using McpCad.Inventor;
@@ -59,3 +60,4 @@ public class SketchIntegrationTests
         Assert.Equal("offset", offsetResult["operation"]);
     }
 }
+#endif

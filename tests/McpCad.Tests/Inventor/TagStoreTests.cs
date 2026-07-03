@@ -1,3 +1,4 @@
+#if MCP_CAD_WINDOWS
 using McpCad.Inventor.Helpers;
 
 namespace McpCad.Tests.Inventor;
@@ -107,3 +108,4 @@ public class TagStoreTests
         Assert.Null(TagStore.GetTag(2, 3)); // sketch 2 has no tag at index 3
     }
 }
+#endif

@@ -1,40 +1,47 @@
-using McpCad.Core;
-using McpCad.Inventor;
-using McpCad.Tools;
+using McpCad.Server;
+using McpCad.Tools.Onshape;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+#if WINDOWS
+using McpCad.Tools;
+#endif
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddUserSecrets<McpCad.Server.ProgramMarker>(optional: true);
 
-// Route all logging to stderr so it doesn't interfere with MCP stdio transport
 builder.Logging.AddConsole(consoleLogOptions =>
 {
     consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
 });
 
-// Register the Inventor-backed provider as a singleton.
-// The driver auto-connects on first use; startup connect is controlled by appsettings.
-builder.Services.AddSingleton<InventorDriver>();
-builder.Services.AddSingleton<IMechanicalCadProvider, InventorProvider>();
-builder.Services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<IMechanicalCadProvider>());
+var activeProvider = ProviderBootstrap.ResolveActiveProvider(builder.Configuration);
+ProviderBootstrap.RegisterCadProvider(builder.Services, builder.Configuration);
+ProviderBootstrap.ValidateToolRegistration(activeProvider);
 
-// Register MCP server with stdio transport.
-builder.Services
-    .AddMcpServer()
-    .WithStdioServerTransport()
-    .WithTools<AtomicTools>()
-    .WithTools<SkillTools>();
+var mcp = builder.Services.AddMcpServer().WithStdioServerTransport();
+
+if (activeProvider.Equals("onshape", StringComparison.OrdinalIgnoreCase))
+{
+    mcp.WithTools<OnshapeAtomicTools>().WithTools<OnshapeSkillTools>();
+}
+#if WINDOWS
+else if (activeProvider.Equals("inventor", StringComparison.OrdinalIgnoreCase))
+{
+    mcp.WithTools<AtomicTools>().WithTools<SkillTools>();
+}
+#endif
 
 var app = builder.Build();
 
-// Auto-connect to Inventor on startup if configured (non-blocking, safe to fail)
-if (app.Services.GetRequiredService<IConfiguration>()
-        .GetValue<bool>("Inventor:AutoConnect"))
+#if WINDOWS
+if (activeProvider.Equals("inventor", StringComparison.OrdinalIgnoreCase)
+    && app.Services.GetRequiredService<IConfiguration>().GetValue<bool>("Inventor:AutoConnect"))
 {
-    var driver = app.Services.GetRequiredService<InventorDriver>();
+    var driver = app.Services.GetRequiredService<McpCad.Inventor.InventorDriver>();
     driver.Connect();
 }
+#endif
 
 await app.RunAsync();

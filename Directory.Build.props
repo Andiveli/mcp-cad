@@ -1,0 +1,9 @@
+<Project>
+  <!-- Same test suite on every OS: Windows builds net8.0 + net8.0-windows; Linux builds net8.0 only. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <McpCadTestTfms>net8.0;net8.0-windows</McpCadTestTfms>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <McpCadTestTfms>net8.0</McpCadTestTfms>
+  </PropertyGroup>
+</Project>

@@ -1,3 +1,4 @@
+#if MCP_CAD_WINDOWS
 using McpCad.Tests.Mocks;
 using McpCad.Tools;
 
@@ -260,3 +261,4 @@ public class SkillToolsTests
         Assert.True(WasCalled("SketchCircle"));
     }
 }
+#endif

@@ -15,4 +15,9 @@
     <ProjectReference Include="..\McpCad.Core\McpCad.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Onshape\**\*.cs" />
+    <None Include="Onshape\**\*" />
+  </ItemGroup>
+
 </Project>

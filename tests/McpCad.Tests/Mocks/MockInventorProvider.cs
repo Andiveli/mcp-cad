@@ -1,3 +1,4 @@
+#if MCP_CAD_WINDOWS
 using McpCad.Core;
 
 namespace McpCad.Tests.Mocks;
@@ -1117,3 +1118,4 @@ public class MockInventorProvider : IMechanicalCadProvider
         return new Dictionary<string, object?> { ["success"] = true, ["items"] = new List<Dictionary<string, object?>>() };
     }
 }
+#endif

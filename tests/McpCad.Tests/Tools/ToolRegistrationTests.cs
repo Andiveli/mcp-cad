@@ -11,6 +11,7 @@ namespace McpCad.Tests.Tools;
 
 public class ToolRegistrationTests
 {
+#if MCP_CAD_WINDOWS
     /// <summary>
     /// Verifies that every public method on AtomicTools has the [McpServerTool] attribute.
     /// </summary>
@@ -215,4 +216,5 @@ public class ToolRegistrationTests
         Assert.Equal("Extrusion1", result["feature"]);
         Assert.Equal(5.0, result["distance"]);
     }
+#endif
 }

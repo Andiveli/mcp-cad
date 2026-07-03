@@ -1,13 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- net8.0-windows required to reference McpCad.Inventor (COM interop).
-         Unit tests run on any TF; integration tests use #if WINDOWS. -->
-    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>$(McpCadTestTfms)</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <DefineConstants>$(DefineConstants);MCP_CAD_WINDOWS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +22,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="WireMock.Net" Version="1.7.4" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
 
@@ -32,10 +35,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\McpCad.Core\McpCad.Core.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Tools\McpCad.Tools.csproj" />
-    <ProjectReference Include="..\..\src\McpCad.Inventor\McpCad.Inventor.csproj" />
+    <ProjectReference Include="..\..\src\McpCad.Onshape\McpCad.Onshape.csproj" />
+    <ProjectReference Include="..\..\src\McpCad.Tools\Onshape\McpCad.Tools.Onshape.csproj" />
+    <ProjectReference Include="..\..\src\McpCad.Server\McpCad.Server.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <ProjectReference Include="..\..\src\McpCad.Inventor\McpCad.Inventor.csproj" />
     <Reference Include="Autodesk.Inventor.Interop">
       <HintPath>C:\Program Files\Autodesk\Inventor 2027\Bin\Public Assemblies\v30.0\Autodesk.Inventor.Interop.dll</HintPath>
       <Private>true</Private>
