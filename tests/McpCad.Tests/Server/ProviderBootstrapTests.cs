@@ -1,9 +1,7 @@
 using McpCad.Core;
 using McpCad.Core.Exceptions;
+using McpCad.Core.Models;
 using McpCad.Server;
-#if MCP_CAD_WINDOWS
-using McpCad.Inventor;
-#endif
 using McpCad.Tools;
 using McpCad.Tools.Onshape;
 using Microsoft.Extensions.Configuration;
@@ -22,7 +20,7 @@ public class ProviderBootstrapTests
 
 #if MCP_CAD_WINDOWS
     [Fact]
-    public void RegisterCadProvider_Inventor_Resolves_AtomicTools_Not_Onshape()
+    public void RegisterAllProviders_Inventor_Default_Resolves_Router_And_Unified_Tools()
     {
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
@@ -32,31 +30,34 @@ public class ProviderBootstrapTests
             })
             .Build();
 
-        ProviderBootstrap.RegisterCadProvider(services, config);
+        ProviderBootstrap.RegisterAllProviders(services, config, userConfig: null);
         var sp = services.BuildServiceProvider();
 
         Assert.IsType<AtomicTools>(sp.GetRequiredService<AtomicTools>());
-        Assert.IsType<InventorProvider>(sp.GetRequiredService<IMechanicalCadProvider>());
+        Assert.IsType<SkillTools>(sp.GetRequiredService<SkillTools>());
         Assert.Throws<InvalidOperationException>(() => sp.GetRequiredService<OnshapeAtomicTools>());
+        var router = sp.GetRequiredService<IProviderRouter>();
+        Assert.Equal("inventor", router.CurrentProvider);
+        Assert.IsType<McpCad.Inventor.InventorProvider>(router.Resolve("inventor"));
     }
 #else
     [Fact]
-    public void RegisterCadProvider_Inventor_OnNonWindows_Throws_ConfigurationException()
+    public void RegisterAllProviders_Inventor_As_Default_On_Linux_Does_Not_Throw_At_Registration()
     {
         var services = new ServiceCollection();
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Provider:Active"] = "inventor",
-            })
-            .Build();
+        var config = new ConfigurationBuilder().Build();
 
-        Assert.Throws<ConfigurationException>(() => ProviderBootstrap.RegisterCadProvider(services, config));
+        ProviderBootstrap.RegisterAllProviders(services, config, null);
+        var sp = services.BuildServiceProvider();
+        var router = sp.GetRequiredService<IProviderRouter>();
+
+        Assert.Equal("inventor", router.CurrentProvider);
+        Assert.Throws<ProviderConnectionException>(() => router.Resolve("inventor"));
     }
 #endif
 
     [Fact]
-    public void RegisterCadProvider_Onshape_Resolves_NullMechanical_And_OnshapeTools()
+    public void RegisterAllProviders_Onshape_Resolves_WebProvider_And_Unified_Tools_Not_Legacy_OnshapeTools()
     {
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
@@ -67,27 +68,33 @@ public class ProviderBootstrapTests
             })
             .Build();
 
-        ProviderBootstrap.RegisterCadProvider(services, config);
+        ProviderBootstrap.RegisterAllProviders(services, config, null);
         var sp = services.BuildServiceProvider();
 
-        Assert.IsType<NullMechanicalCadProvider>(sp.GetRequiredService<IMechanicalCadProvider>());
-        Assert.IsType<OnshapeAtomicTools>(sp.GetRequiredService<OnshapeAtomicTools>());
-        Assert.IsAssignableFrom<ICadWebProvider>(sp.GetRequiredService<ICadWebProvider>());
+        Assert.Null(sp.GetService<IMechanicalCadProvider>());
+        Assert.Throws<InvalidOperationException>(() => sp.GetRequiredService<OnshapeAtomicTools>());
+        Assert.IsType<AtomicTools>(sp.GetRequiredService<AtomicTools>());
+        var router = sp.GetRequiredService<IProviderRouter>();
+        Assert.IsAssignableFrom<ICadWebProvider>(router.Resolve("onshape"));
     }
 
     [Fact]
-    public void RegisterCadProvider_Unknown_Throws_ConfigurationException()
+    public void RegisterAllProviders_Unknown_Active_In_Config_Still_Registers_Router()
     {
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Provider:Active"] = "Fusion360" })
             .Build();
 
-        Assert.Throws<ConfigurationException>(() => ProviderBootstrap.RegisterCadProvider(services, config));
+        ProviderBootstrap.RegisterAllProviders(services, config, null);
+        var sp = services.BuildServiceProvider();
+        var router = sp.GetRequiredService<IProviderRouter>();
+
+        Assert.Equal("fusion360", router.CurrentProvider);
     }
 
     [Fact]
-    public void NullMechanicalCadProvider_SketchCreate_Returns_SuccessFalse_In_Onshape_Mode()
+    public void Onshape_Provider_Via_Router_Does_Not_Implement_IMechanicalCadProvider()
     {
         var services = new ServiceCollection();
         var config = new ConfigurationBuilder()
@@ -98,13 +105,11 @@ public class ProviderBootstrapTests
             })
             .Build();
 
-        ProviderBootstrap.RegisterCadProvider(services, config);
+        ProviderBootstrap.RegisterAllProviders(services, config, null);
         var sp = services.BuildServiceProvider();
-        var mechanical = sp.GetRequiredService<IMechanicalCadProvider>();
+        var router = sp.GetRequiredService<IProviderRouter>();
+        var onshape = router.Resolve("onshape");
 
-        var result = mechanical.SketchCreate("XY");
-
-        Assert.False((bool)result["success"]!);
-        Assert.NotNull(result["error"]);
+        Assert.False(onshape is IMechanicalCadProvider);
     }
 }

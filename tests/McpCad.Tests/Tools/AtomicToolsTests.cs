@@ -11,7 +11,7 @@ public class AtomicToolsTests
 
     public AtomicToolsTests()
     {
-        _tools = new AtomicTools(_mock);
+        _tools = new AtomicTools(new MechanicalRouterAdapter(_mock));
     }
 
     // Helper to check if a provider method was called
@@ -563,7 +563,7 @@ public class AtomicToolsTests
     public void WorkPlane_WithError_ReturnsFalse()
     {
         var mock = MockInventorProvider.WithError("Invalid work plane index");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
         var result = tools.work_plane("default", reference1: "99");
 
         Assert.False((bool)result["success"]!);
@@ -574,7 +574,7 @@ public class AtomicToolsTests
     public void WorkAxis_WithError_ReturnsFalse()
     {
         var mock = MockInventorProvider.WithError("Invalid work axis index");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
         var result = tools.work_axis("default", reference1: "99");
 
         Assert.False((bool)result["success"]!);
@@ -585,7 +585,7 @@ public class AtomicToolsTests
     public void WorkPoint_WithError_ReturnsFalse()
     {
         var mock = MockInventorProvider.WithError("Missing required parameter: z");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
         var result = tools.work_point("at_coordinates", reference1: "10", reference2: "5");
 
         Assert.False((bool)result["success"]!);

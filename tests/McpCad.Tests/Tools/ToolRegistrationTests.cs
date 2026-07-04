@@ -118,7 +118,7 @@ public class ToolRegistrationTests
     {
         var mock = new MockInventorProvider();
         var services = new ServiceCollection();
-        services.AddSingleton<IMechanicalCadProvider>(mock);
+        services.AddSingleton<IProviderRouter>(_ => new MechanicalRouterAdapter(mock));
         services.AddSingleton<AtomicTools>();
 
         var provider = services.BuildServiceProvider();
@@ -136,7 +136,7 @@ public class ToolRegistrationTests
     {
         var mock = new MockInventorProvider();
         var services = new ServiceCollection();
-        services.AddSingleton<IMechanicalCadProvider>(mock);
+        services.AddSingleton<IProviderRouter>(_ => new MechanicalRouterAdapter(mock));
         services.AddSingleton<SkillTools>();
 
         var provider = services.BuildServiceProvider();
@@ -154,7 +154,7 @@ public class ToolRegistrationTests
     {
         var mock = new MockInventorProvider();
         var services = new ServiceCollection();
-        services.AddSingleton<IMechanicalCadProvider>(mock);
+        services.AddSingleton<IProviderRouter>(_ => new MechanicalRouterAdapter(mock));
         services.AddSingleton<AtomicTools>();
 
         var provider = services.BuildServiceProvider();

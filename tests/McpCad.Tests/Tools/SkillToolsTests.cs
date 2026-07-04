@@ -11,7 +11,7 @@ public class SkillToolsTests
 
     public SkillToolsTests()
     {
-        _tools = new SkillTools(_mock);
+        _tools = new SkillTools(new MechanicalRouterAdapter(_mock));
     }
 
     private bool WasCalled(string methodName)

@@ -33,6 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\McpCad.Installer\McpCad.Installer.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Core\McpCad.Core.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Tools\McpCad.Tools.csproj" />
     <ProjectReference Include="..\..\src\McpCad.Onshape\McpCad.Onshape.csproj" />

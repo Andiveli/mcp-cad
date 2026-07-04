@@ -11,4 +11,8 @@
     <PackageReference Include="Spectre.Console" Version="0.55.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\McpCad.Core\McpCad.Core.csproj" />
+  </ItemGroup>
+
 </Project>

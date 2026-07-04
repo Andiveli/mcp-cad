@@ -21,7 +21,7 @@ public class ErrorHandlingTests
             ["success"] = false,
             ["error"] = "Inventor is not running",
         });
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.inventor_connect();
 
@@ -38,7 +38,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Edge index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.fillet("99", 2.0);
 
@@ -54,7 +54,7 @@ public class ErrorHandlingTests
     public void GenericException_Produces_UnexpectedErrorResult()
     {
         var mock = new ThrowingMockProvider(new Exception("Something broke"));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.extrude("1", 5.0);
 
@@ -67,7 +67,7 @@ public class ErrorHandlingTests
     public void SketchCreate_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.sketch_create("XY");
 
@@ -79,7 +79,7 @@ public class ErrorHandlingTests
     public void ParamGet_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("Parameter not found");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.param_get("nonexistent");
 
@@ -95,7 +95,7 @@ public class ErrorHandlingTests
     {
         var ex = (Exception)Activator.CreateInstance(exceptionType, "test error")!;
         var mock = new ThrowingMockProvider(ex);
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.inventor_connect();
 
@@ -108,7 +108,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Profile not found"));
-        var tools = new SkillTools(mock);
+        var tools = new SkillTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.skill_sketch("XY");
 
@@ -120,7 +120,7 @@ public class ErrorHandlingTests
     public void WorkPlane_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("Invalid geometry reference");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.work_plane("offset_from_plane", "bad_ref");
 
@@ -133,7 +133,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Edge index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.work_axis("along_edge", "99");
 
@@ -146,7 +146,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Plane reference not found"));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.work_point("intersection", "bad_plane");
 
@@ -158,7 +158,7 @@ public class ErrorHandlingTests
     public void WorkPoint_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("Missing required parameter: z");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.work_point("at_coordinates", "10", "5");
 
@@ -171,7 +171,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Tool body index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.combine("1", "99", "cut");
 
@@ -183,7 +183,7 @@ public class ErrorHandlingTests
     public void Combine_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.combine("1", "2");
 
@@ -196,7 +196,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Face index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.shell("99", 0.2);
 
@@ -208,7 +208,7 @@ public class ErrorHandlingTests
     public void Shell_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.shell("1,2", 0.3);
 
@@ -221,7 +221,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Face index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.thicken("99", 0.2);
 
@@ -233,7 +233,7 @@ public class ErrorHandlingTests
     public void Thicken_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.thicken("1", 0.2);
 
@@ -246,7 +246,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Work plane index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.split("99", "both");
 
@@ -258,7 +258,7 @@ public class ErrorHandlingTests
     public void Split_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.split("1", "both");
 
@@ -271,7 +271,7 @@ public class ErrorHandlingTests
     {
         var mock = new ThrowingMockProvider(
             new InventorComException("Face index 99 does not exist."));
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.draft("99", 5.0);
 
@@ -283,7 +283,7 @@ public class ErrorHandlingTests
     public void Draft_Error_Returns_False_Success()
     {
         var mock = MockInventorProvider.WithError("No active document");
-        var tools = new AtomicTools(mock);
+        var tools = new AtomicTools(new MechanicalRouterAdapter(mock));
 
         var result = tools.draft("1,2", 5.0);
 

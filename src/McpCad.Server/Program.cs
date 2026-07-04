@@ -1,12 +1,10 @@
+using McpCad.Core;
 using McpCad.Server;
-using McpCad.Tools.Onshape;
+using McpCad.Tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-#if WINDOWS
-using McpCad.Tools;
-#endif
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddUserSecrets<McpCad.Server.ProgramMarker>(optional: true);
@@ -16,22 +14,16 @@ builder.Logging.AddConsole(consoleLogOptions =>
     consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
 });
 
-var activeProvider = ProviderBootstrap.ResolveActiveProvider(builder.Configuration);
-ProviderBootstrap.RegisterCadProvider(builder.Services, builder.Configuration);
-ProviderBootstrap.ValidateToolRegistration(activeProvider);
+var userConfig = UserConfigStore.Load();
+var activeProvider = ProviderBootstrap.ResolveEffectiveActiveProvider(builder.Configuration, userConfig);
+ProviderBootstrap.RegisterAllProviders(builder.Services, builder.Configuration, userConfig);
+ProviderBootstrap.ValidateAllProvidersToolRegistration(activeProvider);
 
 var mcp = builder.Services.AddMcpServer().WithStdioServerTransport();
-
-if (activeProvider.Equals("onshape", StringComparison.OrdinalIgnoreCase))
-{
-    mcp.WithTools<OnshapeAtomicTools>().WithTools<OnshapeSkillTools>();
-}
-#if WINDOWS
-else if (activeProvider.Equals("inventor", StringComparison.OrdinalIgnoreCase))
-{
-    mcp.WithTools<AtomicTools>().WithTools<SkillTools>();
-}
-#endif
+mcp.WithTools<AtomicTools>()
+    .WithTools<SkillTools>()
+    .WithTools<WebCadTools>()
+    .WithTools<SelectProviderTool>();
 
 var app = builder.Build();
 

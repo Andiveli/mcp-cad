@@ -10,6 +10,7 @@ namespace McpCad.Tools.Onshape;
 /// Atomic MCP tools for Onshape (cloud CAD). Consumes <see cref="ICadWebProvider"/>.
 /// API keys are loaded at server startup from configuration / environment / user secrets — not from MCP tool arguments.
 /// </summary>
+[Obsolete("Converged into AtomicTools and WebCadTools with IProviderRouter")]
 [McpServerToolType]
 public class OnshapeAtomicTools(ICadWebProvider provider)
 {

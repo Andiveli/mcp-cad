@@ -9,6 +9,7 @@ namespace McpCad.Tools.Onshape;
 /// <summary>
 /// Composed Onshape MCP skills (multi-step cloud workflows).
 /// </summary>
+[Obsolete("Converged into SkillTools and WebCadTools with IProviderRouter")]
 [McpServerToolType]
 public class OnshapeSkillTools(ICadWebProvider provider)
 {

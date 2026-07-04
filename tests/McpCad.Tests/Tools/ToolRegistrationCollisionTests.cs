@@ -22,27 +22,18 @@ public class ToolRegistrationCollisionTests
         Assert.Contains("DuplicateCreateSketchProviderB", ex.Message);
     }
 
-#if MCP_CAD_WINDOWS
     [Fact]
-    public void Inventor_And_Onshape_Tools_Do_Not_Collide_When_Registered_Separately()
-    {
-        ToolRegistrationValidator.EnsureNoCollisions(typeof(AtomicTools), typeof(SkillTools));
-        ToolRegistrationValidator.EnsureNoCollisions(
-            typeof(McpCad.Tools.Onshape.OnshapeAtomicTools),
-            typeof(McpCad.Tools.Onshape.OnshapeSkillTools));
-    }
-
-    [Fact]
-    public void AtomicTools_And_OnshapeAtomicTools_Register_Together_Without_Collision()
+    public void Converged_Tool_Set_Has_No_Collisions()
     {
         var exception = Record.Exception(() =>
             ToolRegistrationValidator.EnsureNoCollisions(
                 typeof(AtomicTools),
-                typeof(McpCad.Tools.Onshape.OnshapeAtomicTools)));
+                typeof(SkillTools),
+                typeof(WebCadTools),
+                typeof(SelectProviderTool)));
 
         Assert.Null(exception);
     }
-#endif
 
     [Fact]
     public void GetToolMethodNames_OnshapeAtomicTools_Uses_Onshape_Export_Prefix_Not_Bare_Export_On_Onshape_Type()

@@ -22,7 +22,7 @@ The MCP server runs **one** CAD backend per process. Selection is via `Provider:
 | **Units** | Tool APIs use **cm**; Onshape REST uses meters; conversion happens inside `McpCad.Onshape`. |
 | **Latency** | Network round-trips; STEP/STL export **polls** translations (up to ~120s, blocking at the tool layer). |
 | **Tools** | `OnshapeAtomicTools`, `OnshapeSkillTools` (`onshape_*`, `create_sketch`, `add_extrude`, `onshape_export_step`, `onshape_export_stl`, …). |
-| **Inventor in Onshape mode** | `IMechanicalCadProvider` resolves to `NullMechanicalCadProvider` (no COM; mechanical tools return `success: false`). |
+| **Onshape + mechanical tools** | Router resolves `OnshapeProvider`; `AtomicTools` returns `success: false` when the active provider does not implement `IMechanicalCadProvider`. |
 
 ## Routing rules
 

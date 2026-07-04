@@ -15,6 +15,14 @@ public sealed class OnshapeDriver
         _client = client;
     }
 
+    /// <summary>Applies config-file credentials without a network round-trip.</summary>
+    public void ApplyStartupCredentials(string accessKey, string secretKeyId, string secretKey)
+    {
+        AccessKey = accessKey;
+        SecretKeyId = string.IsNullOrWhiteSpace(secretKeyId) ? null : secretKeyId;
+        _client.SetCredentials(accessKey, secretKey);
+    }
+
     public string? AccessKey { get; private set; }
 
     public string? SecretKeyId { get; private set; }
