@@ -58,6 +58,9 @@ public class ToolRegistrationCollisionTests
         Assert.Contains("onshape_fillet", names);
         Assert.Contains("onshape_chamfer", names);
         Assert.Contains("onshape_hole", names);
+        Assert.Contains("onshape_asm_list_instances", names);
+        Assert.Contains("onshape_asm_create_instance", names);
+        Assert.Contains("onshape_asm_delete_instance", names);
         Assert.DoesNotContain("export_step", names);
         Assert.DoesNotContain("export_stl", names);
     }

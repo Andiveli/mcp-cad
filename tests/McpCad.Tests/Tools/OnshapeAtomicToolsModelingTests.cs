@@ -99,4 +99,55 @@ public class OnshapeAtomicToolsModelingTests
         call.Args["featureType"].Should().Be(featureType);
         call.Args["hasEnvelope"].Should().Be(true);
     }
+
+    [Fact]
+    public void onshape_asm_list_instances_Calls_AssemblyListInstances_AndReturnsEmptyInstances()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_asm_list_instances(SampleAddress());
+
+        result["success"].Should().Be(true);
+        result["instances"].Should().BeOfType<object[]>().Which.Should().BeEmpty();
+        mock.CallLog.Should().ContainSingle(c => c.Method == "AssemblyListInstances");
+    }
+
+    [Fact]
+    public void onshape_asm_create_instance_Calls_AssemblyCreateInstance_WithPartReferences()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_asm_create_instance(SampleAddress(), "part-doc-1", "part-element-1");
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "AssemblyCreateInstance").Subject;
+        call.Args["partDocumentId"].Should().Be("part-doc-1");
+        call.Args["partElementId"].Should().Be("part-element-1");
+    }
+
+    [Fact]
+    public void onshape_asm_delete_instance_Calls_AssemblyDeleteInstance()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_asm_delete_instance(SampleAddress(), "instance-1");
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "AssemblyDeleteInstance").Subject;
+        call.Args["instanceId"].Should().Be("instance-1");
+    }
+
+    [Fact]
+    public void onshape_asm_delete_instance_WhenProviderRejectsUnknownInstance_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("Instance does not exist."));
+
+        var result = tools.onshape_asm_delete_instance(SampleAddress(), "missing-instance");
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("Instance does not exist.");
+    }
 }

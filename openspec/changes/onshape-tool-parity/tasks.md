@@ -268,42 +268,42 @@ Chain strategy: feature-branch-chain
 **Primary paths:** `OnshapeAtomicTools.cs` (extend), `docs/onshape-parity-matrix.md`, `docs/providers.md`, `tests/McpCad.Tests/`
 
 ### Task 4.1 — Register `onshape_asm_list_instances` MCP tool
-- [ ] [RED] Write mock-provider test:
+- [x] [RED] Write mock-provider test:
   - Call `onshape_asm_list_instances(address_json)`.
   - Assert provider `AssemblyListInstances` called.
-- [ ] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
+- [x] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
   ```csharp
   [McpServerTool, Description("List instances in an Onshape assembly.")]
   public Dictionary<string, object?> onshape_asm_list_instances(string address_json)
   ```
   - Delegates to `provider.AssemblyListInstances`.
-- [ ] [TRIANGULATE] Test empty assembly → empty instances array.
+- [x] [TRIANGULATE] Test empty assembly → empty instances array.
 
 ### Task 4.2 — Register `onshape_asm_create_instance` MCP tool
-- [ ] [RED] Write mock-provider test:
+- [x] [RED] Write mock-provider test:
   - Call `onshape_asm_create_instance(address_json, part_document_id, part_element_id, transform?)`.
   - Assert provider `AssemblyCreateInstance` called with correct params.
-- [ ] [GREEN] Add tool:
+- [x] [GREEN] Add tool:
   ```csharp
   [McpServerTool, Description("Create an instance of a part in an Onshape assembly.")]
   public Dictionary<string, object?> onshape_asm_create_instance(
       string address_json, string part_document_id, string part_element_id)
   ```
-- [ ] [TRIANGULATE] Test with optional transform parameter if `AssemblyCreateInstance` supports it.
+- [x] [TRIANGULATE] Confirmed no optional transform is supported by `ICadWebProvider.AssemblyCreateInstance`.
 
 ### Task 4.3 — Register `onshape_asm_delete_instance` MCP tool
-- [ ] [RED] Write mock-provider test:
+- [x] [RED] Write mock-provider test:
   - Call `onshape_asm_delete_instance(address_json, instance_id)`.
   - Assert provider `AssemblyDeleteInstance` called.
-- [ ] [GREEN] Add tool:
+- [x] [GREEN] Add tool:
   ```csharp
   [McpServerTool, Description("Delete an instance from an Onshape assembly.")]
   public Dictionary<string, object?> onshape_asm_delete_instance(string address_json, string instance_id)
   ```
-- [ ] [TRIANGULATE] Test deleting non-existent instance → error handling.
+- [x] [TRIANGULATE] Test deleting non-existent instance → error handling.
 
 ### Task 4.4 — Create parity matrix document
-- [ ] [ADD] Create `docs/onshape-parity-matrix.md` with:
+- [x] [ADD] Create `docs/onshape-parity-matrix.md` with:
   - Columns: Inventor Atomic | Onshape MCP | REST endpoint | Status | Notes.
   - All P0 rows marked `implemented` (references slice 1–2 artifacts).
   - P1 rows (revolve, fillet, chamfer, hole) marked `implemented`.
@@ -311,21 +311,21 @@ Chain strategy: feature-branch-chain
   - Remaining Inventor atomics (~83 total) marked `declarative-composite` or `not_supported` per spec.
   - Export rows (`onshape_export_step`, `onshape_export_stl`) referencing existing implementation.
   - Section on `address_json` contract and cm units at MCP boundary.
-- [ ] [VERIFY] matrix is readable and references match actual tool names in `OnshapeAtomicTools.cs`.
+- [x] [VERIFY] matrix is readable and references match actual tool names in `OnshapeAtomicTools.cs`.
 
 ### Task 4.5 — Update `docs/providers.md` with modeling documentation
-- [ ] [MODIFY] `docs/providers.md`:
+- [x] [MODIFY] `docs/providers.md`:
   - Add "Modeling" section under Onshape provider.
   - Document `address_json` format and required fields.
   - Document cm-at-MCP-boundary policy and `OnshapeUnitConversion` site.
   - Document P0 E2E flow: sketch → feature → export.
   - Document sandbox references: doc `a2e3cbf0909c00279ce5d80b`, workspace `05605c0cafe63902d2a627a0`, Part Studio `dce1127c54f4f7f7a620dc26`.
   - Reference parity matrix for full tool catalog.
-- [ ] [VERIFY] Markdown renders without broken links.
+- [x] [VERIFY] Markdown link is relative to `docs/` and targets the added matrix.
 
 ### Task 4.6 — Assembly tool collision tests
-- [ ] [ADD] `ToolRegistrationCollisionTests` entries for `onshape_asm_list_instances`, `onshape_asm_create_instance`, `onshape_asm_delete_instance`.
-- [ ] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
+- [x] [ADD] `ToolRegistrationCollisionTests` entries for `onshape_asm_list_instances`, `onshape_asm_create_instance`, `onshape_asm_delete_instance`.
+- [x] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
 
 ### Task 4.7 — (Optional) Live smoke test behind env flag
 - [ ] [ADD] Create `tests/McpCad.Tests/Onshape/OnshapeLiveSmokeTests.cs`:

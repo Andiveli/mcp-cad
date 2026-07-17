@@ -256,7 +256,7 @@ public sealed class MockOnshapeProvider : ICadWebProvider
     {
         ThrowIfError();
         CallLog.Add(("AssemblyListInstances", new Dictionary<string, object?> { ["elementId"] = assemblyElement.ElementId }));
-        return Ok();
+        return Ok(new Dictionary<string, object?> { ["instances"] = Array.Empty<object>() });
     }
 
     public Dictionary<string, object?> AssemblyCreateInstance(
@@ -265,7 +265,11 @@ public sealed class MockOnshapeProvider : ICadWebProvider
         string partElementId)
     {
         ThrowIfError();
-        CallLog.Add(("AssemblyCreateInstance", new Dictionary<string, object?> { ["partDocumentId"] = partDocumentId }));
+        CallLog.Add(("AssemblyCreateInstance", new Dictionary<string, object?>
+        {
+            ["partDocumentId"] = partDocumentId,
+            ["partElementId"] = partElementId,
+        }));
         return Ok();
     }
 

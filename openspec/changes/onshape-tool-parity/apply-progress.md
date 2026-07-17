@@ -61,6 +61,28 @@ Full suite: 91 passed, 7 skipped, 1 failed
 ## next_recommended
 
 - User: issue for pi-subagents / gentle-pi tooling
-- `sdd-verify` slice 1+2
-- `sdd-verify` slices 1–3
-- `sdd-apply` slice 4
+- `sdd-verify` slices 1–4
+
+## Slice 4 — completed (feature/onshape-tool-parity/slice-4)
+
+| Task area | Done |
+|-----------|------|
+| 4.1 | `onshape_asm_list_instances` and empty-assembly mock test |
+| 4.2 | `onshape_asm_create_instance` and part-reference forwarding test |
+| 4.3 | `onshape_asm_delete_instance` and provider-error handling test |
+| 4.4 | `docs/onshape-parity-matrix.md` covering P0–P2, existing exports, and remaining catalog status |
+| 4.5 | Onshape modeling, `address_json`, cm conversion, P0 flow, and matrix reference in `docs/providers.md` |
+| 4.6 | Assembly MCP tool registration collision assertions |
+
+### Verification
+
+```text
+RED: dotnet test tests/McpCad.Tests/ --filter "FullyQualifiedName~onshape_asm|ToolRegistrationCollision"
+→ expected compilation failure: missing onshape_asm_* MCP methods
+
+GREEN: dotnet test tests/McpCad.Tests/ --filter "FullyQualifiedName~onshape_asm|ToolRegistrationCollision"
+→ 6 passed
+
+Full suite: 95 passed, 7 skipped, 1 failed
+→ PollTranslationAsync_Transient500ThenDone_Succeeds is the pre-existing failure recorded in Slices 2–3.
+```

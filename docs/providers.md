@@ -24,6 +24,24 @@ The MCP server runs **one** CAD backend per process. Selection is via `Provider:
 | **Tools** | `OnshapeAtomicTools`, `OnshapeSkillTools` (`onshape_*`, `create_sketch`, `add_extrude`, `onshape_export_step`, `onshape_export_stl`, …). |
 | **Inventor in Onshape mode** | `IMechanicalCadProvider` resolves to `NullMechanicalCadProvider` (no COM; mechanical tools return `success: false`). |
 
+### Modeling
+
+Onshape modeling tools accept an `address_json` value that serializes a `CadElementAddress`:
+
+```json
+{
+  "documentId": "a2e3cbf0909c00279ce5d80b",
+  "workspaceOrVersionId": "05605c0cafe63902d2a627a0",
+  "elementId": "dce1127c54f4f7f7a620dc26"
+}
+```
+
+`documentId`, `workspaceOrVersionId`, and `elementId` are required. `workspaceOrVersionId` holds either the workspace or version identifier; `microversionId` is optional. The modeling MCP boundary uses centimeters, matching the Inventor tool convention. `OnshapeUnitConversion` converts dimensions to meters immediately before Onshape REST builders and feature templates are called; callers must not pre-convert values.
+
+The P0 workflow is: `onshape_sketch_rectangle` → `onshape_feature_list` → `onshape_extrude` → `onshape_export_step` (or `onshape_export_stl`). The listed sandbox document, workspace, and Part Studio are the reference values shown above; live calls still require configured Onshape credentials.
+
+See [the Onshape parity matrix](onshape-parity-matrix.md) for the full implemented and declarative-composite tool catalog, including P1 feature and P2 assembly tools.
+
 ## Routing rules
 
 - Unknown `Provider:Active` → startup fails with `ConfigurationException` (no silent fallback).

@@ -164,6 +164,22 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "hole", null, envelope.RootElement.GetRawText());
         });
 
+    [McpServerTool, Description("List instances in an Onshape assembly.")]
+    public Dictionary<string, object?> onshape_asm_list_instances(string address_json)
+        => Catch(() => provider.AssemblyListInstances(ParseAddress(address_json)));
+
+    [McpServerTool, Description("Create an instance of a part in an Onshape assembly.")]
+    public Dictionary<string, object?> onshape_asm_create_instance(
+        string address_json,
+        string part_document_id,
+        string part_element_id)
+        => Catch(() => provider.AssemblyCreateInstance(
+            ParseAddress(address_json), part_document_id, part_element_id));
+
+    [McpServerTool, Description("Delete an instance from an Onshape assembly.")]
+    public Dictionary<string, object?> onshape_asm_delete_instance(string address_json, string instance_id)
+        => Catch(() => provider.AssemblyDeleteInstance(ParseAddress(address_json), instance_id));
+
     [McpServerTool, Description("DEPRECATED: use onshape_sketch_rectangle. Creates a default 10cm rectangle sketch when corners omitted.")]
     public Dictionary<string, object?> create_sketch(
         string address_json,
