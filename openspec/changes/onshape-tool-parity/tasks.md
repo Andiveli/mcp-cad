@@ -49,57 +49,57 @@ Chain strategy: feature-branch-chain
 **Primary paths:** `Builders/OnshapeSketchBuilder.cs`, `PartStudioManager.cs`, `OnshapeApiPaths.cs`, `ICadWebProvider.cs`, `MockOnshapeProvider.cs`, `tests/McpCad.Tests/Onshape/`
 
 ### Task 1.1 — Add sketch URL path constant
-- [ ] [ADD] Determine sketch POST URL from CSWP spike / OpenAPI; add path helper in `src/McpCad.Onshape/OnshapeApiPaths.cs` (e.g. `SketchFeatures(...)` if distinct from `PartStudioFeatures`, or confirm `PartStudioFeatures` is the correct target).
-- [ ] [REFACTOR] Add XML doc on the path method noting it is used for both GET (list) and POST (sketch replace).
-- [ ] [VERIFY] One integration test URL match in `ExportPollingTests` or `OnshapeProviderConformanceTests`: `dotnet test --filter "SketchUrlMatches"`.
+- [x] [ADD] Determine sketch POST URL from CSWP spike / OpenAPI; add path helper in `src/McpCad.Onshape/OnshapeApiPaths.cs` (e.g. `SketchFeatures(...)` if distinct from `PartStudioFeatures`, or confirm `PartStudioFeatures` is the correct target).
+- [x] [REFACTOR] Add XML doc on the path method noting it is used for both GET (list) and POST (sketch replace).
+- [x] [VERIFY] One integration test URL match in `ExportPollingTests` or `OnshapeProviderConformanceTests`: `dotnet test --filter "SketchUrlMatches"`.
 
 ### Task 1.2 — Create `OnshapeSketchBuilder`
-- [ ] [RED] Write `OnshapeSketchBuilderTests.cs` in `tests/McpCad.Tests/Onshape/`:
+- [x] [RED] Write `OnshapeSketchBuilderTests.cs` in `tests/McpCad.Tests/Onshape/`:
   - Test `BuildRectangle` returns JSON with 4 `BTMSketchLine` entities forming a closed loop.
   - Test `BuildLine` returns a single `BTMSketchLine` entity.
   - Test `BuildCircle` returns a `BTMSketchCircle` entity.
-- [ ] [GREEN] Create `src/McpCad.Onshape/Builders/OnshapeSketchBuilder.cs` with:
+- [x] [GREEN] Create `src/McpCad.Onshape/Builders/OnshapeSketchBuilder.cs` with:
   - `BuildRectangle(double x1, double y1, double x2, double y2)` → `JsonDocument`.
   - `BuildLine(double x1, double y1, double x2, double y2)` → `JsonDocument`.
   - `BuildCircle(double cx, double cy, double radius)` → `JsonDocument`.
   - Coordinates in meters (caller converts cm → m before calling).
-- [ ] [TRIANGULATE] Add tests for zero-size rectangle, negative coordinates, single-point line (edge cases).
-- [ ] [REFACTOR] Extract shared entity serialisation helpers; ensure IDs are deterministic for golden matching.
+- [x] [TRIANGULATE] Add tests for zero-size rectangle, negative coordinates, single-point line (edge cases).
+- [x] [REFACTOR] Extract shared entity serialisation helpers; ensure IDs are deterministic for golden matching.
 
 ### Task 1.3 — Add golden JSON fixtures
-- [ ] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/rectangle_btmsketch.golden.json` (structural reference from CSWP capture; normalise IDs to `{id}` placeholders).
-- [ ] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/line_btmsketch.golden.json`.
-- [ ] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/circle_btmsketch.golden.json`.
-- [ ] [VERIFY] Builder tests assert structural JSON shape (required keys, `btType`, `parameterId` presence) against golden fixtures, not byte-identical.
+- [x] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/rectangle_btmsketch.golden.json` (structural reference from CSWP capture; normalise IDs to `{id}` placeholders).
+- [x] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/line_btmsketch.golden.json`.
+- [x] [ADD] Create `tests/McpCad.Tests/Onshape/Fixtures/Sketch/circle_btmsketch.golden.json`.
+- [x] [VERIFY] Builder tests assert structural JSON shape (required keys, `btType`, `parameterId` presence) against golden fixtures, not byte-identical.
 
 ### Task 1.4 — Extend `ICadWebProvider.SketchReplace` signature
-- [ ] [RED] Write provider conformance test in `OnshapeProviderConformanceTests.cs`: `SketchReplace_WithSketchPayload_ReturnsSuccess` using `MockOnshapeProvider` with new overload.
-- [ ] [MODIFY] Update `src/McpCad.Core/ICadWebProvider.cs`:
+- [x] [RED] Write provider conformance test in `OnshapeProviderConformanceTests.cs`: `SketchReplace_WithSketchPayload_ReturnsSuccess` using `MockOnshapeProvider` with new overload.
+- [x] [MODIFY] Update `src/McpCad.Core/ICadWebProvider.cs`:
   - Change `SketchReplace(CadElementAddress address)` to accept optional sketch payload:
     ```csharp
     Dictionary<string, object?> SketchReplace(
         CadElementAddress address,
         IReadOnlyDictionary<string, object?>? sketchRequest = null);
     ```
-- [ ] [MODIFY] Update `MockOnshapeProvider` in `tests/McpCad.Tests/Mocks/MockOnshapeProvider.cs` to match new signature; log sketch request params.
-- [ ] [MODIFY] Update `OnshapeProvider.cs` to pass through new overload to `PartStudioManager`.
-- [ ] [GREEN] Ensure existing `create_sketch` MCP tool compiles (passes `null` for sketchRequest → backward compat).
+- [x] [MODIFY] Update `MockOnshapeProvider` in `tests/McpCad.Tests/Mocks/MockOnshapeProvider.cs` to match new signature; log sketch request params.
+- [x] [MODIFY] Update `OnshapeProvider.cs` to pass through new overload to `PartStudioManager`.
+- [x] [GREEN] Ensure existing `create_sketch` MCP tool compiles (passes `null` for sketchRequest → backward compat).
 
 ### Task 1.5 — Wire `PartStudioManager.SketchReplace` (real HTTP)
-- [ ] [RED] Write WireMock test in `PartStudioModelingWireMockTests.cs`: POST to features endpoint captures JSON body; assert `Content-Type: application/json` and `rejectMicroversionSkew=true` query present.
-- [ ] [GREEN] Implement `PartStudioManager.SketchReplace(CadElementAddress, JsonElement sketchPayload)`:
+- [x] [RED] Write WireMock test in `PartStudioModelingWireMockTests.cs`: POST to features endpoint captures JSON body; assert `Content-Type: application/json` and `rejectMicroversionSkew=true` query present.
+- [x] [GREEN] Implement `PartStudioManager.SketchReplace(CadElementAddress, JsonElement sketchPayload)`:
   - POST to `OnshapeApiPaths.PartStudioFeatures(...)` (or new sketch path from Task 1.1).
   - Serialize sketch payload as JSON body.
   - Include `rejectMicroversionSkew: true` in query string.
   - Call `_driver.UpdateMicroversionFromJson` on success response.
   - Return `OnshapeJsonHelper.SuccessEnvelope(...)`.
-- [ ] [TRIANGULATE] Test 409 skew → `OnshapeMicroversionSkewException` path in WireMock test.
-- [ ] [VERIFY] `dotnet test --filter "PartStudioModeling"` passes.
+- [x] [TRIANGULATE] Test 409 skew → `OnshapeMicroversionSkewException` path in WireMock test.
+- [x] [VERIFY] `dotnet test --filter "PartStudioModeling"` passes.
 
 ### Task 1.6 — Remove stubs
-- [ ] [REMOVE] `PartStudioManager.SketchReplaceStub` method (replace callers with real implementation).
-- [ ] [REMOVE] `PartStudioManager.FeatureAddStub` method (stays unreferenced until slice 2; remove if no other callers).
-- [ ] [VERIFY] `dotnet test` — all existing conformance tests still pass.
+- [x] [REMOVE] `PartStudioManager.SketchReplaceStub` method (replace callers with real implementation).
+- [x] [REMOVE] `PartStudioManager.FeatureAddStub` method (stays unreferenced until slice 2; remove if no other callers).
+- [x] [VERIFY] `dotnet test` — all existing conformance tests still pass.
 
 ---
 
@@ -109,31 +109,31 @@ Chain strategy: feature-branch-chain
 **Primary paths:** `Builders/OnshapeFeatureTemplates.cs`, `FeatureManager.cs`, `OnshapeAtomicTools.cs`, `OnshapeProvider.cs`, `tests/McpCad.Tests/Onshape/`
 
 ### Task 2.1 — Create `OnshapeFeatureTemplates` with extrude
-- [ ] [RED] Write `OnshapeFeatureTemplatesTests.cs` in `tests/McpCad.Tests/Onshape/`:
+- [x] [RED] Write `OnshapeFeatureTemplatesTests.cs` in `tests/McpCad.Tests/Onshape/`:
   - `ExtrudeFromSketch_ReturnsFeatureEnvelope`: asserts root object has `feature` key, `feature.featureType == "extrude"`, `feature.parameters` is array, `rejectMicroversionSkew: true` present.
   - Golden fixture match: `tests/McpCad.Tests/Onshape/Fixtures/Features/extrude_envelope.golden.json`.
-- [ ] [GREEN] Create `src/McpCad.Onshape/Builders/OnshapeFeatureTemplates.cs` with:
+- [x] [GREEN] Create `src/McpCad.Onshape/Builders/OnshapeFeatureTemplates.cs` with:
   - `ExtrudeFromSketch(string sketchFeatureId, double depthMeters, string direction, string booleanOp)` → `JsonDocument`.
   - Parameter array shape from CSWP spike (BT parameter types, `parameterId`, `value`).
-- [ ] [TRIANGULATE] Add tests for negative depth, reverse direction, joined boolean op.
-- [ ] [REFACTOR] Extract `BuildParameter(...)` helpers for reuse across P1 templates (Slice 3).
+- [x] [TRIANGULATE] Add tests for negative depth, reverse direction, joined boolean op.
+- [x] [REFACTOR] Extract `BuildParameter(...)` helpers for reuse across P1 templates (Slice 3).
 
 ### Task 2.2 — Fix `FeatureManager.FeatureAdd` to send BT envelope
-- [ ] [RED] Write WireMock test `FeatureAdd_FlatPayload_RegressionGuard` in `PartStudioModelingWireMockTests.cs`:
+- [x] [RED] Write WireMock test `FeatureAdd_FlatPayload_RegressionGuard` in `PartStudioModelingWireMockTests.cs`:
   - Assert POST body starts with `{"feature":` not `{"featureType":`.
   - Assert `rejectMicroversionSkew: true` in body (not only query).
-- [ ] [GREEN] Modify `FeatureManager.FeatureAdd(CadElementAddress, string, IReadOnlyList<...>)`:
+- [x] [GREEN] Modify `FeatureManager.FeatureAdd(CadElementAddress, string, IReadOnlyList<...>)`:
   - Accept optional pre-built envelope from `OnshapeFeatureTemplates`.
   - Serialize as `{ "feature": { "featureType": ..., "parameters": ..., "suppressed": false }, "rejectMicroversionSkew": true }`.
   - Default behaviour: if no template provided, build minimal envelope from `featureType` + `parameters` (backward compat for non-extrude callers until Slice 3).
-- [ ] [TRIANGULATE] WireMock test verifying `OnshapeProvider.FeatureAdd` with extrude template produces correct envelope.
-- [ ] [VERIFY] `dotnet test --filter "FeatureAdd"` passes.
+- [x] [TRIANGULATE] WireMock test verifying `OnshapeProvider.FeatureAdd` with extrude template produces correct envelope.
+- [x] [VERIFY] `dotnet test --filter "FeatureAdd"` passes.
 
 ### Task 2.3 — Register P0 `onshape_sketch_rectangle` MCP tool
-- [ ] [RED] Write mock-provider test in `OnshapeAtomicToolsModelingTests.cs`:
+- [x] [RED] Write mock-provider test in `OnshapeAtomicToolsModelingTests.cs`:
   - Call `onshape_sketch_rectangle` with `address_json`, `x1_cm`, `y1_cm`, `x2_cm`, `y2_cm`.
   - Assert provider `SketchReplace` was called with sketch request containing rectangle parameters.
-- [ ] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
+- [x] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
   ```csharp
   [McpServerTool, Description("Create a rectangle sketch in a Part Studio using BTMSketch. Coordinates in cm.")]
   public Dictionary<string, object?> onshape_sketch_rectangle(
@@ -146,14 +146,14 @@ Chain strategy: feature-branch-chain
   - Convert cm → m via `OnshapeUnitConversion.CmToMeters`.
   - Call `OnshapeSketchBuilder.BuildRectangle(...)`.
   - Call `provider.SketchReplace(address, sketchRequestDict)`.
-- [ ] [TRIANGULATE] Test error: invalid address JSON → `ToolHelpers.Error`.
-- [ ] [TRIANGULATE] Test error: invalid coordinates (x1 > x2 not necessarily error — document behaviour).
+- [x] [TRIANGULATE] Test error: invalid address JSON → `ToolHelpers.Error`.
+- [x] [TRIANGULATE] Test error: invalid coordinates (x1 > x2 not necessarily error — document behaviour).
 
 ### Task 2.4 — Register P0 `onshape_extrude` MCP tool
-- [ ] [RED] Write mock-provider test:
+- [x] [RED] Write mock-provider test:
   - Call `onshape_extrude` with `address_json`, `sketch_feature_id`, `depth_cm`, `direction`.
   - Assert provider `FeatureAdd` called with `featureType: "extrude"` and envelope from `OnshapeFeatureTemplates`.
-- [ ] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
+- [x] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
   ```csharp
   [McpServerTool, Description("Extrude a sketch profile by a given depth in cm.")]
   public Dictionary<string, object?> onshape_extrude(
@@ -166,50 +166,50 @@ Chain strategy: feature-branch-chain
   - Convert cm → m.
   - Build template via `OnshapeFeatureTemplates.ExtrudeFromSketch(...)`.
   - Call `provider.FeatureAdd(...)` with pre-built envelope.
-- [ ] [TRIANGULATE] Test negative depth → direction reversed? Document behaviour in tool description.
+- [x] [TRIANGULATE] Test negative depth → direction reversed? Document behaviour in tool description.
 
 ### Task 2.5 — Register P0 `onshape_feature_list` MCP tool
-- [ ] [RED] Write mock-provider test:
+- [x] [RED] Write mock-provider test:
   - Call `onshape_feature_list` with `address_json`.
   - Assert provider `FeatureList` called (via new `ICadWebProvider` seam if added, or direct manager access).
-- [ ] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
+- [x] [GREEN] Add tool to `OnshapeAtomicTools.cs`:
   ```csharp
   [McpServerTool, Description("List features in a Part Studio (analogous to Inventor sketch_profiles).")]
   public Dictionary<string, object?> onshape_feature_list(string address_json)
   ```
   - Wire to `provider.FeatureList(address)` if `ICadWebProvider` exposes it (Task 2.6).
   - Else access `FeatureManager` directly.
-- [ ] [VERIFY] Ensure return shape includes `featureId`, `featureType`, `parameters` per spec.
+- [x] [VERIFY] Ensure return shape includes `featureId`, `featureType`, `parameters` per spec.
 
 ### Task 2.6 — Expose `FeatureList` on `ICadWebProvider` (if not already)
-- [ ] [CHECK] `ICadWebProvider` does NOT currently have `FeatureList` method — `OnshapeProvider` delegates to `_features.FeatureList` directly only via `FeatureGetResult`.
-- [ ] [ADD] Add to `ICadWebProvider`:
+- [x] [CHECK] `ICadWebProvider` does NOT currently have `FeatureList` method — `OnshapeProvider` delegates to `_features.FeatureList` directly only via `FeatureGetResult`.
+- [x] [ADD] Add to `ICadWebProvider`:
   ```csharp
   Dictionary<string, object?> FeatureList(CadElementAddress partStudio);
   ```
-- [ ] [ADD] Add mock implementation in `MockOnshapeProvider`.
-- [ ] [ADD] Wire in `OnshapeProvider.FeatureList` → `_features.FeatureList`.
-- [ ] [VERIFY] Conformance tests pass.
+- [x] [ADD] Add mock implementation in `MockOnshapeProvider`.
+- [x] [ADD] Wire in `OnshapeProvider.FeatureList` → `_features.FeatureList`.
+- [x] [VERIFY] Conformance tests pass.
 
 ### Task 2.7 — Deprecate legacy `create_sketch` / `add_extrude`
-- [ ] [MODIFY] `create_sketch`: Change description to `"DEPRECATED: use onshape_sketch_rectangle. Creates a default rectangle sketch."`.
-- [ ] [MODIFY] `create_sketch`: Delegate to `onshape_sketch_rectangle` with default corner coordinates if only `address_json` provided; else pass through corner args (product choice for backward compat).
-- [ ] [MODIFY] `add_extrude`: Change description to `"DEPRECATED: use onshape_extrude. Extrudes using legacy flat parameters."`.
-- [ ] [MODIFY] `add_extrude`: Internally convert `distance_cm`, `direction` → `OnshapeFeatureTemplates.ExtrudeFromSketch(...)` and call the BT envelope path.
-- [ ] [VERIFY] Existing `OnshapeAtomicToolsTests` or integration tests still pass after delegation change.
+- [x] [MODIFY] `create_sketch`: Change description to `"DEPRECATED: use onshape_sketch_rectangle. Creates a default rectangle sketch."`.
+- [x] [MODIFY] `create_sketch`: Delegate to `onshape_sketch_rectangle` with default corner coordinates if only `address_json` provided; else pass through corner args (product choice for backward compat).
+- [x] [MODIFY] `add_extrude`: Change description to `"DEPRECATED: use onshape_extrude. Extrudes using legacy flat parameters."`.
+- [x] [MODIFY] `add_extrude`: Internally convert `distance_cm`, `direction` → `OnshapeFeatureTemplates.ExtrudeFromSketch(...)` and call the BT envelope path.
+- [x] [VERIFY] Existing `OnshapeAtomicToolsTests` or integration tests still pass after delegation change.
 
 ### Task 2.8 — P0 E2E WireMock test (rectangle → extrude)
-- [ ] [RED] Write `PartStudioModelingWireMockTests.cs` E2E test:
+- [x] [RED] Write `PartStudioModelingWireMockTests.cs` E2E test:
   - Mock: sketch POST → success + microversion response.
   - Mock: feature list GET → returns sketch feature.
   - Mock: feature POST → success + microversion response.
   - Call `onshape_sketch_rectangle` → then `onshape_feature_list` → then `onshape_extrude` via `OnshapeAtomicTools` with real provider.
-- [ ] [GREEN] Wire full flow through `OnshapeProvider` → managers → HTTP.
-- [ ] [VERIFY] `dotnet test --filter "P0EndToEnd"` passes.
+- [x] [GREEN] Wire full flow through `OnshapeProvider` → managers → HTTP.
+- [x] [VERIFY] `dotnet test --filter "P0EndToEnd"` passes.
 
 ### Task 2.9 — Tool registration collision tests
-- [ ] [ADD] Ensure `ToolRegistrationCollisionTests` covers all new `onshape_*` names: no cross-provider collision with Inventor `AtomicTools`.
-- [ ] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
+- [x] [ADD] Ensure `ToolRegistrationCollisionTests` covers all new `onshape_*` names: no cross-provider collision with Inventor `AtomicTools`.
+- [x] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
 
 ---
 

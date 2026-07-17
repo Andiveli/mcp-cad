@@ -1,0 +1,6 @@
+{
+  "entities": [
+    { "btType": "BTMSketchCircle-184", "entityId": "circle-0", "center": { "x": 0.05, "y": 0.05 }, "radius": 0.02 }
+  ],
+  "constraints": []
+}

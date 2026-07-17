@@ -1,0 +1,14 @@
+{
+  "feature": {
+    "featureType": "extrude",
+    "name": "Extrude 1",
+    "suppressed": false,
+    "parameters": [
+      { "btType": "BTMParameterQuantity-147", "parameterId": "depth", "value": 0.1 },
+      { "btType": "BTMParameterString-149", "parameterId": "direction", "value": "positive" },
+      { "btType": "BTMParameterString-149", "parameterId": "operationType", "value": "NEW" },
+      { "btType": "BTMParameterString-149", "parameterId": "entities", "value": "sketch-1" }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

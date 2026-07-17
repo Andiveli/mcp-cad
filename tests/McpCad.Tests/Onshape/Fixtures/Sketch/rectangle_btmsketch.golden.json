@@ -1,0 +1,9 @@
+{
+  "entities": [
+    { "btType": "BTMSketchLine-184", "entityId": "line-0", "start": { "x": 0.0, "y": 0.0 }, "end": { "x": 0.1, "y": 0.0 } },
+    { "btType": "BTMSketchLine-184", "entityId": "line-1", "start": { "x": 0.1, "y": 0.0 }, "end": { "x": 0.1, "y": 0.05 } },
+    { "btType": "BTMSketchLine-184", "entityId": "line-2", "start": { "x": 0.1, "y": 0.05 }, "end": { "x": 0.0, "y": 0.05 } },
+    { "btType": "BTMSketchLine-184", "entityId": "line-3", "start": { "x": 0.0, "y": 0.05 }, "end": { "x": 0.0, "y": 0.0 } }
+  ],
+  "constraints": []
+}
