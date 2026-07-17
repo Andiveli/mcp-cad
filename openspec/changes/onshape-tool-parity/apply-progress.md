@@ -31,8 +31,36 @@ Full suite: 69 passed, 1 failed (PollTranslationAsync_Transient500ThenDone — p
 
 `subagent_run` agent `sdd-apply` still exposes read-only tools. Issue draft pending user direction.
 
+## Slice 3 — completed (feature/onshape-tool-parity/slice-3)
+
+| Task area | Done |
+|-----------|------|
+| 3.1 | `RevolveFromSketch` template with angle/direction/operation parameters and edge-case tests |
+| 3.2 | `Fillet` template with non-zero radius validation and multi-edge tests |
+| 3.3 | `Chamfer` template with equal-distance parameter and multi-edge selection |
+| 3.4 | `Hole` template with center point, diameter, depth, and hole type parameters |
+| 3.5 | `onshape_revolve`, `onshape_fillet`, `onshape_chamfer`, and `onshape_hole` tools; mock and WireMock structural tests |
+| 3.6 | P1 tool-name collision registration assertions |
+
+### Verification
+
+```text
+RED: dotnet test tests/McpCad.Tests/ --filter "P1"
+→ expected compilation failure: missing P1 template and MCP tool methods
+
+GREEN: dotnet test tests/McpCad.Tests/ --filter "P1"
+→ 17 passed
+
+dotnet test tests/McpCad.Tests/ --filter "ToolRegistrationCollision"
+→ 2 passed
+
+Full suite: 91 passed, 7 skipped, 1 failed
+→ PollTranslationAsync_Transient500ThenDone_Succeeds is the pre-existing failure recorded in Slice 2.
+```
+
 ## next_recommended
 
 - User: issue for pi-subagents / gentle-pi tooling
 - `sdd-verify` slice 1+2
-- `sdd-apply` slice 3 (or parent apply)
+- `sdd-verify` slices 1–3
+- `sdd-apply` slice 4

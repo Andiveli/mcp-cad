@@ -105,6 +105,65 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
     public Dictionary<string, object?> onshape_feature_list(string address_json)
         => Catch(() => provider.FeatureList(ParseAddress(address_json)));
 
+    [McpServerTool, Description("(P1) Revolve a sketch profile by an angle in degrees using the Onshape feature API.")]
+    public Dictionary<string, object?> onshape_revolve(
+        string address_json,
+        string sketch_feature_id,
+        double angle_deg,
+        string direction = "positive",
+        string boolean_op = "new")
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.RevolveFromSketch(
+                sketch_feature_id, angle_deg, direction, boolean_op);
+            return provider.FeatureAdd(address, "revolve", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("(P1) Apply an equal-radius fillet to Part Studio edges; radius is in cm.")]
+    public Dictionary<string, object?> onshape_fillet(
+        string address_json,
+        string[] edge_ids,
+        double radius_cm)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.Fillet(
+                edge_ids, OnshapeUnitConversion.CmToMeters(radius_cm));
+            return provider.FeatureAdd(address, "fillet", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("(P1) Apply an equal-distance chamfer to Part Studio edges; distance is in cm.")]
+    public Dictionary<string, object?> onshape_chamfer(
+        string address_json,
+        string[] edge_ids,
+        double distance_cm)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.Chamfer(
+                edge_ids, OnshapeUnitConversion.CmToMeters(distance_cm));
+            return provider.FeatureAdd(address, "chamfer", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("(P1) Create a hole at an Onshape center-point reference; diameter and depth are in cm.")]
+    public Dictionary<string, object?> onshape_hole(
+        string address_json,
+        string center_point,
+        double diameter_cm,
+        double depth_cm,
+        string hole_type = "simple")
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.Hole(
+                center_point,
+                OnshapeUnitConversion.CmToMeters(diameter_cm),
+                OnshapeUnitConversion.CmToMeters(depth_cm),
+                hole_type);
+            return provider.FeatureAdd(address, "hole", null, envelope.RootElement.GetRawText());
+        });
+
     [McpServerTool, Description("DEPRECATED: use onshape_sketch_rectangle. Creates a default 10cm rectangle sketch when corners omitted.")]
     public Dictionary<string, object?> create_sketch(
         string address_json,

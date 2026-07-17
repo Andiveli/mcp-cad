@@ -73,4 +73,30 @@ public class OnshapeAtomicToolsModelingTests
 
         mock.CallLog.Select(c => c.Method).Should().ContainInOrder("SketchReplace", "FeatureList", "FeatureAdd");
     }
+
+    [Theory]
+    [InlineData("revolve")]
+    [InlineData("fillet")]
+    [InlineData("chamfer")]
+    [InlineData("hole")]
+    public void P1Tool_CallsFeatureAdd_WithExpectedEnvelope(string featureType)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+        var address = SampleAddress();
+
+        var result = featureType switch
+        {
+            "revolve" => tools.onshape_revolve(address, "sketch-1", 180),
+            "fillet" => tools.onshape_fillet(address, ["edge-1"], 0.5),
+            "chamfer" => tools.onshape_chamfer(address, ["edge-1"], 0.3),
+            "hole" => tools.onshape_hole(address, "vertex-1", 0.6, 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(featureType)),
+        };
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
+        call.Args["featureType"].Should().Be(featureType);
+        call.Args["hasEnvelope"].Should().Be(true);
+    }
 }

@@ -219,41 +219,41 @@ Chain strategy: feature-branch-chain
 **Primary paths:** `Builders/OnshapeFeatureTemplates.cs` (extend), `OnshapeAtomicTools.cs` (add), `tests/McpCad.Tests/Onshape/`
 
 ### Task 3.1 — Add `Revolve` template
-- [ ] [RED] Write template test: `RevolveFromSketch_ReturnsFeatureEnvelope` — assert `featureType == "revolve"`, angle parameter present.
-- [ ] [GREEN] Add `RevolveFromSketch(sketchFeatureId, angleDeg, direction, booleanOp)` to `OnshapeFeatureTemplates`.
-- [ ] [TRIANGULATE] Test edge cases: 0° angle, 360° full revolve, reverse direction.
+- [x] [RED] Write template test: `RevolveFromSketch_ReturnsFeatureEnvelope` — assert `featureType == "revolve"`, angle parameter present.
+- [x] [GREEN] Add `RevolveFromSketch(sketchFeatureId, angleDeg, direction, booleanOp)` to `OnshapeFeatureTemplates`.
+- [x] [TRIANGULATE] Test edge cases: 0° angle, 360° full revolve, reverse direction.
 
 ### Task 3.2 — Add `Fillet` template
-- [ ] [RED] Write template test: `Fillet_ReturnsFeatureEnvelope` — assert `featureType == "fillet"`, radius parameter present.
-- [ ] [GREEN] Add `Fillet(edgeIds, radiusMeters)` to `OnshapeFeatureTemplates`.
-- [ ] [TRIANGULATE] Test multiple edges, zero radius (error expected — document behaviour).
+- [x] [RED] Write template test: `Fillet_ReturnsFeatureEnvelope` — assert `featureType == "fillet"`, radius parameter present.
+- [x] [GREEN] Add `Fillet(edgeIds, radiusMeters)` to `OnshapeFeatureTemplates`.
+- [x] [TRIANGULATE] Test multiple edges, zero radius (error expected — document behaviour).
 
 ### Task 3.3 — Add `Chamfer` template
-- [ ] [RED] Write template test: `Chamfer_ReturnsFeatureEnvelope` — assert `featureType == "chamfer"`.
-- [ ] [GREEN] Add `Chamfer(edgeIds, distanceMeters)` to `OnshapeFeatureTemplates`.
-- [ ] [TRIANGULATE] Test equal-distance chamfer vs two-distance chamfer if API supports.
+- [x] [RED] Write template test: `Chamfer_ReturnsFeatureEnvelope` — assert `featureType == "chamfer"`.
+- [x] [GREEN] Add `Chamfer(edgeIds, distanceMeters)` to `OnshapeFeatureTemplates`.
+- [x] [TRIANGULATE] Test equal-distance chamfer; two-distance chamfer remains out of scope.
 
 ### Task 3.4 — Add `Hole` template
-- [ ] [RED] Write template test: `Hole_ReturnsFeatureEnvelope` — assert `featureType == "hole"`, diameter/depth parameters present.
-- [ ] [GREEN] Add `Hole(centerPoint, diameterMeters, depthMeters, holeType)` to `OnshapeFeatureTemplates`.
-- [ ] [TRIANGULATE] Test blind hole vs through-hole, threaded vs simple.
+- [x] [RED] Write template test: `Hole_ReturnsFeatureEnvelope` — assert `featureType == "hole"`, diameter/depth parameters present.
+- [x] [GREEN] Add `Hole(centerPoint, diameterMeters, depthMeters, holeType)` to `OnshapeFeatureTemplates`.
+- [x] [TRIANGULATE] Test blind hole vs through-hole, threaded vs simple.
 
 ### Task 3.5 — Register P1 MCP tools
-- [ ] [RED] Write mock-provider tests for each P1 tool:
+- [x] [RED] Write mock-provider tests for each P1 tool:
   - `onshape_revolve` → calls `FeatureAdd` with revolve envelope.
   - `onshape_fillet` → calls `FeatureAdd` with fillet envelope.
   - `onshape_chamfer` → calls `FeatureAdd` with chamfer envelope.
   - `onshape_hole` → calls `FeatureAdd` with hole envelope.
-- [ ] [GREEN] Add all four tools to `OnshapeAtomicTools.cs` with:
+- [x] [GREEN] Add all four tools to `OnshapeAtomicTools.cs` with:
   - `address_json` → `CadElementAddress`.
   - Feature-specific parameters in **cm** (convert to m at template boundary).
   - Description referencing `(P1)` and Onshape API limitations (if any known from CSWP).
-- [ ] [TRIANGULATE] Add WireMock structural tests for each P1 envelope shape.
-- [ ] [VERIFY] `dotnet test --filter "P1"` passes.
+- [x] [TRIANGULATE] Add WireMock structural tests for each P1 envelope shape.
+- [x] [VERIFY] `dotnet test --filter "P1"` passes.
 
 ### Task 3.6 — P1 tools in collision tests
-- [ ] [ADD] Add `ToolRegistrationCollisionTests` entries for `onshape_revolve`, `onshape_fillet`, `onshape_chamfer`, `onshape_hole`.
-- [ ] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
+- [x] [ADD] Add `ToolRegistrationCollisionTests` entries for `onshape_revolve`, `onshape_fillet`, `onshape_chamfer`, `onshape_hole`.
+- [x] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
 
 ### Task 3.7 — (Optional) `onshape_param_*` tools where REST supports
 - [ ] [RESEARCH] Determine which parameters Onshape REST supports updating post-creation (e.g. extrude depth, fillet radius) via API docs / CSWP.

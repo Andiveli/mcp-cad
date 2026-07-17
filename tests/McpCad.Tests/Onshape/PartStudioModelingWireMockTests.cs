@@ -84,6 +84,35 @@ public class PartStudioModelingWireMockTests : IDisposable
             .Which.ServerMicroversion.Should().Be("mv-server-42");
     }
 
+    [Theory]
+    [InlineData("revolve")]
+    [InlineData("fillet")]
+    [InlineData("chamfer")]
+    [InlineData("hole")]
+    public void P1FeatureEnvelope_PostsWrappedFeatureShape(string featureType)
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200).WithBody("""{"microversion":"mv-p1"}"""));
+
+        using var envelope = featureType switch
+        {
+            "revolve" => OnshapeFeatureTemplates.RevolveFromSketch("sketch-1", 180),
+            "fillet" => OnshapeFeatureTemplates.Fillet(["edge-1"], 0.005),
+            "chamfer" => OnshapeFeatureTemplates.Chamfer(["edge-1"], 0.003),
+            "hole" => OnshapeFeatureTemplates.Hole("vertex-1", 0.006, 0.02),
+            _ => throw new ArgumentOutOfRangeException(nameof(featureType)),
+        };
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), featureType, null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        var body = _server.LogEntries.Last().RequestMessage.Body!;
+        body.Should().Contain($"\"featureType\":\"{featureType}\"")
+            .And.Contain("\"rejectMicroversionSkew\":true");
+    }
+
     private (OnshapeClient Client, OnshapeDriver Driver) CreateStack()
     {
         var http = new HttpClient { BaseAddress = new Uri(_server.Url!) };
