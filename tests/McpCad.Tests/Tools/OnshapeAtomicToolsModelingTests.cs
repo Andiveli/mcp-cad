@@ -1,0 +1,76 @@
+using McpCad.Core.Models;
+using McpCad.Tests.Mocks;
+using McpCad.Tools.Onshape;
+
+namespace McpCad.Tests.Tools;
+
+public class OnshapeAtomicToolsModelingTests
+{
+    private static string SampleAddress() =>
+        new CadElementAddress("doc-1", "ws-1", null, "e-part").Serialize();
+
+    [Fact]
+    public void onshape_sketch_rectangle_Calls_SketchReplace_WithEntities()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_rectangle(SampleAddress(), 0, 0, 5, 5);
+
+        result["success"].Should().Be(true);
+        mock.CallLog.Should().Contain(c => c.Method == "SketchReplace");
+        var sketchCall = mock.CallLog.First(c => c.Method == "SketchReplace");
+        sketchCall.Args["hasSketchRequest"].Should().Be(true);
+    }
+
+    [Fact]
+    public void onshape_extrude_Calls_FeatureAdd_WithEnvelope()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_extrude(SampleAddress(), "sketch-1", 2.5, "positive", "new");
+
+        result["success"].Should().Be(true);
+        mock.CallLog.Should().Contain(c => c.Method == "FeatureAdd");
+        mock.CallLog.First(c => c.Method == "FeatureAdd").Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Fact]
+    public void onshape_feature_list_Calls_FeatureList()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_feature_list(SampleAddress());
+
+        result["success"].Should().Be(true);
+        mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureList");
+    }
+
+    [Fact]
+    public void onshape_sketch_rectangle_InvalidAddress_ReturnsError()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_rectangle("not-json", 0, 0, 1, 1);
+
+        result["success"].Should().Be(false);
+        result.Should().ContainKey("error");
+    }
+
+    [Fact]
+    public void P0EndToEnd_MockProvider_SketchListExtrude()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+        var addr = SampleAddress();
+
+        tools.onshape_sketch_rectangle(addr, 0, 0, 10, 10).Should().ContainKey("success");
+        tools.onshape_feature_list(addr).Should().ContainKey("success");
+        tools.onshape_extrude(addr, "sketch-1", 1.0).Should().ContainKey("success");
+
+        mock.CallLog.Select(c => c.Method).Should().ContainInOrder("SketchReplace", "FeatureList", "FeatureAdd");
+    }
+}

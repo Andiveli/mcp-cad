@@ -4,7 +4,7 @@ using McpCad.Core.Models;
 namespace McpCad.Onshape.Managers;
 
 /// <summary>
-/// Part Studio elements and sketch/feature stubs (v1 delegates to REST endpoints).
+/// Part Studio element CRUD and sketch replace (REST).
 /// </summary>
 public sealed class PartStudioManager
 {
@@ -72,22 +72,17 @@ public sealed class PartStudioManager
         return result;
     }
 
-    /// <summary>Stub for future sketch payload replacement.</summary>
-    public Dictionary<string, object?> SketchReplaceStub(CadElementAddress address) =>
-        OnshapeJsonHelper.SuccessEnvelope(new Dictionary<string, object?>
-        {
-            ["stub"] = "sketch_replace",
-            ["elementId"] = address.ElementId,
-        });
-
-    /// <summary>Stub for future feature POST.</summary>
-    public Dictionary<string, object?> FeatureAddStub(CadElementAddress address, string featureType) =>
-        OnshapeJsonHelper.SuccessEnvelope(new Dictionary<string, object?>
-        {
-            ["stub"] = "feature_add",
-            ["featureType"] = featureType,
-            ["elementId"] = address.ElementId,
-        });
+    public Dictionary<string, object?> SketchReplace(CadElementAddress address, string? sketchBodyJson)
+    {
+        var (did, wvm, wvmId) = ResolveWvm(address);
+        var path = OnshapeApiPaths.PartStudioFeatures(did, wvm, wvmId, address.ElementId);
+        var body = string.IsNullOrWhiteSpace(sketchBodyJson)
+            ? """{"entities":[],"constraints":[]}"""
+            : sketchBodyJson;
+        using var doc = _client.SendJsonAsync(HttpMethod.Post, path, body).GetAwaiter().GetResult();
+        _driver.UpdateMicroversionFromJson(doc.RootElement);
+        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+    }
 
     private (string Did, string Wvm, string WvmId) ResolveWvm(CadElementAddress address) =>
         (address.DocumentId, _driver.DefaultWvm, address.WorkspaceOrVersionId);

@@ -217,21 +217,39 @@ public sealed class MockOnshapeProvider : ICadWebProvider
         return Ok();
     }
 
-    public Dictionary<string, object?> SketchReplace(CadElementAddress address)
+    public Dictionary<string, object?> SketchReplace(
+        CadElementAddress address,
+        IReadOnlyDictionary<string, object?>? sketchRequest = null)
     {
         ThrowIfError();
-        CallLog.Add(("SketchReplace", new Dictionary<string, object?> { ["elementId"] = address.ElementId }));
-        return Ok(new Dictionary<string, object?> { ["stub"] = "sketch_replace" });
+        CallLog.Add(("SketchReplace", new Dictionary<string, object?>
+        {
+            ["elementId"] = address.ElementId,
+            ["hasSketchRequest"] = sketchRequest is { Count: > 0 },
+        }));
+        return Ok(new Dictionary<string, object?> { ["elementId"] = address.ElementId });
     }
 
     public Dictionary<string, object?> FeatureAdd(
         CadElementAddress partStudio,
         string featureType,
-        IReadOnlyList<Dictionary<string, object?>>? parameters = null)
+        IReadOnlyList<Dictionary<string, object?>>? parameters = null,
+        string? featurePostBodyJson = null)
     {
         ThrowIfError();
-        CallLog.Add(("FeatureAdd", new Dictionary<string, object?> { ["featureType"] = featureType }));
+        CallLog.Add(("FeatureAdd", new Dictionary<string, object?>
+        {
+            ["featureType"] = featureType,
+            ["hasEnvelope"] = !string.IsNullOrEmpty(featurePostBodyJson),
+        }));
         return Ok(new Dictionary<string, object?> { ["featureType"] = featureType });
+    }
+
+    public Dictionary<string, object?> FeatureList(CadElementAddress partStudio)
+    {
+        ThrowIfError();
+        CallLog.Add(("FeatureList", new Dictionary<string, object?> { ["elementId"] = partStudio.ElementId }));
+        return Ok(new Dictionary<string, object?> { ["features"] = Array.Empty<object>() });
     }
 
     public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement)

@@ -4,6 +4,7 @@ using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 using McpCad.Onshape;
 using McpCad.Onshape.Managers;
+using McpCad.Tests.Mocks;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -106,6 +107,49 @@ public class OnshapeProviderConformanceTests : IDisposable
 
         var ex = act.Should().Throw<OnshapeMicroversionSkewException>().Which;
         ex.ServerMicroversion.Should().Be("server-mv-99");
+    }
+
+    [Fact]
+    public void SketchUrlMatches_PartStudioFeaturesPath()
+    {
+        var p = OnshapeApiPaths.SketchFeatures("d", "w", "ws", "e");
+        p.Should().Be(OnshapeApiPaths.PartStudioFeatures("d", "w", "ws", "e"));
+        p.Should().Contain("/features");
+    }
+
+    [Fact]
+    public void SketchReplace_WithSketchPayload_ReturnsSuccess_OnMockProvider()
+    {
+        var mock = new MockOnshapeProvider();
+        var addr = new CadElementAddress("doc-1", "ws-1", null, "e-part");
+        var payload = new Dictionary<string, object?>
+        {
+            ["entities"] = new List<object>(),
+            ["constraints"] = new List<object>(),
+        };
+
+        var result = mock.SketchReplace(addr, payload);
+
+        result["success"].Should().Be(true);
+        mock.CallLog.Should().Contain(c => c.Method == "SketchReplace");
+    }
+
+    [Fact]
+    public void SketchReplace_ViaProvider_PostsToFeaturesEndpoint()
+    {
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"microversion":"mv-3"}"""));
+
+        var provider = CreateProvider();
+        var addr = new CadElementAddress("doc-1", "ws-1", null, "e-part");
+        var result = provider.SketchReplace(addr, new Dictionary<string, object?> { ["entities"] = Array.Empty<object>() });
+
+        result["success"].Should().Be(true);
+        _server.LogEntries.Last().RequestMessage.Body.Should().Contain("entities");
     }
 
     [Fact]

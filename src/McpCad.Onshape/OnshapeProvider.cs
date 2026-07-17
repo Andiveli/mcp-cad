@@ -1,3 +1,4 @@
+using System.Text.Json;
 using McpCad.Core;
 using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
@@ -111,14 +112,30 @@ public sealed class OnshapeProvider : ICadWebProvider
     public Dictionary<string, object?> MicroversionGet(CadElementAddress address) =>
         _partStudio.MicroversionGet(address);
 
-    public Dictionary<string, object?> SketchReplace(CadElementAddress address) =>
-        _partStudio.SketchReplaceStub(address);
+    public Dictionary<string, object?> SketchReplace(
+        CadElementAddress address,
+        IReadOnlyDictionary<string, object?>? sketchRequest = null) =>
+        _partStudio.SketchReplace(address, SerializeSketchRequest(sketchRequest));
+
+    private static string? SerializeSketchRequest(IReadOnlyDictionary<string, object?>? sketchRequest)
+    {
+        if (sketchRequest is null || sketchRequest.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(sketchRequest);
+    }
 
     public Dictionary<string, object?> FeatureAdd(
         CadElementAddress partStudio,
         string featureType,
-        IReadOnlyList<Dictionary<string, object?>>? parameters = null) =>
-        _features.FeatureAdd(partStudio, featureType, parameters);
+        IReadOnlyList<Dictionary<string, object?>>? parameters = null,
+        string? featurePostBodyJson = null) =>
+        _features.FeatureAdd(partStudio, featureType, parameters, featurePostBodyJson);
+
+    public Dictionary<string, object?> FeatureList(CadElementAddress partStudio) =>
+        _features.FeatureList(partStudio);
 
     public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement) =>
         _assembly.ListInstances(assemblyElement);

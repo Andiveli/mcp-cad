@@ -1,6 +1,9 @@
+using System.Text.Json;
 using McpCad.Core;
 using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
+using McpCad.Onshape;
+using McpCad.Onshape.Builders;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 
@@ -54,26 +57,75 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
     public Dictionary<string, object?> onshape_element_rename(string address_json, string name)
         => Catch(() => provider.ElementRename(ParseAddress(address_json), name));
 
-    [McpServerTool, Description("Create or replace sketch payload on a Part Studio (v1 stub).")]
-    public Dictionary<string, object?> create_sketch(string address_json)
-        => Catch(() => provider.SketchReplace(ParseAddress(address_json)));
+    [McpServerTool, Description("Create a rectangle sketch in a Part Studio using BTMSketch. Coordinates in cm.")]
+    public Dictionary<string, object?> onshape_sketch_rectangle(
+        string address_json,
+        double x1_cm,
+        double y1_cm,
+        double x2_cm,
+        double y2_cm,
+        string? plane = null)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var sketch = OnshapeSketchBuilder.BuildRectangle(
+                OnshapeUnitConversion.CmToMeters(x1_cm),
+                OnshapeUnitConversion.CmToMeters(y1_cm),
+                OnshapeUnitConversion.CmToMeters(x2_cm),
+                OnshapeUnitConversion.CmToMeters(y2_cm));
+            var request = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketch.RootElement.GetRawText())
+                          ?? new Dictionary<string, object?>();
+            if (!string.IsNullOrWhiteSpace(plane))
+            {
+                request["plane"] = plane;
+            }
 
-    [McpServerTool, Description("Add a feature (e.g. extrude) to a Part Studio.")]
+            return provider.SketchReplace(address, request);
+        });
+
+    [McpServerTool, Description("Extrude a sketch profile by a given depth in cm.")]
+    public Dictionary<string, object?> onshape_extrude(
+        string address_json,
+        string sketch_feature_id,
+        double depth_cm,
+        string direction = "positive",
+        string boolean_op = "new")
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.ExtrudeFromSketch(
+                sketch_feature_id,
+                OnshapeUnitConversion.CmToMeters(depth_cm),
+                direction,
+                boolean_op);
+            return provider.FeatureAdd(address, "extrude", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("List features in a Part Studio (analogous to Inventor sketch_profiles).")]
+    public Dictionary<string, object?> onshape_feature_list(string address_json)
+        => Catch(() => provider.FeatureList(ParseAddress(address_json)));
+
+    [McpServerTool, Description("DEPRECATED: use onshape_sketch_rectangle. Creates a default 10cm rectangle sketch when corners omitted.")]
+    public Dictionary<string, object?> create_sketch(
+        string address_json,
+        double? x1_cm = null,
+        double? y1_cm = null,
+        double? x2_cm = null,
+        double? y2_cm = null)
+        => onshape_sketch_rectangle(
+            address_json,
+            x1_cm ?? 0,
+            y1_cm ?? 0,
+            x2_cm ?? 10,
+            y2_cm ?? 10);
+
+    [McpServerTool, Description("DEPRECATED: use onshape_extrude. Extrudes using legacy distance_cm; requires sketch_feature_id.")]
     public Dictionary<string, object?> add_extrude(
         string address_json,
         double distance_cm,
-        string direction = "positive")
-        => Catch(() => provider.FeatureAdd(
-            ParseAddress(address_json),
-            "extrude",
-            new[]
-            {
-                new Dictionary<string, object?>
-                {
-                    ["distanceCm"] = distance_cm,
-                    ["direction"] = direction,
-                },
-            }));
+        string direction = "positive",
+        string sketch_feature_id = "sketch-1")
+        => onshape_extrude(address_json, sketch_feature_id, distance_cm, direction);
 
     [McpServerTool, Description("Export Part Studio to STEP (polls translation, blocking).")]
     public Dictionary<string, object?> onshape_export_step(string address_json)

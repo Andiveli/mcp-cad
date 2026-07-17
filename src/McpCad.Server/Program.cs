@@ -11,6 +11,13 @@ using McpCad.Tools;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddUserSecrets<McpCad.Server.ProgramMarker>(optional: true);
 
+var userConfigOverlay = new Dictionary<string, string?>(StringComparer.Ordinal);
+UserMcpCadConfig.TryLoad()?.ApplyToConfiguration(userConfigOverlay);
+if (userConfigOverlay.Count > 0)
+{
+    builder.Configuration.AddInMemoryCollection(userConfigOverlay);
+}
+
 builder.Logging.AddConsole(consoleLogOptions =>
 {
     consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;

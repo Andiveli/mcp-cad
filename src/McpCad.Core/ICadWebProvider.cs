@@ -34,12 +34,17 @@ public interface ICadWebProvider : ICadProvider
 
     Dictionary<string, object?> ExportStl(CadElementAddress address, Dictionary<string, object?>? options = null);
 
-    Dictionary<string, object?> SketchReplace(CadElementAddress address);
+    Dictionary<string, object?> SketchReplace(
+        CadElementAddress address,
+        IReadOnlyDictionary<string, object?>? sketchRequest = null);
 
     Dictionary<string, object?> FeatureAdd(
         CadElementAddress partStudio,
         string featureType,
-        IReadOnlyList<Dictionary<string, object?>>? parameters = null);
+        IReadOnlyList<Dictionary<string, object?>>? parameters = null,
+        string? featurePostBodyJson = null);
+
+    Dictionary<string, object?> FeatureList(CadElementAddress partStudio);
 
     Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement);
 

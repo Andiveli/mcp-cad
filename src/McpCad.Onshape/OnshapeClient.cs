@@ -25,7 +25,7 @@ public sealed class OnshapeClient
     }
 
     /// <summary>
-    /// Updates HMAC signing material (startup configuration or trusted host integration only — not MCP tool args).
+    /// Updates API key credentials (startup configuration or trusted host integration only — not MCP tool args).
     /// </summary>
     public void SetCredentials(string accessKey, string secretKey)
     {
@@ -34,7 +34,7 @@ public sealed class OnshapeClient
     }
 
     /// <summary>
-    /// Sends a signed request. Writes add <c>rejectMicroversionSkew=true</c> to the query string.
+    /// Sends an authenticated request (HTTP Basic, OpenAPI BasicAuth). Writes add <c>rejectMicroversionSkew=true</c> to the query string.
     /// </summary>
     public async Task<HttpResponseMessage> SendAsync(
         HttpMethod method,
@@ -55,23 +55,9 @@ public sealed class OnshapeClient
                 ? $"{_baseUrl}{uriPath}"
                 : $"{_baseUrl}{uriPath}?{queryString}";
 
-            var contentType = string.IsNullOrEmpty(body) ? string.Empty : "application/json";
-            var nonce = Guid.NewGuid().ToString("N");
-            var date = OnshapeHmac.FormatAuthDate(DateTimeOffset.UtcNow);
-            var canonicalUri = string.IsNullOrEmpty(queryString) ? uriPath : $"{uriPath}?{queryString}";
-            var canonical = OnshapeHmac.BuildCanonical(
-                method.Method,
-                canonicalUri,
-                nonce,
-                date,
-                contentType,
-                body ?? string.Empty);
-            var signature = OnshapeHmac.Sign(canonical, _secretKey);
-
             using var request = new HttpRequestMessage(method, requestUri);
-            request.Headers.TryAddWithoutValidation("Authorization", $"OnshapeKey {_accessKey}:{signature}");
-            request.Headers.TryAddWithoutValidation("On-Nonce", nonce);
-            request.Headers.TryAddWithoutValidation("On-Date", date);
+            var basic = OnshapeBasicAuth.FormatAuthorizationHeader(_accessKey, _secretKey);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", basic);
 
             if (!string.IsNullOrEmpty(body))
             {
@@ -215,6 +201,10 @@ public sealed class OnshapeClient
     /// <summary>Test seam for HMAC-SHA256 signature (Base64).</summary>
     public static string SignForTests(string canonical, string secretKey) =>
         OnshapeHmac.Sign(canonical, secretKey);
+
+    /// <summary>Test seam for HTTP Basic credential payload (Base64 of access:secret).</summary>
+    public static string FormatBasicAuthForTests(string accessKey, string secretKey) =>
+        OnshapeBasicAuth.FormatAuthorizationHeader(accessKey, secretKey);
 
     private static Dictionary<string, string?> MergeQuery(IReadOnlyDictionary<string, string?>? query, bool isWrite)
     {

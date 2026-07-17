@@ -2,18 +2,18 @@
 
 ## Purpose
 
-Onshape REST integration: HMAC-SHA256 signing, `did/wvm/wvmid/eid` addressing, microversion skew protection, STEP export polling, unit conversion.
+Onshape REST integration: HTTP Basic auth with API keys (OpenAPI `BasicAuth`), `did/wvm/wvmid/eid` addressing, microversion skew protection, STEP export polling, unit conversion.
 
 ## Requirements
 
-### Requirement: HMAC-SHA256 Request Signing
+### Requirement: API Key Authentication (HTTP Basic)
 
-Every request to `cad.onshape.com` MUST send `Authorization: OnshapeKey {AccessKey}:{Base64HmacSha256(...)}`, `On-Nonce`, `On-Date`. Canonical: `METHOD\nURI\nnonce\ndate\ncontentType\nbody`.
+Every request to `cad.onshape.com` MUST send `Authorization: Basic {Base64(UTF8(accessKey + ":" + secretKey))}` per Onshape OpenAPI `components.securitySchemes.BasicAuth`.
 
-#### Scenario: GET and POST signing
+#### Scenario: GET and POST
 
-- GIVEN `GET /api/v6/documents`, headers MUST contain valid `Authorization`, `On-Nonce`, `On-Date`
-- GIVEN a POST with 240-byte body, the body MUST appear in the canonical string; signing with empty body MUST fail server check
+- GIVEN `GET /api/v6/documents`, the request MUST use HTTP Basic with the configured access key and secret
+- GIVEN a POST with JSON body, the same Basic credentials MUST authenticate the request
 
 ### Requirement: Microversion Skew Protection
 

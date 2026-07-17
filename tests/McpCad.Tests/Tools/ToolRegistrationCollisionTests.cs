@@ -51,6 +51,9 @@ public class ToolRegistrationCollisionTests
 
         Assert.Contains("onshape_export_step", names);
         Assert.Contains("onshape_export_stl", names);
+        Assert.Contains("onshape_sketch_rectangle", names);
+        Assert.Contains("onshape_extrude", names);
+        Assert.Contains("onshape_feature_list", names);
         Assert.DoesNotContain("export_step", names);
         Assert.DoesNotContain("export_stl", names);
     }

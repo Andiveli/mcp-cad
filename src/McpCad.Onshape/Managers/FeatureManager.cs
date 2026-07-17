@@ -1,5 +1,6 @@
 using System.Text.Json;
 using McpCad.Core.Models;
+using McpCad.Onshape.Builders;
 
 namespace McpCad.Onshape.Managers;
 
@@ -34,14 +35,12 @@ public sealed class FeatureManager
     public Dictionary<string, object?> FeatureAdd(
         CadElementAddress partStudio,
         string featureType,
-        IReadOnlyList<Dictionary<string, object?>>? parameters = null)
+        IReadOnlyList<Dictionary<string, object?>>? parameters = null,
+        string? featurePostBodyJson = null)
     {
         var wvm = _driver.DefaultWvm;
-        var body = JsonSerializer.Serialize(new
-        {
-            featureType,
-            parameters = parameters ?? Array.Empty<Dictionary<string, object?>>(),
-        });
+        var body = featurePostBodyJson
+                   ?? JsonSerializer.Serialize(OnshapeFeatureTemplates.BuildMinimalFeatureEnvelope(featureType, parameters));
         using var doc = _client.SendJsonAsync(
                 HttpMethod.Post,
                 OnshapeApiPaths.PartStudioFeatures(

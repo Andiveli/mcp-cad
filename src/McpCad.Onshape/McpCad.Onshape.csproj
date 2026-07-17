@@ -15,4 +15,8 @@
     <ProjectReference Include="..\McpCad.Core\McpCad.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="McpCad.Tests" />
+  </ItemGroup>
+
 </Project>

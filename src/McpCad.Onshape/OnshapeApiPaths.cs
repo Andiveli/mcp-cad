@@ -18,8 +18,15 @@ internal static class OnshapeApiPaths
     public static string Element(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/elements/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}";
 
+    /// <summary>
+    /// Part Studio features endpoint. GET lists features; POST adds or replaces sketch/feature payloads.
+    /// </summary>
     public static string PartStudioFeatures(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/features";
+
+    /// <summary>Alias for sketch replace POST (same path as <see cref="PartStudioFeatures"/>).</summary>
+    public static string SketchFeatures(string documentId, string wvm, string wvmId, string elementId) =>
+        PartStudioFeatures(documentId, wvm, wvmId, elementId);
 
     public static string AssemblyInstances(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/assemblies/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/instances";

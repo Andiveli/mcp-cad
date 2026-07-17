@@ -1,0 +1,75 @@
+# Onshape API — HTTP Basic (OpenAPI BasicAuth), same as McpCad.Onshape.
+#
+# Credentials: ~/.config/mcp-cad/config.json FIRST, then onshape-keys.env
+# Quick test: ./scripts/run-onshape-smoke.sh
+# Document IDs: scripts/onshape-doc-ids.json
+# @dotenv ./onshape-keys.env
+
+@baseUrl = https://cad.onshape.com
+@scriptsPath = /home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts
+
+### List documents — auth smoke test
+# @name listDocuments
+< {%
+  const p = require('path');
+  const d = process.env.MCP_CAD_SCRIPTS || '/home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts';
+  require(p.join(d, 'onshape-httpyac-auth.js')).applyAuth(request, 'GET', '/api/v6/documents');
+%}
+
+GET {{baseUrl}}/api/v6/documents
+Accept: application/json
+
+### OAuth keys ping
+# @name oauthKeys
+< {%
+  const p = require('path');
+  const d = process.env.MCP_CAD_SCRIPTS || '/home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts';
+  require(p.join(d, 'onshape-httpyac-auth.js')).applyAuth(request, 'POST', '/api/v6/oauth/keys', '{}');
+%}
+
+POST {{baseUrl}}/api/v6/oauth/keys
+Content-Type: application/json
+Accept: application/json
+
+{}
+
+### List workspaces (onshape-doc-ids.json → documentId)
+# @name wsList
+< {%
+  const p = require('path');
+  const d = process.env.MCP_CAD_SCRIPTS || '/home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts';
+  const auth = require(p.join(d, 'onshape-httpyac-auth.js'));
+  const { documentId } = auth.loadDocIds();
+  auth.applyAuth(request, 'GET', `/api/v6/documents/d/${documentId}/workspaces`);
+%}
+
+GET {{baseUrl}}/api/v6/documents/d/a2e3cbf0909c00279ce5d80b/workspaces
+Accept: application/json
+
+### List elements in workspace (mcp_cad element_list)
+# @name elementList
+< {%
+  const p = require('path');
+  const d = process.env.MCP_CAD_SCRIPTS || '/home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts';
+  const auth = require(p.join(d, 'onshape-httpyac-auth.js'));
+  const ids = auth.loadDocIds();
+  const wvm = ids.wvm || 'w';
+  auth.applyAuth(request, 'GET', `/api/v6/documents/d/${ids.documentId}/${wvm}/${ids.workspaceId}/elements`);
+%}
+
+GET {{baseUrl}}/api/v6/documents/d/a2e3cbf0909c00279ce5d80b/w/05605c0cafe63902d2a627a0/elements
+Accept: application/json
+
+### Part Studio features
+# @name partStudioFeatures
+< {%
+  const p = require('path');
+  const d = process.env.MCP_CAD_SCRIPTS || '/home/samael/Escritorio/Programacion/work/fisica/mcp-cad/scripts';
+  const auth = require(p.join(d, 'onshape-httpyac-auth.js'));
+  const ids = auth.loadDocIds();
+  const wvm = ids.wvm || 'w';
+  auth.applyAuth(request, 'GET', `/api/v6/partstudios/d/${ids.documentId}/${wvm}/${ids.workspaceId}/e/${ids.elementId}/features`);
+%}
+
+GET {{baseUrl}}/api/v6/partstudios/d/a2e3cbf0909c00279ce5d80b/w/05605c0cafe63902d2a627a0/e/dce1127c54f4f7f7a620dc26/features
+Accept: application/json

@@ -13,13 +13,8 @@ public class MockOnshapeProviderConformanceTests
         Assert.True(typeof(ICadWebProvider).IsAssignableFrom(providerType));
         Assert.False(typeof(IMechanicalCadProvider).IsAssignableFrom(providerType));
 
-        foreach (var method in typeof(ICadWebProvider).GetMethods())
+        foreach (var method in typeof(ICadWebProvider).GetMethods().Where(m => !m.IsSpecialName))
         {
-            if (method.IsSpecialName)
-            {
-                continue;
-            }
-
             var map = providerType.GetMethod(
                 method.Name,
                 method.GetParameters().Select(p => p.ParameterType).ToArray());

@@ -17,3 +17,6 @@ Thumbs.db
 # Test artifacts
 test_*.ipt
 test_*.iam
+
+# Local Onshape API keys (scripts/onshape-api.http)
+scripts/onshape-keys.env
