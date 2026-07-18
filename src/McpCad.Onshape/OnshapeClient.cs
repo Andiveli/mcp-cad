@@ -41,7 +41,8 @@ public sealed class OnshapeClient
         string path,
         string? body = null,
         IReadOnlyDictionary<string, string?>? query = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool acceptRedirect = false)
     {
         var isWrite = method != HttpMethod.Get && method != HttpMethod.Head;
         var mergedQuery = MergeQuery(query, isWrite);
@@ -51,9 +52,13 @@ public sealed class OnshapeClient
         var retried429 = false;
         while (true)
         {
+            var baseRequestUri = Uri.TryCreate(path, UriKind.Absolute, out var absoluteUri)
+                && (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps)
+                ? absoluteUri.ToString()
+                : $"{_baseUrl}{uriPath}";
             var requestUri = string.IsNullOrEmpty(queryString)
-                ? $"{_baseUrl}{uriPath}"
-                : $"{_baseUrl}{uriPath}?{queryString}";
+                ? baseRequestUri
+                : $"{baseRequestUri}?{queryString}";
 
             using var request = new HttpRequestMessage(method, requestUri);
             var basic = OnshapeBasicAuth.FormatAuthorizationHeader(_accessKey, _secretKey);
@@ -75,6 +80,11 @@ public sealed class OnshapeClient
             }
 
             if (response.IsSuccessStatusCode)
+            {
+                return response;
+            }
+
+            if (acceptRedirect && (int)response.StatusCode is >= 300 and < 400)
             {
                 return response;
             }

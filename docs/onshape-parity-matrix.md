@@ -13,13 +13,12 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sketch_rectangle` | `onshape_sketch_rectangle` | Part Studio features POST | implemented | P0; rectangle BTMSketch payload. |
 | `sketch_profiles` | `onshape_feature_list` | Part Studio features GET | implemented | P0 feature discovery seam. |
 | `extrude` | `onshape_extrude` | Part Studio features POST | implemented | P0 BT feature envelope. |
-| `revolve` | `onshape_revolve` | Part Studio features POST | implemented | P1 feature envelope. |
+| `revolve` | `onshape_revolve` | Part Studio features POST | implemented | P1 profile sketch plus single-edge axis sketch. |
 | `fillet` | `onshape_fillet` | Part Studio features POST | implemented | P1 equal-radius fillet. |
 | `chamfer` | `onshape_chamfer` | Part Studio features POST | implemented | P1 equal-distance chamfer. |
-| `hole` | `onshape_hole` | Part Studio features POST | implemented | P1 blind/through-hole template support. |
-| `asm_list_components` | `onshape_asm_list_instances` | Assembly instances GET | implemented | P2 assembly instance listing. |
+| `asm_list_components` | `onshape_asm_list_instances` | Assembly definition GET | implemented | P2 assembly instance listing from `rootAssembly.instances`. |
 | `asm_place_component` | `onshape_asm_create_instance` | Assembly instances POST | implemented | P2 part document and element references. |
-| Assembly instance delete (Onshape-specific) | `onshape_asm_delete_instance` | Assembly instance DELETE | implemented | P2 instance deletion. |
+| Assembly instance delete (Onshape-specific) | `onshape_asm_delete_instance` | Assembly instance node-id DELETE | implemented | P2 instance deletion; method verified against current OpenAPI. |
 | `export_step` | `onshape_export_step` | Translation/export API | implemented | Existing polling implementation. |
 | `export_stl` | `onshape_export_stl` | Translation/export API | implemented | Existing polling implementation. |
 
@@ -75,6 +74,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | --- | --- | --- | --- | --- |
 | `derive` | — | — | not_supported | File-path based Inventor derive has no cloud equivalent. |
 | `thread` | — | — | not_supported | No dedicated atomic template. |
+| `hole` | — | Part Studio features POST | not_supported | Native V3 location queries resolved live, but every tested payload regenerated with `featureStatus: ERROR`; the unproven MCP tool was removed. |
 | `inspect_edges` | — | — | not_supported | No inspection atomic. |
 | `param_list` | — | — | not_supported | Post-creation parameter catalog is out of scope. |
 | `param_get` | — | — | not_supported | Post-creation parameter access is out of scope. |

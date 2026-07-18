@@ -72,14 +72,10 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
                 OnshapeUnitConversion.CmToMeters(x1_cm),
                 OnshapeUnitConversion.CmToMeters(y1_cm),
                 OnshapeUnitConversion.CmToMeters(x2_cm),
-                OnshapeUnitConversion.CmToMeters(y2_cm));
+                OnshapeUnitConversion.CmToMeters(y2_cm),
+                plane);
             var request = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketch.RootElement.GetRawText())
                           ?? new Dictionary<string, object?>();
-            if (!string.IsNullOrWhiteSpace(plane))
-            {
-                request["plane"] = plane;
-            }
-
             return provider.SketchReplace(address, request);
         });
 
@@ -109,6 +105,7 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
     public Dictionary<string, object?> onshape_revolve(
         string address_json,
         string sketch_feature_id,
+        string axis_sketch_feature_id,
         double angle_deg,
         string direction = "positive",
         string boolean_op = "new")
@@ -116,7 +113,7 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
         {
             var address = ParseAddress(address_json);
             using var envelope = OnshapeFeatureTemplates.RevolveFromSketch(
-                sketch_feature_id, angle_deg, direction, boolean_op);
+                sketch_feature_id, axis_sketch_feature_id, angle_deg, direction, boolean_op);
             return provider.FeatureAdd(address, "revolve", null, envelope.RootElement.GetRawText());
         });
 
@@ -144,24 +141,6 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             using var envelope = OnshapeFeatureTemplates.Chamfer(
                 edge_ids, OnshapeUnitConversion.CmToMeters(distance_cm));
             return provider.FeatureAdd(address, "chamfer", null, envelope.RootElement.GetRawText());
-        });
-
-    [McpServerTool, Description("(P1) Create a hole at an Onshape center-point reference; diameter and depth are in cm.")]
-    public Dictionary<string, object?> onshape_hole(
-        string address_json,
-        string center_point,
-        double diameter_cm,
-        double depth_cm,
-        string hole_type = "simple")
-        => Catch(() =>
-        {
-            var address = ParseAddress(address_json);
-            using var envelope = OnshapeFeatureTemplates.Hole(
-                center_point,
-                OnshapeUnitConversion.CmToMeters(diameter_cm),
-                OnshapeUnitConversion.CmToMeters(depth_cm),
-                hole_type);
-            return provider.FeatureAdd(address, "hole", null, envelope.RootElement.GetRawText());
         });
 
     [McpServerTool, Description("List instances in an Onshape assembly.")]
@@ -206,7 +185,7 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
     public Dictionary<string, object?> onshape_export_step(string address_json)
         => Catch(() => provider.ExportStep(ParseAddress(address_json)));
 
-    [McpServerTool, Description("Export Part Studio to STL (polls translation, blocking).")]
+    [McpServerTool, Description("Export Part Studio to STL synchronously.")]
     public Dictionary<string, object?> onshape_export_stl(string address_json)
         => Catch(() => provider.ExportStl(ParseAddress(address_json)));
 

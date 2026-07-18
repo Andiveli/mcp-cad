@@ -76,7 +76,7 @@ public static partial class ProviderBootstrap
         services.AddHttpClient(nameof(OnshapeClient), client =>
         {
             client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
-        });
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
             services.AddSingleton(sp =>
             {

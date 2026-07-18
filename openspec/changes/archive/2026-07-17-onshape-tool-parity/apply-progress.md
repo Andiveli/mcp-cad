@@ -117,3 +117,39 @@ GREEN: dotnet test tests/McpCad.Tests/ --filter "FullyQualifiedName~onshape_asm|
 Full suite: 95 passed, 7 skipped, 1 failed
 → PollTranslationAsync_Transient500ThenDone_Succeeds is the pre-existing failure recorded in Slices 2–3.
 ```
+
+## Apply continuation — pending-checkbox disposition (2026-07-17)
+
+All 13 pending checkboxes were classified. The six optional items (3.7 and 4.7) are intentionally not implemented; the child-PR budget row is stale for this no-PR apply batch. Historical evidence supports collision, skew, and legacy rows. The full-suite and matrix-live-proof rows remain unchecked: neither is an implementation task in this change continuation.
+
+### Completed required work
+
+| Task | Result |
+|---|---|
+| Verification gate: golden structural JSON | Added `GoldenFixtureConformanceTests`; refreshed the four fixtures to the reviewed BT sketch/extrude shape. The tests load fixtures and compare required object properties and complete array order/length, while allowing extra runtime fields. |
+
+### TDD Cycle Evidence (Strict TDD)
+
+| Task | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|
+| Golden structural JSON conformance | `GoldenFixtureConformanceTests` failed against the old fixture shapes (4 failures) | 4/4 focused tests passed after fixture refresh | Rectangle, line, circle, and extrude fixtures cover four distinct payload shapes | Extracted recursive shape matcher so fixtures assert required stable structure rather than volatile extra fields |
+
+### Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused test command | `dotnet test tests/McpCad.Tests/ --filter "FullyQualifiedName~GoldenFixtureConformanceTests"` → exit 0; 4 passed. |
+| Runtime harness | N/A — pure JSON builders/templates; the existing WireMock boundary is unchanged. |
+| Rollback boundary | Revert `GoldenFixtureConformanceTests.cs` and the four fixtures under `tests/McpCad.Tests/Onshape/Fixtures/`; this removes only golden conformance coverage. |
+| Full test command | `dotnet test tests/McpCad.Tests/` → exit 1; 106 passed, 1 failed, 7 skipped. `ExportPollingTests.PollTranslationAsync_Transient500ThenDone_Succeeds` remains the known pre-existing failure (`OnshapeClient.cs:117`). |
+
+## next_recommended
+
+- `sdd-verify` — re-run against the updated golden-conformance evidence; full suite and live matrix proof remain unresolved.
+
+## Verification-only reassessment (2026-07-17)
+
+| Pending gate | Valid evidence | Disposition / required action |
+|---|---|---|
+| Full suite | `dotnet test tests/McpCad.Tests/` → exit 1; 106 passed, 1 pre-existing `ExportPollingTests.PollTranslationAsync_Transient500ThenDone_Succeeds` failure, 7 skipped. | **Unchecked.** The task's literal acceptance criterion is that all tests pass. Resolve or explicitly exempt the failure and rerun with exit 0. |
+| Parity matrix actual implementation status | Live Onshape: a 30×30 cm rectangle sketch on Top returned `featureStatus: OK`; a 30 cm extrude returned `featureStatus: OK`, used depth expression `0.3 m`, and generated a solid cube. Bounded review receipt `review-d75e0781f65e5ff3` approved the evidence, with only a warning about `SketchReplace` `featureStatus` handling. | **Unchecked.** This validates P0 rectangle/extrude only. The matrix specification defines `implemented` as working against the live API for the P0–P2 slice; obtain live P1/P2 proof or revise unsupported rows' statuses before checking the gate. |

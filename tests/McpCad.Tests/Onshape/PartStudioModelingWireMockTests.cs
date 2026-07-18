@@ -50,7 +50,7 @@ public class PartStudioModelingWireMockTests : IDisposable
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
                 .WithHeader("Content-Type", "application/json")
-                .WithBody("""{"microversion":"mv-extrude"}"""));
+                .WithBody("""{"microversion":"mv-extrude","featureState":{"featureStatus":"OK"}}"""));
 
         var features = CreateFeatureManager();
         var addr = new CadElementAddress("doc-1", "ws-1", null, "e-part");
@@ -63,6 +63,24 @@ public class PartStudioModelingWireMockTests : IDisposable
         body!.TrimStart().Should().StartWith("{\"feature\":");
         body.Should().Contain("rejectMicroversionSkew");
         body.TrimStart().Should().NotStartWith("{\"featureType\":");
+    }
+
+    [Fact]
+    public void FeatureAdd_WithErrorFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"ERROR","errorString":"Invalid profile"}}"""));
+
+        var act = () => CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "extrude");
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status ERROR: Invalid profile");
     }
 
     [Fact]
@@ -84,11 +102,28 @@ public class PartStudioModelingWireMockTests : IDisposable
             .Which.ServerMicroversion.Should().Be("mv-server-42");
     }
 
+    [Fact]
+    public void SketchReplace_WithErrorFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"ERROR","errorString":"Invalid sketch"}}"""));
+
+        var act = () => CreatePartStudioManager().SketchReplace(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), """{"entities":[]}""");
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status ERROR: Invalid sketch");
+    }
+
     [Theory]
     [InlineData("revolve")]
     [InlineData("fillet")]
     [InlineData("chamfer")]
-    [InlineData("hole")]
     public void P1FeatureEnvelope_PostsWrappedFeatureShape(string featureType)
     {
         _server.ResetMappings();
@@ -98,10 +133,9 @@ public class PartStudioModelingWireMockTests : IDisposable
 
         using var envelope = featureType switch
         {
-            "revolve" => OnshapeFeatureTemplates.RevolveFromSketch("sketch-1", 180),
+            "revolve" => OnshapeFeatureTemplates.RevolveFromSketch("sketch-1", "axis-1", 180),
             "fillet" => OnshapeFeatureTemplates.Fillet(["edge-1"], 0.005),
             "chamfer" => OnshapeFeatureTemplates.Chamfer(["edge-1"], 0.003),
-            "hole" => OnshapeFeatureTemplates.Hole("vertex-1", 0.006, 0.02),
             _ => throw new ArgumentOutOfRangeException(nameof(featureType)),
         };
         var result = CreateFeatureManager().FeatureAdd(

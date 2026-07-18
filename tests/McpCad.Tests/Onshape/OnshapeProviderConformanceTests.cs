@@ -81,13 +81,14 @@ public class OnshapeProviderConformanceTests : IDisposable
     }
 
     [Fact]
-    public void EndToEnd_ExportStl_PollsTranslation_ReturnsDownloadUrl()
+    public void EndToEnd_ExportStl_ReturnsSynchronousExportContext()
     {
         var provider = CreateProvider();
         var partAddr = new CadElementAddress("doc-1", "ws-1", null, "e-part");
         var export = provider.ExportStl(partAddr);
         export["success"].Should().Be(true);
-        export["downloadUrl"].Should().Be("https://cdn.example/export.stl");
+        export["format"].Should().Be("STL");
+        export["downloadUrl"].Should().Be($"{_server.Url}/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/stl");
     }
 
     [Fact]
@@ -216,19 +217,14 @@ public class OnshapeProviderConformanceTests : IDisposable
                 .WithBody("""{"requestState":"DONE","resultExternalDataIds":["https://cdn.example/export.step"]}"""));
 
         _server
-            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/export/stl").UsingPost())
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/stl").UsingGet())
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
-                .WithBody("""{"id":"tid-stl-1"}"""));
+                .WithHeader("Content-Type", "application/sla")
+                .WithBody(new byte[] { 1, 2, 3 }));
 
         _server
-            .Given(Request.Create().WithPath("/api/v6/translations/tid-stl-1").UsingGet())
-            .RespondWith(Response.Create()
-                .WithStatusCode(200)
-                .WithBody("""{"requestState":"DONE","resultExternalDataIds":["https://cdn.example/export.stl"]}"""));
-
-        _server
-            .Given(Request.Create().WithPath("/api/v6/assemblies/d/doc-1/w/ws-1/e/e-asm/instances").UsingGet())
+            .Given(Request.Create().WithPath("/api/v6/assemblies/d/doc-1/w/ws-1/e/e-asm").UsingGet())
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
                 .WithBody("""{"instances":[]}"""));

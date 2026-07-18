@@ -78,7 +78,6 @@ public class OnshapeAtomicToolsModelingTests
     [InlineData("revolve")]
     [InlineData("fillet")]
     [InlineData("chamfer")]
-    [InlineData("hole")]
     public void P1Tool_CallsFeatureAdd_WithExpectedEnvelope(string featureType)
     {
         var mock = new MockOnshapeProvider();
@@ -87,10 +86,9 @@ public class OnshapeAtomicToolsModelingTests
 
         var result = featureType switch
         {
-            "revolve" => tools.onshape_revolve(address, "sketch-1", 180),
+            "revolve" => tools.onshape_revolve(address, "sketch-1", "axis-1", 180),
             "fillet" => tools.onshape_fillet(address, ["edge-1"], 0.5),
             "chamfer" => tools.onshape_chamfer(address, ["edge-1"], 0.3),
-            "hole" => tools.onshape_hole(address, "vertex-1", 0.6, 2),
             _ => throw new ArgumentOutOfRangeException(nameof(featureType)),
         };
 

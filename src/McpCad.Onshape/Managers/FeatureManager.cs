@@ -1,4 +1,5 @@
 using System.Text.Json;
+using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 using McpCad.Onshape.Builders;
 
@@ -50,6 +51,21 @@ public sealed class FeatureManager
                     partStudio.ElementId),
                 body)
             .GetAwaiter().GetResult();
+        if (doc.RootElement.TryGetProperty("featureState", out var featureState)
+            && featureState.ValueKind == JsonValueKind.Object
+            && featureState.TryGetProperty("featureStatus", out var featureStatus)
+            && featureStatus.ValueKind == JsonValueKind.String
+            && featureStatus.GetString() is { } status
+            && (status.Equals("ERROR", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("UNKNOWN", StringComparison.OrdinalIgnoreCase)))
+        {
+            var context = featureState.TryGetProperty("errorString", out var error)
+                          && error.ValueKind == JsonValueKind.String
+                ? $": {error.GetString()}"
+                : string.Empty;
+            throw new CadProviderOperationException($"Onshape feature creation failed with status {status}{context}");
+        }
+
         _driver.UpdateMicroversionFromJson(doc.RootElement);
         return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
     }

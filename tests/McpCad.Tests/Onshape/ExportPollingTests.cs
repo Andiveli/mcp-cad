@@ -76,14 +76,14 @@ public class ExportPollingTests : IDisposable
                         return new WireMock.ResponseMessage
                         {
                             StatusCode = 500,
-                            BodyData = new WireMock.Util.BodyData { BodyAsString = "server blip" },
+                            BodyData = new WireMock.Util.BodyData { BodyAsString = "server blip", DetectedBodyType = WireMock.Types.BodyType.String },
                         };
                     }
 
                     return new WireMock.ResponseMessage
                     {
                         StatusCode = 200,
-                        BodyData = new WireMock.Util.BodyData { BodyAsString = doneJson },
+                        BodyData = new WireMock.Util.BodyData { BodyAsString = doneJson, DetectedBodyType = WireMock.Types.BodyType.String },
                     };
                 }));
 
@@ -96,7 +96,7 @@ public class ExportPollingTests : IDisposable
                 pollTimeout: TimeSpan.FromSeconds(2));
 
             result["downloadUrl"].Should().Be("https://cdn.example/ok");
-            calls.Should().BeGreaterThan(1);
+            calls.Should().Be(2);
         }
 
     [Fact]

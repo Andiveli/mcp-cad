@@ -1,6 +1,11 @@
 {
-  "entities": [
-    { "btType": "BTMSketchCircle-184", "entityId": "circle-0", "center": { "x": 0.05, "y": 0.05 }, "radius": 0.02 }
-  ],
-  "constraints": []
+  "feature": {
+    "btType": "BTMSketch-151",
+    "parameters": [{ "btType": "BTMParameterQueryList-148", "parameterId": "sketchPlane" }],
+    "entities": [
+      { "btType": "BTMSketchCurve-4", "entityId": "circle-0", "geometry": { "btType": "BTCurveGeometryCircle-115", "xCenter": 0.05, "yCenter": 0.05, "radius": 0.02, "clockwise": false, "xDir": 1, "yDir": 0 }, "isConstruction": false, "startParam": 0, "endParam": 6.283185307179586 }
+    ],
+    "constraints": []
+  },
+  "rejectMicroversionSkew": true
 }

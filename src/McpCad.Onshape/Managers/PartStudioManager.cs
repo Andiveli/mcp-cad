@@ -1,4 +1,5 @@
 using System.Text.Json;
+using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 
 namespace McpCad.Onshape.Managers;
@@ -80,8 +81,28 @@ public sealed class PartStudioManager
             ? """{"entities":[],"constraints":[]}"""
             : sketchBodyJson;
         using var doc = _client.SendJsonAsync(HttpMethod.Post, path, body).GetAwaiter().GetResult();
+        ThrowIfFeatureFailed(doc.RootElement);
         _driver.UpdateMicroversionFromJson(doc.RootElement);
         return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+    }
+
+    private static void ThrowIfFeatureFailed(JsonElement root)
+    {
+        if (!root.TryGetProperty("featureState", out var state)
+            || !state.TryGetProperty("featureStatus", out var statusElement))
+        {
+            return;
+        }
+
+        var status = statusElement.GetString();
+        if (status is not ("ERROR" or "UNKNOWN"))
+        {
+            return;
+        }
+
+        var detail = state.TryGetProperty("errorString", out var error) ? error.GetString() : null;
+        throw new CadProviderOperationException(
+            $"Onshape sketch creation returned feature status {status}: {detail ?? "No error detail provided."}");
     }
 
     private (string Did, string Wvm, string WvmId) ResolveWvm(CadElementAddress address) =>

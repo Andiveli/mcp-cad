@@ -22,7 +22,7 @@ public sealed class AssemblyManager
         var wvm = _driver.DefaultWvm;
         using var doc = _client.SendJsonAsync(
                 HttpMethod.Get,
-                OnshapeApiPaths.AssemblyInstances(
+                OnshapeApiPaths.Assembly(
                     assemblyElement.DocumentId,
                     wvm,
                     assemblyElement.WorkspaceOrVersionId,
@@ -41,25 +41,46 @@ public sealed class AssemblyManager
         {
             documentId = partDocumentId,
             elementId = partElementId,
+            isWholePartStudio = true,
+            includePartTypes = new[] { "PARTS" },
         });
-        using var doc = _client.SendJsonAsync(
+        using var response = _client.SendAsync(
                 HttpMethod.Post,
                 OnshapeApiPaths.AssemblyInstances(
                     assemblyElement.DocumentId,
-                    wvm,
                     assemblyElement.WorkspaceOrVersionId,
                     assemblyElement.ElementId),
                 body)
             .GetAwaiter().GetResult();
-        _driver.UpdateMicroversionFromJson(doc.RootElement);
-        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+        var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        if (!string.IsNullOrWhiteSpace(responseBody))
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                _driver.UpdateMicroversionFromJson(doc.RootElement);
+            }
+
+            return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+        }
+
+        return OnshapeJsonHelper.SuccessEnvelope(new Dictionary<string, object?>
+        {
+            ["documentId"] = assemblyElement.DocumentId,
+            ["workspaceId"] = assemblyElement.WorkspaceOrVersionId,
+            ["assemblyElementId"] = assemblyElement.ElementId,
+            ["sourceDocumentId"] = partDocumentId,
+            ["sourceElementId"] = partElementId,
+        });
     }
 
     public Dictionary<string, object?> DeleteInstance(CadElementAddress assemblyElement, string instanceId)
     {
-        var wvm = _driver.DefaultWvm;
-        var path =
-            $"{OnshapeApiPaths.AssemblyInstances(assemblyElement.DocumentId, wvm, assemblyElement.WorkspaceOrVersionId, assemblyElement.ElementId)}/{Uri.EscapeDataString(instanceId)}";
+        var path = OnshapeApiPaths.AssemblyInstance(
+            assemblyElement.DocumentId,
+            assemblyElement.WorkspaceOrVersionId,
+            assemblyElement.ElementId,
+            instanceId);
         _client.SendAsync(HttpMethod.Delete, path).GetAwaiter().GetResult().Dispose();
         return OnshapeJsonHelper.SuccessEnvelope(new Dictionary<string, object?> { ["instanceId"] = instanceId });
     }

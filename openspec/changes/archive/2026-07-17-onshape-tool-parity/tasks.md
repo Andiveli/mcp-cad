@@ -41,6 +41,20 @@ Chain strategy: feature-branch-chain
 - Where tests do not apply (docs, config, interface shape), tasks use `[ADD]` / `[MODIFY]` / `[REMOVE]`.
 - Test runner: `dotnet test tests/McpCad.Tests/` after each GREEN phase.
 
+## Pending-checkbox disposition (2026-07-17)
+
+`[x]` entries below may record a completed **classification**, not implementation. Optional/non-goal work explicitly states that it was not implemented so the dispatcher does not schedule it as an implementation task.
+
+| Pending item | Disposition | Evidence / action |
+|---|---|---|
+| 3.7 parameter research, tool, and test | Optional / non-goal | Not implemented; P1 parameter mutation remains outside v1 scope. |
+| 4.7 live smoke add and both verification rows | Optional / non-goal | Not implemented or run; requires sandbox credentials and `ONSHAPE_LIVE=1`. |
+| Full suite | Historical verification item | Completed: `dotnet test tests/McpCad.Tests/ --no-restore` exits 0 (105 passed, 7 skipped, 0 failed). |
+| Collision, skew, and legacy rows | Historical verification items | Prior focused evidence is recorded in `apply-progress.md`. |
+| Golden structural JSON row | Required implementation | Completed in this apply continuation with fixture-consuming conformance tests. |
+| Matrix status row | Historical verification item | Completed: fillet, chamfer, and corrected revolve returned HTTP 200 with `featureStatus: OK`; assembly list/create/delete completed live with cleanup. Hole was removed from MCP registration and reclassified `not_supported` after every native V3 payload regenerated with `featureStatus: ERROR`. |
+| Child-PR budget row | Stale task state for this apply batch | No PR was created by instruction; review-budget enforcement belongs to PR delivery. |
+
 ---
 
 ## Slice 1 — Sketch Builder + Real SketchReplace + Golden Tests
@@ -256,9 +270,9 @@ Chain strategy: feature-branch-chain
 - [x] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
 
 ### Task 3.7 — (Optional) `onshape_param_*` tools where REST supports
-- [ ] [RESEARCH] Determine which parameters Onshape REST supports updating post-creation (e.g. extrude depth, fillet radius) via API docs / CSWP.
-- [ ] [ADD] If supported: add `onshape_param_set` tool that PATCHes a feature parameter by `featureId` + `parameterId`.
-- [ ] [VERIFY] If implemented: WireMock test for parameter update PATCH body shape.
+ - [x] [OPTIONAL / NON-GOAL — NOT IMPLEMENTED] Determine which parameters Onshape REST supports updating post-creation (e.g. extrude depth, fillet radius) via API docs / CSWP.
+ - [x] [OPTIONAL / NON-GOAL — NOT IMPLEMENTED] If supported: add `onshape_param_set` tool that PATCHes a feature parameter by `featureId` + `parameterId`.
+ - [x] [OPTIONAL / NON-GOAL — NOT IMPLEMENTED] If implemented: WireMock test for parameter update PATCH body shape.
 
 ---
 
@@ -328,12 +342,12 @@ Chain strategy: feature-branch-chain
 - [x] [VERIFY] `dotnet test --filter "ToolRegistrationCollision"` passes.
 
 ### Task 4.7 — (Optional) Live smoke test behind env flag
-- [ ] [ADD] Create `tests/McpCad.Tests/Onshape/OnshapeLiveSmokeTests.cs`:
+ - [x] [OPTIONAL / NON-GOAL — NOT IMPLEMENTED] Create `tests/McpCad.Tests/Onshape/OnshapeLiveSmokeTests.cs`:
   - `[Fact(Skip = "Set ONSHAPE_LIVE=1 to run")]`.
   - Execute P0 E2E: rectangle → extrude → STEP on reference sandbox.
   - Guard: skip unless `Environment.GetEnvironmentVariable("ONSHAPE_LIVE") == "1"`.
-- [ ] [VERIFY] `ONSHAPE_LIVE=0 dotnet test` skips live tests.
-- [ ] [VERIFY] `ONSHAPE_LIVE=1 dotnet test` runs live tests (requires valid credentials).
+ - [x] [OPTIONAL / NON-GOAL — NOT RUN] `ONSHAPE_LIVE=0 dotnet test` skips live tests.
+ - [x] [OPTIONAL / NON-GOAL — NOT RUN] `ONSHAPE_LIVE=1 dotnet test` runs live tests (requires valid credentials).
 
 ---
 
@@ -356,10 +370,10 @@ Slice 4 (P2 assembly tools, parity matrix, docs update, live smoke)
 
 ## Verification Gate (all slices)
 
-- [ ] `dotnet test tests/McpCad.Tests/` — all tests pass.
-- [ ] No new MCP tool name collisions with Inventor `AtomicTools` in `ToolRegistrationCollisionTests`.
-- [ ] All golden fixture tests compare structural JSON (required keys, `btType`, `parameterId`), not volatile IDs.
-- [ ] Every POST to Onshape includes `rejectMicroversionSkew=true` (verified in WireMock body matchers).
-- [ ] `create_sketch` / `add_extrude` are documented `DEPRECATED` and delegate to real BT paths.
-- [ ] Parity matrix reflects actual implementation status.
-- [ ] Each child PR ≤400 changed lines unless `size:exception` documented in PR body.
+ - [x] [HISTORICAL VERIFICATION] `dotnet test tests/McpCad.Tests/` — 105 passed, 7 skipped, 0 failed.
+ - [x] [HISTORICAL VERIFICATION] No new MCP tool name collisions with Inventor `AtomicTools` in `ToolRegistrationCollisionTests`.
+ - [x] [VERIFY] All golden fixture tests compare structural JSON (required keys, `btType`, `parameterId`), not volatile IDs.
+ - [x] [HISTORICAL VERIFICATION] Every POST to Onshape includes `rejectMicroversionSkew=true` (verified in WireMock body matchers).
+ - [x] [HISTORICAL VERIFICATION] `create_sketch` / `add_extrude` are documented `DEPRECATED` and delegate to real BT paths.
+ - [x] [HISTORICAL VERIFICATION] Parity matrix reflects live-proven implementation status; unproven hole support is explicitly `not_supported`.
+ - [x] [STALE TASK STATE — NO PR DELIVERY REQUESTED] Each child PR ≤400 changed lines unless `size:exception` documented in PR body.

@@ -18,30 +18,33 @@ public static class OnshapeFeatureTemplates
         var depth = Math.Abs(depthMeters);
         var dir = NormalizeDirection(direction, depthMeters);
         return BuildFeatureEnvelope("extrude", "Extrude 1",
-            Param("depth", depth),
+            ParamMeterQuantity("depth", depth),
             Param("direction", dir),
-            Param("operationType", MapBooleanOp(booleanOp)),
-            Param("entities", sketchFeatureId));
+            ParamEnum("operationType", "NewBodyOperationType", MapBooleanOp(booleanOp)),
+            ParamSketchEntities(sketchFeatureId));
     }
 
     public static JsonDocument RevolveFromSketch(
         string sketchFeatureId,
+        string axisSketchFeatureId,
         double angleDeg,
         string direction = "positive",
         string booleanOp = "new") =>
         BuildFeatureEnvelope("revolve", "Revolve 1",
-            Param("entities", sketchFeatureId),
-            Param("angle", angleDeg),
-            Param("direction", NormalizeDirection(direction, angleDeg)),
-            Param("operationType", MapBooleanOp(booleanOp)));
+            ParamEnum("bodyType", "ExtendedToolBodyType", "SOLID"),
+            ParamSketchEntities(sketchFeatureId),
+            ParamAxisSketch("axis", axisSketchFeatureId),
+            ParamDegreeQuantity("angle", Math.Abs(angleDeg)),
+            ParamBoolean("oppositeDirection", NormalizeDirection(direction, angleDeg) == "negative"),
+            ParamEnum("operationType", "NewBodyOperationType", MapBooleanOp(booleanOp)));
 
     public static JsonDocument Fillet(IReadOnlyList<string> edgeIds, double radiusMeters)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(radiusMeters, 0);
         EnsureEdges(edgeIds);
         return BuildFeatureEnvelope("fillet", "Fillet 1",
-            Param("entities", edgeIds),
-            Param("radius", radiusMeters));
+            ParamEntities("entities", edgeIds),
+            ParamMeterQuantity("radius", radiusMeters));
     }
 
     public static JsonDocument Chamfer(IReadOnlyList<string> edgeIds, double distanceMeters)
@@ -49,25 +52,10 @@ public static class OnshapeFeatureTemplates
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(distanceMeters, 0);
         EnsureEdges(edgeIds);
         return BuildFeatureEnvelope("chamfer", "Chamfer 1",
-            Param("entities", edgeIds),
-            Param("distance", distanceMeters),
-            Param("chamferType", "equalDistance"));
-    }
-
-    public static JsonDocument Hole(
-        string centerPoint,
-        double diameterMeters,
-        double depthMeters,
-        string holeType = "simple")
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(centerPoint);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(diameterMeters, 0);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(depthMeters, 0);
-        return BuildFeatureEnvelope("hole", "Hole 1",
-            Param("centerPoint", centerPoint),
-            Param("diameter", diameterMeters),
-            Param("depth", depthMeters),
-            Param("holeType", holeType));
+            ParamEntities("entities", edgeIds),
+            ParamEnum("chamferMethod", "ChamferMethod", "FACE_OFFSET"),
+            ParamEnum("chamferType", "ChamferType", "EQUAL_OFFSETS"),
+            ParamMeterQuantity("width", distanceMeters));
     }
 
     internal static Dictionary<string, object?> BuildMinimalFeatureEnvelope(
@@ -111,7 +99,7 @@ public static class OnshapeFeatureTemplates
     private static string MapBooleanOp(string booleanOp) =>
         booleanOp.ToLowerInvariant() switch
         {
-            "add" or "join" or "joined" => "JOIN",
+            "add" or "join" or "joined" => "ADD",
             "cut" or "remove" => "REMOVE",
             "intersect" => "INTERSECT",
             _ => "NEW",
@@ -144,6 +132,86 @@ public static class OnshapeFeatureTemplates
             throw new ArgumentException("Edge IDs must be non-empty.", nameof(edgeIds));
         }
     }
+
+    private static Dictionary<string, object?> ParamSketchEntities(string sketchFeatureId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQueryList-148",
+            ["parameterId"] = "entities",
+            ["queries"] = new List<Dictionary<string, object?>>
+            {
+                new()
+                {
+                    ["btType"] = "BTMIndividualSketchRegionQuery-140",
+                    ["featureId"] = sketchFeatureId,
+                    ["filterInnerLoops"] = true,
+                },
+            },
+        };
+
+    private static Dictionary<string, object?> ParamEnum(string parameterId, string enumName, string value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterEnum-145",
+            ["parameterId"] = parameterId,
+            ["enumName"] = enumName,
+            ["value"] = value,
+        };
+
+    private static Dictionary<string, object?> ParamMeterQuantity(string parameterId, double value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQuantity-147",
+            ["parameterId"] = parameterId,
+            ["expression"] = $"{value.ToString("G9", CultureInfo.InvariantCulture)} m",
+        };
+
+    private static Dictionary<string, object?> ParamDegreeQuantity(string parameterId, double value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQuantity-147",
+            ["parameterId"] = parameterId,
+            ["expression"] = $"{value.ToString("G9", CultureInfo.InvariantCulture)} deg",
+        };
+
+    private static Dictionary<string, object?> ParamBoolean(string parameterId, bool value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterBoolean-144",
+            ["parameterId"] = parameterId,
+            ["value"] = value,
+        };
+
+    private static Dictionary<string, object?> ParamEntities(string parameterId, IReadOnlyList<string> ids) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQueryList-148",
+            ["parameterId"] = parameterId,
+            ["queries"] = new List<Dictionary<string, object?>>
+            {
+                new()
+                {
+                    ["btType"] = "BTMIndividualQuery-138",
+                    ["deterministicIds"] = ids,
+                },
+            },
+        };
+
+    private static Dictionary<string, object?> ParamAxisSketch(string parameterId, string featureId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQueryList-148",
+            ["parameterId"] = parameterId,
+            ["queries"] = new List<Dictionary<string, object?>>
+            {
+                new()
+                {
+                    ["btType"] = "BTMIndividualQuery-138",
+                    ["queryString"] = $"query = qCreatedBy(id + \"{featureId}\" + \"wireOp\", EntityType.EDGE);",
+                    ["deterministicIds"] = Array.Empty<string>(),
+                },
+            },
+        };
 
     private static Dictionary<string, object?> Param(string parameterId, object? value)
     {

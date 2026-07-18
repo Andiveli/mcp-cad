@@ -1,6 +1,11 @@
 {
-  "entities": [
-    { "btType": "BTMSketchLine-184", "entityId": "line-0", "start": { "x": 0.0, "y": 0.0 }, "end": { "x": 1.0, "y": 0.0 } }
-  ],
-  "constraints": []
+  "feature": {
+    "btType": "BTMSketch-151",
+    "parameters": [{ "btType": "BTMParameterQueryList-148", "parameterId": "sketchPlane" }],
+    "entities": [
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "line-0", "startPointId": "point-0", "endPointId": "point-1", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0.5, "pntY": 0, "dirX": 1, "dirY": 0 }, "startParam": -0.5, "endParam": 0.5, "isConstruction": false }
+    ],
+    "constraints": []
+  },
+  "rejectMicroversionSkew": true
 }

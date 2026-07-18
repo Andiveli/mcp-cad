@@ -4,10 +4,10 @@
     "name": "Extrude 1",
     "suppressed": false,
     "parameters": [
-      { "btType": "BTMParameterQuantity-147", "parameterId": "depth", "value": 0.1 },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "depth", "expression": "0.1 m" },
       { "btType": "BTMParameterString-149", "parameterId": "direction", "value": "positive" },
-      { "btType": "BTMParameterString-149", "parameterId": "operationType", "value": "NEW" },
-      { "btType": "BTMParameterString-149", "parameterId": "entities", "value": "sketch-1" }
+      { "btType": "BTMParameterEnum-145", "parameterId": "operationType", "enumName": "NewBodyOperationType", "value": "NEW" },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "entities", "queries": [{ "btType": "BTMIndividualSketchRegionQuery-140", "featureId": "sketch-1", "filterInnerLoops": true }] }
     ]
   },
   "rejectMicroversionSkew": true

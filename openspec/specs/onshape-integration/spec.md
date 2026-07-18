@@ -6,14 +6,53 @@ Onshape REST integration: HTTP Basic auth with API keys (OpenAPI `BasicAuth`), `
 
 ## Requirements
 
+### Requirement: BT Payload Shape for FeatureAdd
+
+`FeatureAdd` MUST POST a wrapped BT `feature` envelope to the Onshape Part Studio features endpoint. The envelope MUST contain a `feature` object with `featureType`, `parameters`, and optional BT feature fields (`suppressed`, `name`, etc.). The POST body MUST NOT be the flat `{ featureType, parameters }` structure.
+
+#### Scenario: Extrude POST body shape
+
+- GIVEN a Part Studio with a sketch
+- WHEN `FeatureAdd` is called with `featureType: "extrude"` and parameters for depth, direction, boolean
+- THEN the POST body MUST contain a top-level `feature` object wrapping `featureType` and `parameters`
+- AND `rejectMicroversionSkew` MUST be `true` at the top level
+- AND a flat `{ featureType, parameters, ... }` body MUST NOT be sent
+
+#### Scenario: Golden JSON conformance
+
+- GIVEN a CSWP spike captures a real Onshape `FeatureAdd` request body
+- WHEN `FeatureAdd` serializes its payload for the same operation
+- THEN the serialized JSON MUST match the golden shape (microversion and IDs may differ)
+- AND WireMock test MUST assert structural conformance
+
+### Requirement: BTMSketch Payload for SketchReplace
+
+`SketchReplace` MUST POST a valid BTMSketch JSON body to the Onshape Part Studio sketch endpoint. The body MUST contain sketch entities in the BTMSketch schema, and the current stub MUST be replaced with a real implementation.
+
+#### Scenario: Rectangle sketch POST body
+
+- GIVEN an empty sketch element
+- WHEN `SketchReplace` is called with four line entities forming a rectangle
+- THEN the POST body MUST be valid BTMSketch JSON
+- AND the `Content-Type` header MUST be `application/json`
+- AND `rejectMicroversionSkew` MUST be included per the existing microversion requirement
+
+#### Scenario: Line sketch POST body
+
+- GIVEN an empty sketch element
+- WHEN `SketchReplace` is called with a single line entity
+- THEN the POST body MUST be valid BTMSketch JSON
+- AND the response MUST return success with an updated microversion
+
 ### Requirement: API Key Authentication (HTTP Basic)
 
-Every request to `cad.onshape.com` MUST send `Authorization: Basic {Base64(UTF8(accessKey + ":" + secretKey))}` per Onshape OpenAPI `components.securitySchemes.BasicAuth`.
+Every request to `cad.onshape.com` MUST send `Authorization: Basic {Base64(UTF8(accessKey + ":" + secretKey))}` per Onshape OpenAPI `components.securitySchemes.BasicAuth`. When configured, HMAC request signing is an additional integrity layer and MUST NOT replace the Basic header.
 
 #### Scenario: GET and POST
 
 - GIVEN `GET /api/v6/documents`, the request MUST use HTTP Basic with the configured access key and secret
 - GIVEN a POST with JSON body, the same Basic credentials MUST authenticate the request
+- AND HMAC-signed requests MUST also carry the Basic header
 
 ### Requirement: Microversion Skew Protection
 

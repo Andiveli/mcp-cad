@@ -28,14 +28,20 @@ internal static class OnshapeApiPaths
     public static string SketchFeatures(string documentId, string wvm, string wvmId, string elementId) =>
         PartStudioFeatures(documentId, wvm, wvmId, elementId);
 
-    public static string AssemblyInstances(string documentId, string wvm, string wvmId, string elementId) =>
-        $"/api/v6/assemblies/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/instances";
+    public static string Assembly(string documentId, string wvm, string wvmId, string elementId) =>
+        $"/api/v6/assemblies/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}";
+
+    public static string AssemblyInstances(string documentId, string workspaceId, string elementId) =>
+        $"/api/v6/assemblies/d/{Seg(documentId)}/w/{Seg(workspaceId)}/e/{Seg(elementId)}/instances";
+
+    public static string AssemblyInstance(string documentId, string workspaceId, string elementId, string nodeId) =>
+        $"/api/v6/assemblies/d/{Seg(documentId)}/w/{Seg(workspaceId)}/e/{Seg(elementId)}/instance/nodeid/{Seg(nodeId)}";
 
     public static string PartStudioExportStep(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/export/step";
 
     public static string PartStudioExportStl(string documentId, string wvm, string wvmId, string elementId) =>
-        $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/export/stl";
+        $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/stl";
 
     public static string Version(string documentId) => $"/api/v6/documents/d/{Seg(documentId)}/versions";
 
