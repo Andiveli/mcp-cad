@@ -65,6 +65,8 @@ public sealed class OnshapeProvider : ICadWebProvider
 
     public Dictionary<string, object?> DocOpen(string path) => _documents.DocOpen(path);
 
+    public Dictionary<string, object?> DocCreate(string name) => _documents.DocCreate(name);
+
     public Dictionary<string, object?> DocNewPart(string template = "") =>
         NotSupportedLocalDoc("DocNewPart");
 

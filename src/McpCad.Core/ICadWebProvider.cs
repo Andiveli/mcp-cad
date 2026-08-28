@@ -22,6 +22,8 @@ public interface ICadWebProvider : ICadProvider
 
     Dictionary<string, object?> ElementRename(CadElementAddress address, string name);
 
+    Dictionary<string, object?> DocCreate(string name);
+
     Dictionary<string, object?> DocCopy(string documentId, string? name = null);
 
     Dictionary<string, object?> DocDelete(string documentId, bool confirm);

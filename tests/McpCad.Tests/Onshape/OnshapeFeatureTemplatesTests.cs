@@ -89,6 +89,46 @@ public class OnshapeFeatureTemplatesTests
     }
 
     [Fact]
+    public void SweepFromSketch_UsesSolidNewBodyProfileAndPathQueries()
+    {
+        using var doc = OnshapeFeatureTemplates.SweepFromSketch("profile-sketch", "path-sketch");
+        var feature = doc.RootElement.GetProperty("feature");
+        var parameters = feature.GetProperty("parameters");
+
+        feature.GetProperty("featureType").GetString().Should().Be("sweep");
+        parameters.EnumerateArray().Single(p => p.GetProperty("parameterId").GetString() == "bodyType")
+            .GetProperty("value").GetString().Should().Be("SOLID");
+        parameters.EnumerateArray().Single(p => p.GetProperty("parameterId").GetString() == "operationType")
+            .GetProperty("value").GetString().Should().Be("NEW");
+        parameters.EnumerateArray().Single(p => p.GetProperty("parameterId").GetString() == "profileControl")
+            .GetProperty("value").GetString().Should().Be("NONE");
+
+        var profile = parameters.EnumerateArray().Single(p => p.GetProperty("parameterId").GetString() == "profiles")
+            .GetProperty("queries")[0];
+        profile.GetProperty("btType").GetString().Should().Be("BTMIndividualSketchRegionQuery-140");
+        profile.GetProperty("featureId").GetString().Should().Be("profile-sketch");
+        profile.GetProperty("filterInnerLoops").GetBoolean().Should().BeTrue();
+
+        var path = parameters.EnumerateArray().Single(p => p.GetProperty("parameterId").GetString() == "path")
+            .GetProperty("queries")[0];
+        path.GetProperty("btType").GetString().Should().Be("BTMIndividualQuery-138");
+        path.GetProperty("queryString").GetString().Should()
+            .Be("query = qCreatedBy(id + \"path-sketch\" + \"wireOp\", EntityType.EDGE);");
+    }
+
+    [Theory]
+    [InlineData("join", "ADD")]
+    [InlineData("cut", "REMOVE")]
+    public void SweepFromSketch_MapsExistingBooleanOperations(string booleanOp, string expectedOperation)
+    {
+        using var doc = OnshapeFeatureTemplates.SweepFromSketch("profile-sketch", "path-sketch", booleanOp);
+
+        doc.RootElement.GetProperty("feature").GetProperty("parameters").EnumerateArray()
+            .Single(p => p.GetProperty("parameterId").GetString() == "operationType")
+            .GetProperty("value").GetString().Should().Be(expectedOperation);
+    }
+
+    [Fact]
     public void Fillet_ReturnsFeatureEnvelope()
     {
         using var doc = OnshapeFeatureTemplates.Fillet(["edge-1"], 0.005);

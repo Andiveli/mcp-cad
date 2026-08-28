@@ -1,6 +1,7 @@
 using McpCad.Core.Models;
 using McpCad.Tests.Mocks;
 using McpCad.Tools.Onshape;
+using System.Text.Json;
 
 namespace McpCad.Tests.Tools;
 
@@ -23,6 +24,330 @@ public class OnshapeAtomicToolsModelingTests
         sketchCall.Args["hasSketchRequest"].Should().Be(true);
     }
 
+    [Theory]
+    [InlineData("line")]
+    [InlineData("circle")]
+    [InlineData("arc")]
+    public void OnshapeSketchAtomicTools_DelegateWithSketchPayload(string sketchType)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+        var result = sketchType switch
+        {
+            "line" => tools.onshape_sketch_line(SampleAddress(), 1, 2, 3, 4, "front"),
+            "circle" => tools.onshape_sketch_circle(SampleAddress(), 1, 2, 3, "right"),
+            "arc" => tools.onshape_sketch_arc(SampleAddress(), 1, 2, 3, 0, 90, "top"),
+            _ => throw new ArgumentOutOfRangeException(nameof(sketchType)),
+        };
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "SketchReplace").Subject;
+        var request = (JsonElement)call.Args["sketchRequest"]!;
+        request.GetProperty("feature").GetProperty("parameters")[0]
+            .GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString()
+            .Should().Be(sketchType == "circle" ? "JEC" : sketchType == "line" ? "JCC" : "JDC");
+    }
+
+    [Fact]
+    public void onshape_sketch_line_ConvertsCentimetersToMetersAtToolBoundary()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        tools.onshape_sketch_line(SampleAddress(), 1, 2, 3, 4);
+
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var geometry = request.GetProperty("feature").GetProperty("entities")[0].GetProperty("geometry");
+        geometry.GetProperty("pntX").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        geometry.GetProperty("pntY").GetDouble().Should().BeApproximately(0.03, 1e-9);
+    }
+
+    [Fact]
+    public void onshape_sketch_circle_ConvertsCenterAndRadiusToMeters_AndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        tools.onshape_sketch_circle(SampleAddress(), 2, 4, 6, "right");
+
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entity = request.GetProperty("feature").GetProperty("entities")[0];
+        var geometry = entity.GetProperty("geometry");
+        geometry.GetProperty("xCenter").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        geometry.GetProperty("yCenter").GetDouble().Should().BeApproximately(0.04, 1e-9);
+        geometry.GetProperty("radius").GetDouble().Should().BeApproximately(0.06, 1e-9);
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Fact]
+    public void onshape_sketch_line_WithLength_ConvertsCentimetersToMetersAndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        tools.onshape_sketch_line(SampleAddress(), 0, 0, 10, 0, "front", 10);
+
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var constraint = request.GetProperty("feature").GetProperty("constraints")[0];
+        constraint.GetProperty("constraintType").GetString().Should().Be("LENGTH");
+        constraint.GetProperty("parameters")[1].GetProperty("expression").GetString().Should().Be("0.1*m");
+        AssertSketchPlane(request, "JCC");
+    }
+
+    [Fact]
+    public void onshape_sketch_circle_WithDiameter_ConvertsCentimetersToMetersAndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        tools.onshape_sketch_circle(SampleAddress(), 2, 4, 2, "right", 4);
+
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var constraint = request.GetProperty("feature").GetProperty("constraints")[0];
+        constraint.GetProperty("constraintType").GetString().Should().Be("DIAMETER");
+        constraint.GetProperty("parameters")[1].GetProperty("expression").GetString().Should().Be("0.04*m");
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void onshape_sketch_dimension_RejectsNonPositiveOrNonFiniteValuesWithoutCallingProvider(double dimensionCm)
+    {
+        var lineMock = new MockOnshapeProvider();
+        var circleMock = new MockOnshapeProvider();
+        var lineTools = new OnshapeAtomicTools(lineMock);
+        var circleTools = new OnshapeAtomicTools(circleMock);
+
+        var lineResult = lineTools.onshape_sketch_line(SampleAddress(), 0, 0, 10, 0, length_cm: dimensionCm);
+        var circleResult = circleTools.onshape_sketch_circle(SampleAddress(), 0, 0, 2, diameter_cm: dimensionCm);
+
+        lineResult["success"].Should().Be(false);
+        circleResult["success"].Should().Be(false);
+        lineMock.CallLog.Should().BeEmpty();
+        circleMock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_dimension_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var lineResult = tools.onshape_sketch_line(SampleAddress(), 0, 0, 10, 0, length_cm: 10);
+        var circleResult = tools.onshape_sketch_circle(SampleAddress(), 0, 0, 2, diameter_cm: 4);
+
+        lineResult["success"].Should().Be(false);
+        lineResult["error"].Should().Be("feature failed");
+        circleResult["success"].Should().Be(false);
+        circleResult["error"].Should().Be("feature failed");
+    }
+
+    [Fact]
+    public void onshape_sketch_ellipse_ConvertsCentimetersAndDimensionsToMeters_AndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_ellipse(SampleAddress(), 2, 4, 6, 3, 30, "front", 12, 6);
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var geometry = request.GetProperty("feature").GetProperty("entities")[0].GetProperty("geometry");
+        geometry.GetProperty("xCenter").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        geometry.GetProperty("yCenter").GetDouble().Should().BeApproximately(0.04, 1e-9);
+        geometry.GetProperty("radius").GetDouble().Should().BeApproximately(0.06, 1e-9);
+        geometry.GetProperty("minorRadius").GetDouble().Should().BeApproximately(0.03, 1e-9);
+        geometry.GetProperty("xDir").GetDouble().Should().BeApproximately(Math.Sqrt(3) / 2, 1e-9);
+        geometry.GetProperty("yDir").GetDouble().Should().BeApproximately(0.5, 1e-9);
+        var constraints = request.GetProperty("feature").GetProperty("constraints");
+        constraints.GetArrayLength().Should().Be(2);
+        constraints[0].GetProperty("constraintType").GetString().Should().Be("MAJOR_DIAMETER");
+        constraints[0].GetProperty("parameters")[1].GetProperty("expression").GetString().Should().Be("0.12*m");
+        constraints[1].GetProperty("constraintType").GetString().Should().Be("MINOR_DIAMETER");
+        constraints[1].GetProperty("parameters")[1].GetProperty("expression").GetString().Should().Be("0.06*m");
+        AssertSketchPlane(request, "JCC");
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 2, 1, 0)]
+    [InlineData(0, 0, 1, 0)]
+    [InlineData(0, 1, 2, 0)]
+    [InlineData(0, 2, 1, double.PositiveInfinity)]
+    public void onshape_sketch_ellipse_RejectsInvalidGeometryWithoutCallingProvider(
+        double cxCm, double majorRadiusCm, double minorRadiusCm, double rotationDeg)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_ellipse(SampleAddress(), cxCm, 0, majorRadiusCm, minorRadiusCm, rotationDeg);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    public void onshape_sketch_ellipse_RejectsInvalidOptionalDimensionsWithoutCallingProvider(double diameterCm)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_ellipse(SampleAddress(), 0, 0, 2, 1, major_diameter_cm: diameterCm);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_ellipse_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_ellipse(SampleAddress(), 0, 0, 2, 1);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
+    }
+
+    [Fact]
+    public void onshape_sketch_arc_ConvertsCenterAndRadius_AndPropagatesAnglesAndPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        tools.onshape_sketch_arc(SampleAddress(), 2, 4, 6, 30, 120, "front");
+
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entity = request.GetProperty("feature").GetProperty("entities")[0];
+        entity.GetProperty("btType").GetString().Should().Be("BTMSketchCurveSegment-155");
+        entity.GetProperty("startPointId").GetString().Should().Be("point-0");
+        entity.GetProperty("endPointId").GetString().Should().Be("point-1");
+        entity.GetProperty("centerId").GetString().Should().Be("point-center");
+        entity.GetProperty("geometry").GetProperty("btType").GetString().Should().Be("BTCurveGeometryCircle-115");
+        var geometry = entity.GetProperty("geometry");
+        geometry.GetProperty("xCenter").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        geometry.GetProperty("yCenter").GetDouble().Should().BeApproximately(0.04, 1e-9);
+        geometry.GetProperty("radius").GetDouble().Should().BeApproximately(0.06, 1e-9);
+        entity.GetProperty("startParam").GetDouble().Should().BeApproximately(Math.PI / 6, 1e-8);
+        entity.GetProperty("endParam").GetDouble().Should().BeApproximately(2 * Math.PI / 3, 1e-8);
+        AssertSketchPlane(request, "JCC");
+    }
+
+    [Fact]
+    public void onshape_sketch_arc_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_arc(SampleAddress(), 1, 2, 3, 0, 90);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
+    }
+
+    [Fact]
+    public void onshape_sketch_polyline_ConvertsCoordinatesAndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_polyline(
+            SampleAddress(),
+            "[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":10,\"y_cm\":0},{\"x_cm\":10,\"y_cm\":5}]",
+            plane: "right");
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entities = request.GetProperty("feature").GetProperty("entities");
+        entities[0].GetProperty("geometry").GetProperty("pntX").GetDouble().Should().BeApproximately(0.05, 1e-9);
+        entities[1].GetProperty("geometry").GetProperty("pntY").GetDouble().Should().BeApproximately(0.025, 1e-9);
+        request.GetProperty("feature").GetProperty("constraints").GetArrayLength().Should().Be(3);
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("[{\"x_cm\":0,\"y_cm\":0}]")]
+    [InlineData("[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":1,\"y_cm\":1}]")]
+    public void onshape_sketch_polyline_InvalidPoints_ReturnsErrorWithoutCallingProvider(string pointsJson)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_polyline(SampleAddress(), pointsJson);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_polyline_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_polyline(
+            SampleAddress(), "[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":1,\"y_cm\":0}]");
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
+    }
+
+    [Fact]
+    public void onshape_sketch_point_ConvertsCoordinatesAndPropagatesPlaneAndConstructionFlag()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_point(SampleAddress(), 1.25, -2.5, "front", construction: true);
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(call => call.Method == "SketchReplace").Args["sketchRequest"]!;
+        var point = request.GetProperty("feature").GetProperty("entities")[0];
+        point.GetProperty("x").GetDouble().Should().BeApproximately(0.0125, 1e-9);
+        point.GetProperty("y").GetDouble().Should().BeApproximately(-0.025, 1e-9);
+        point.GetProperty("isConstruction").GetBoolean().Should().BeTrue();
+        point.GetProperty("isUserPoint").GetBoolean().Should().BeTrue();
+        point.TryGetProperty("geometry", out _).Should().BeFalse();
+        AssertSketchPlane(request, "JCC");
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 0)]
+    [InlineData(0, double.NegativeInfinity)]
+    public void onshape_sketch_point_RejectsNonFiniteCoordinatesWithoutCallingProvider(double xCm, double yCm)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_point(SampleAddress(), xCm, yCm);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_point_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_point(SampleAddress(), 1, 2);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
+    }
+
+    private static void AssertSketchPlane(JsonElement request, string deterministicId)
+    {
+        request.GetProperty("feature").GetProperty("parameters")[0]
+            .GetProperty("parameterId").GetString().Should().Be("sketchPlane");
+        request.GetProperty("feature").GetProperty("parameters")[0]
+            .GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString()
+            .Should().Be(deterministicId);
+    }
+
     [Fact]
     public void onshape_extrude_Calls_FeatureAdd_WithEnvelope()
     {
@@ -34,6 +359,31 @@ public class OnshapeAtomicToolsModelingTests
         result["success"].Should().Be(true);
         mock.CallLog.Should().Contain(c => c.Method == "FeatureAdd");
         mock.CallLog.First(c => c.Method == "FeatureAdd").Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Fact]
+    public void onshape_sweep_CallsFeatureAdd_WithSweepEnvelope()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sweep(SampleAddress(), "profile-sketch", "path-sketch");
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
+        call.Args["featureType"].Should().Be("sweep");
+        call.Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Fact]
+    public void onshape_sweep_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("sweep failed"));
+
+        var result = tools.onshape_sweep(SampleAddress(), "profile-sketch", "path-sketch");
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("sweep failed");
     }
 
     [Fact]
@@ -96,6 +446,144 @@ public class OnshapeAtomicToolsModelingTests
         var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
         call.Args["featureType"].Should().Be(featureType);
         call.Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Fact]
+    public void onshape_sketch_spline_ConvertsPointsAndPropagatesPlaneAndConstruction()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_spline(
+            SampleAddress(),
+            "[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":3,\"y_cm\":2},{\"x_cm\":6,\"y_cm\":0}]",
+            "right",
+            construction: true);
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(c => c.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entity = request.GetProperty("feature").GetProperty("entities")[0];
+        var geometry = entity.GetProperty("geometry");
+        entity.GetProperty("isConstruction").GetBoolean().Should().BeTrue();
+        geometry.GetProperty("interpolationPoints")[2].GetDouble().Should().BeApproximately(0.03, 1e-9);
+        geometry.GetProperty("interpolationPoints")[3].GetDouble().Should().BeApproximately(0.02, 1e-9);
+        geometry.GetProperty("isPeriodic").GetBoolean().Should().BeFalse();
+        entity.TryGetProperty("internalIds", out _).Should().BeTrue();
+        foreach (var oldProperty in new[] { "periodic", "points", "startDerivative", "endDerivative", "startHandle", "endHandle", "internalIds" })
+        {
+            geometry.TryGetProperty(oldProperty, out _).Should().BeFalse();
+        }
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Theory]
+    [InlineData("[")]
+    [InlineData("{}")]
+    [InlineData("[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":1,\"y_cm\":0}]")]
+    [InlineData("[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":1,\"y_cm\":0},{\"x_cm\":1,\"y_cm\":0}]")]
+    [InlineData("[{\"x_cm\":0,\"y_cm\":0},{\"x_cm\":1e400,\"y_cm\":0},{\"x_cm\":2,\"y_cm\":0}]")]
+    public void onshape_sketch_spline_InvalidPoints_ReturnsErrorWithoutCallingProvider(string pointsJson)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_spline(SampleAddress(), pointsJson);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_linear_pattern_circle_ConvertsCentimetersAndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_linear_pattern_circle(SampleAddress(), 2, -1, 0.3, 3, 1.5, "right");
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(call => call.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entities = request.GetProperty("feature").GetProperty("entities");
+        entities.GetArrayLength().Should().Be(4);
+        entities[0].GetProperty("geometry").GetProperty("xCenter").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        entities[0].GetProperty("geometry").GetProperty("yCenter").GetDouble().Should().BeApproximately(-0.01, 1e-9);
+        entities[0].GetProperty("geometry").GetProperty("radius").GetDouble().Should().BeApproximately(0.003, 1e-9);
+        entities[1].GetProperty("geometry").GetProperty("xCenter").GetDouble().Should().BeApproximately(0.035, 1e-9);
+        request.GetProperty("feature").GetProperty("constraints")[0].GetProperty("parameters")[2]
+            .GetProperty("expression").GetString().Should().Be("0.015*m");
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 0, 1, 2, 1)]
+    [InlineData(0, 0, 0, 2, 1)]
+    [InlineData(0, 0, 1, 1, 1)]
+    [InlineData(0, 0, 1, 101, 1)]
+    [InlineData(0, 0, 1, 2, 0)]
+    public void onshape_sketch_linear_pattern_circle_RejectsInvalidInputWithoutCallingProvider(
+        double cxCm, double cyCm, double radiusCm, int columns, double spacingCm)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_linear_pattern_circle(SampleAddress(), cxCm, cyCm, radiusCm, columns, spacingCm);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_linear_pattern_circle_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_linear_pattern_circle(SampleAddress(), 0, 0, 1, 2, 1);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
+    }
+
+    [Fact]
+    public void onshape_sketch_circular_pattern_line_ConvertsCentimetersAndPropagatesPlane()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_circular_pattern_line(SampleAddress(), 2, -1, 3, 0.8, 3, "right");
+
+        result["success"].Should().Be(true);
+        var request = (JsonElement)mock.CallLog.Single(call => call.Method == "SketchReplace").Args["sketchRequest"]!;
+        var entities = request.GetProperty("feature").GetProperty("entities");
+        entities[0].GetProperty("geometry").GetProperty("xCenter").GetDouble().Should().BeApproximately(0.02, 1e-9);
+        entities[0].GetProperty("geometry").GetProperty("radius").GetDouble().Should().BeApproximately(0.03, 1e-9);
+        entities[1].GetProperty("startParam").GetDouble().Should().BeApproximately(-0.004, 1e-9);
+        AssertSketchPlane(request, "JEC");
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, 1, 2)]
+    [InlineData(0, 0, 1, 0, 2)]
+    [InlineData(0, 0, 1, 1, 1)]
+    public void onshape_sketch_circular_pattern_line_RejectsInvalidInputWithoutCallingProvider(double centerXCm, double centerYCm, double orbitRadiusCm, double lineLengthCm, int instances)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_sketch_circular_pattern_line(SampleAddress(), centerXCm, centerYCm, orbitRadiusCm, lineLengthCm, instances);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_sketch_circular_pattern_line_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("feature failed"));
+
+        var result = tools.onshape_sketch_circular_pattern_line(SampleAddress(), 0, 0, 1, 1, 2);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("feature failed");
     }
 
     [Fact]

@@ -28,10 +28,37 @@ public sealed class DocumentManager
         return OnshapeJsonHelper.SuccessEnvelope(payload);
     }
 
+    public Dictionary<string, object?> DocCreate(string name)
+    {
+        var body = JsonSerializer.Serialize(new { name });
+        using var doc = _client.SendJsonAsync(HttpMethod.Post, OnshapeApiPaths.DocumentCreate(), body)
+            .GetAwaiter().GetResult();
+        _driver.UpdateMicroversionFromJson(doc.RootElement);
+
+        var root = doc.RootElement;
+        var documentId = root.GetProperty("id").GetString();
+        var workspaceId = root.GetProperty("defaultWorkspace").GetProperty("id").GetString();
+        var payload = OnshapeJsonHelper.JsonElementToDictionary(root);
+        payload["documentId"] = documentId;
+        payload["workspaceId"] = workspaceId;
+        return OnshapeJsonHelper.SuccessEnvelope(payload);
+    }
+
     public Dictionary<string, object?> DocCopy(string documentId, string? name = null)
     {
-        var body = name is null ? "{}" : JsonSerializer.Serialize(new { name });
-        using var doc = _client.SendJsonAsync(HttpMethod.Post, OnshapeApiPaths.DocumentCopy(documentId), body)
+        using var source = _client.SendJsonAsync(HttpMethod.Get, OnshapeApiPaths.Document(documentId))
+            .GetAwaiter().GetResult();
+        _driver.UpdateMicroversionFromJson(source.RootElement);
+
+        var workspaceId = source.RootElement
+            .GetProperty("defaultWorkspace")
+            .GetProperty("id")
+            .GetString()!;
+        var body = name is null ? "{}" : JsonSerializer.Serialize(new { newName = name });
+        using var doc = _client.SendJsonAsync(
+                HttpMethod.Post,
+                OnshapeApiPaths.DocumentWorkspaceCopy(documentId, workspaceId),
+                body)
             .GetAwaiter().GetResult();
         _driver.UpdateMicroversionFromJson(doc.RootElement);
         var payload = OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement);

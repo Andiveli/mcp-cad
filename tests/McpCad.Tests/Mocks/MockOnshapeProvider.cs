@@ -75,6 +75,18 @@ public sealed class MockOnshapeProvider : ICadWebProvider
         return Ok(new Dictionary<string, object?> { ["documentId"] = path });
     }
 
+    public Dictionary<string, object?> DocCreate(string name)
+    {
+        ThrowIfError();
+        CallLog.Add(("DocCreate", new Dictionary<string, object?> { ["name"] = name }));
+        return Ok(new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["documentId"] = "mock-created-doc",
+            ["workspaceId"] = "mock-workspace",
+        });
+    }
+
     public Dictionary<string, object?> DocNewPart(string template = "")
     {
         CallLog.Add(("DocNewPart", new Dictionary<string, object?> { ["template"] = template }));
@@ -226,6 +238,7 @@ public sealed class MockOnshapeProvider : ICadWebProvider
         {
             ["elementId"] = address.ElementId,
             ["hasSketchRequest"] = sketchRequest is { Count: > 0 },
+            ["sketchRequest"] = sketchRequest is null ? null : System.Text.Json.JsonSerializer.SerializeToElement(sketchRequest),
         }));
         return Ok(new Dictionary<string, object?> { ["elementId"] = address.ElementId });
     }

@@ -27,6 +27,115 @@ public class PartStudioModelingWireMockTests : IDisposable
     public void Dispose() => _server.Dispose();
 
     [Fact]
+    public void ElementGet_UsesDocumentElementsListing_AndSelectsExactElementId()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/elements/d/doc-1/w/ws-1/e/e-part").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(405));
+        _server
+            .Given(Request.Create().WithPath("/api/v6/documents/d/doc-1/w/ws-1/elements").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""[{"id":"e-other","name":"Other"},{"id":"e-part","name":"Part Studio","microversionId":"mv-2"}]"""));
+
+        var result = CreatePartStudioManager().ElementGet(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"));
+
+        result["success"].Should().Be(true);
+        result["id"].Should().Be("e-part");
+        result["name"].Should().Be("Part Studio");
+        _server.LogEntries.Should().ContainSingle();
+        var request = _server.LogEntries.Single().RequestMessage;
+        request.AbsolutePath.Should().Be("/api/v6/documents/d/doc-1/w/ws-1/elements");
+        request.RawQuery.Should().Contain("elementId=e-part");
+    }
+
+    [Fact]
+    public void ElementGet_WhenExactElementIsMissing_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/documents/d/doc-1/w/ws-1/elements").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""[{"id":"e-other","name":"Other"}]"""));
+
+        var act = () => CreatePartStudioManager().ElementGet(
+            new CadElementAddress("doc-1", "ws-1", null, "e-missing"));
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*e-missing*not found*");
+        _server.LogEntries.Should().ContainSingle();
+        _server.LogEntries.Single().RequestMessage.RawQuery.Should().Contain("elementId=e-missing");
+    }
+
+    [Fact]
+    public void ElementGet_UsesVersionAddressing_WhenDriverDefaultIsVersion()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/documents/d/doc-1/v/version-1/elements").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""[{"id":"e-part","name":"Versioned Part Studio"}]"""));
+        var (client, driver) = CreateStack();
+        driver.DefaultWvm = "v";
+
+        var result = new PartStudioManager(client, driver).ElementGet(
+            new CadElementAddress("doc-1", "version-1", null, "e-part"));
+
+        result["success"].Should().Be(true);
+        result["id"].Should().Be("e-part");
+        _server.LogEntries.Should().ContainSingle();
+        _server.LogEntries.Single().RequestMessage.AbsolutePath
+            .Should().Be("/api/v6/documents/d/doc-1/v/version-1/elements");
+    }
+
+    [Fact]
+    public void ElementCreate_PostsPartStudioEndpoint_WithNameOnly()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"id":"ps-1","name":"Showcase / Δ","elementType":"PARTSTUDIO","microversionId":"mv-1"}"""));
+
+        var result = CreatePartStudioManager().ElementCreate(
+            new CadElementAddress("doc-1", "ws-1", null, "ignored-for-create"),
+            "Showcase / Δ",
+            "PARTSTUDIO");
+
+        result["success"].Should().Be(true);
+        var request = _server.LogEntries.Single().RequestMessage;
+        request.AbsolutePath.Should().Be("/api/v6/partstudios/d/doc-1/w/ws-1");
+        request.Method.Should().Be("POST");
+        request.RawQuery.Should().Contain("rejectMicroversionSkew=true");
+
+        using var body = System.Text.Json.JsonDocument.Parse(request.Body!);
+        body.RootElement.GetProperty("name").GetString().Should().Be("Showcase / Δ");
+        body.RootElement.TryGetProperty("elementType", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ElementCreate_RejectsElementTypesOtherThanPartStudio()
+    {
+        var act = () => CreatePartStudioManager().ElementCreate(
+            new CadElementAddress("doc-1", "ws-1", null, "ignored-for-create"),
+            "Assembly-like name",
+            "ASSEMBLY");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*only supports elementType 'PARTSTUDIO'*");
+        _server.LogEntries.Should().BeEmpty();
+    }
+
+    [Fact]
     public void SketchReplace_PostsJsonBody_WithRejectMicroversionSkewOnWrite()
     {
         using var sketch = OnshapeSketchBuilder.BuildRectangle(0, 0, 0.1, 0.1);

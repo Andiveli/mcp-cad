@@ -11,9 +11,11 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | Inventor Atomic | Onshape MCP | REST endpoint | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `sketch_rectangle` | `onshape_sketch_rectangle` | Part Studio features POST | implemented | P0; rectangle BTMSketch payload. |
+| `sketch_point` | `onshape_sketch_point` | Part Studio features POST | implemented | Dedicated BTMSketch point entity; live-verified with `featureStatus: OK`. |
 | `sketch_profiles` | `onshape_feature_list` | Part Studio features GET | implemented | P0 feature discovery seam. |
 | `extrude` | `onshape_extrude` | Part Studio features POST | implemented | P0 BT feature envelope. |
 | `revolve` | `onshape_revolve` | Part Studio features POST | implemented | P1 profile sketch plus single-edge axis sketch. |
+| `sweep` | `onshape_sweep` | Part Studio features POST | implemented | P1 SOLID profile-plus-path sweep; live-verified with `featureStatus: OK`. |
 | `fillet` | `onshape_fillet` | Part Studio features POST | implemented | P1 equal-radius fillet. |
 | `chamfer` | `onshape_chamfer` | Part Studio features POST | implemented | P1 equal-distance chamfer. |
 | `asm_list_components` | `onshape_asm_list_instances` | Assembly definition GET | implemented | P2 assembly instance listing from `rootAssembly.instances`. |
@@ -27,15 +29,16 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | Inventor Atomic | Onshape MCP | REST endpoint | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `sketch_create` | `onshape_sketch_rectangle` | Part Studio features POST | declarative-composite | Create a declarative rectangle sketch. |
-| `sketch_line` | — | Part Studio features POST | declarative-composite | Builder support is not registered as an atomic. |
-| `sketch_circle` | — | Part Studio features POST | declarative-composite | Builder support is not registered as an atomic. |
-| `sketch_arc` | — | Part Studio features POST | declarative-composite | Compose from sketch feature payloads. |
+| `sketch_line` | `onshape_sketch_line` | Part Studio features POST | implemented | Dedicated BTMSketch line with optional visible LENGTH dimension; live-verified with solver status `OK`. |
+| `sketch_circle` | `onshape_sketch_circle` | Part Studio features POST | implemented | Dedicated BTMSketch circle with optional visible DIAMETER dimension; live-verified with solver status `OK`. |
+| `sketch_arc` | `onshape_sketch_arc` | Part Studio features POST | implemented | Dedicated BTMSketch arc payload with endpoint topology. |
+| `sketch_polyline` | `onshape_sketch_polyline` | Part Studio features POST | implemented | Axis-aligned multi-line BTMSketch with explicit coincident, horizontal, and vertical constraints; live-verified with `featureStatus: OK`. |
 | `sketch_dimension` | — | Part Studio features POST | declarative-composite | Add through a declarative sketch payload. |
-| `sketch_point` | — | Part Studio features POST | declarative-composite | Add through a declarative sketch payload. |
-| `sketch_spline` | — | Part Studio features POST | declarative-composite | Add through a declarative sketch payload. |
-| `sketch_ellipse` | — | Part Studio features POST | declarative-composite | Add through a declarative sketch payload. |
-| `sketch_circular_pattern` | — | Part Studio features POST | declarative-composite | Use a pattern feature payload. |
-| `sketch_rectangular_pattern` | — | Part Studio features POST | declarative-composite | Use a pattern feature payload. |
+| `sketch_spline` | `onshape_sketch_spline` | Part Studio features POST | implemented | Non-periodic interpolated BTMSketch spline with endpoint handles; live-verified with `featureStatus: OK`. |
+| `sketch_rectangular_pattern` (one-row foundation) | `onshape_sketch_linear_pattern_circle` | Part Studio features POST | implemented | One-row linear circle pattern (`patternc2=1`) live-verified with `featureStatus: OK`; full 2D parity remains separate. |
+| `sketch_ellipse` | `onshape_sketch_ellipse` | Part Studio features POST | implemented | Rotated ellipse with optional visible major/minor diameter dimensions; live-verified with solver status `OK`. |
+| `sketch_circular_pattern` | `onshape_sketch_circular_pattern_line` | Part Studio features POST | implemented | Closed circular line pattern with construction pivot circle; live-verified with `featureStatus: OK`. |
+| `sketch_rectangular_pattern` (full 2D) | — | Part Studio features POST | declarative-composite | Full two-dimensional rectangular-pattern parity remains unwrapped. |
 | `sketch_offset` | — | Part Studio features POST | declarative-composite | Use a sketch feature payload. |
 | `sketch_move` | — | Part Studio features POST | declarative-composite | Use a sketch feature payload. |
 | `sketch_rotate` | — | Part Studio features POST | declarative-composite | Use a sketch feature payload. |
@@ -44,7 +47,6 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sketch_trim` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
 | `sketch_scale` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
 | `sketch_mirror` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
-| `sweep` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `circular_pattern` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `rectangular_pattern` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `mirror_feature` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |

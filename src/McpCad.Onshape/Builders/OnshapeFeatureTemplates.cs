@@ -38,6 +38,17 @@ public static class OnshapeFeatureTemplates
             ParamBoolean("oppositeDirection", NormalizeDirection(direction, angleDeg) == "negative"),
             ParamEnum("operationType", "NewBodyOperationType", MapBooleanOp(booleanOp)));
 
+    public static JsonDocument SweepFromSketch(
+        string profileSketchFeatureId,
+        string pathSketchFeatureId,
+        string booleanOp = "new") =>
+        BuildFeatureEnvelope("sweep", "Sweep 1",
+            ParamEnum("bodyType", "ExtendedToolBodyType", "SOLID"),
+            ParamEnum("operationType", "NewBodyOperationType", MapBooleanOp(booleanOp)),
+            ParamSketchProfile("profiles", profileSketchFeatureId),
+            ParamAxisSketch("path", pathSketchFeatureId),
+            ParamEnum("profileControl", "ProfileControlMode", "NONE"));
+
     public static JsonDocument Fillet(IReadOnlyList<string> edgeIds, double radiusMeters)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(radiusMeters, 0);
@@ -138,6 +149,22 @@ public static class OnshapeFeatureTemplates
         {
             ["btType"] = "BTMParameterQueryList-148",
             ["parameterId"] = "entities",
+            ["queries"] = new List<Dictionary<string, object?>>
+            {
+                new()
+                {
+                    ["btType"] = "BTMIndividualSketchRegionQuery-140",
+                    ["featureId"] = sketchFeatureId,
+                    ["filterInnerLoops"] = true,
+                },
+            },
+        };
+
+    private static Dictionary<string, object?> ParamSketchProfile(string parameterId, string sketchFeatureId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQueryList-148",
+            ["parameterId"] = parameterId,
             ["queries"] = new List<Dictionary<string, object?>>
             {
                 new()

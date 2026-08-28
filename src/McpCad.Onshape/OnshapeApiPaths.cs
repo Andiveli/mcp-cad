@@ -6,14 +6,20 @@ internal static class OnshapeApiPaths
 
     public static string Document(string documentId) => $"/api/v6/documents/{Seg(documentId)}";
 
-    public static string DocumentCopy(string documentId) => $"/api/v6/documents/{Seg(documentId)}/copy";
+    public static string DocumentWorkspaceCopy(string documentId, string workspaceId) =>
+        $"/api/v6/documents/{Seg(documentId)}/workspaces/{Seg(workspaceId)}/copy";
 
     public static string Documents() => "/api/v6/documents";
+
+    public static string DocumentCreate() => Documents();
 
     public static string Workspaces(string documentId) => $"/api/v6/documents/d/{Seg(documentId)}/workspaces";
 
     public static string Elements(string documentId, string wvm, string wvmId) =>
         $"/api/v6/documents/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/elements";
+
+    public static string PartStudioCreate(string documentId, string workspaceId) =>
+        $"/api/v6/partstudios/d/{Seg(documentId)}/w/{Seg(workspaceId)}";
 
     public static string Element(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/elements/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}";

@@ -28,6 +28,10 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
     public Dictionary<string, object?> onshape_health()
         => Catch(provider.Health);
 
+    [McpServerTool, Description("Create a new Onshape document from scratch.")]
+    public Dictionary<string, object?> onshape_doc_create(string name)
+        => Catch(() => provider.DocCreate(name));
+
     [McpServerTool, Description("Open an Onshape document by document id.")]
     public Dictionary<string, object?> onshape_doc_open(string document_id)
         => Catch(() => provider.DocOpen(document_id));
@@ -79,6 +83,166 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.SketchReplace(address, request);
         });
 
+    [McpServerTool, Description("Create a point sketch in a Part Studio using BTMSketch. Coordinates in cm.")]
+    public Dictionary<string, object?> onshape_sketch_point(
+        string address_json,
+        double x_cm,
+        double y_cm,
+        string? plane = null,
+        bool construction = false)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildPoint(
+            OnshapeUnitConversion.CmToMeters(x_cm),
+            OnshapeUnitConversion.CmToMeters(y_cm),
+            plane,
+            construction));
+
+    [McpServerTool, Description("Create a line sketch in a Part Studio using BTMSketch. Coordinates and optional length dimension in cm.")]
+    public Dictionary<string, object?> onshape_sketch_line(
+        string address_json,
+        double x1_cm,
+        double y1_cm,
+        double x2_cm,
+        double y2_cm,
+        string? plane = null,
+        double? length_cm = null)
+        => ReplaceSketch(address_json, () =>
+        {
+            ValidateOptionalDimension(length_cm, nameof(length_cm));
+            return OnshapeSketchBuilder.BuildLine(
+                OnshapeUnitConversion.CmToMeters(x1_cm),
+                OnshapeUnitConversion.CmToMeters(y1_cm),
+                OnshapeUnitConversion.CmToMeters(x2_cm),
+                OnshapeUnitConversion.CmToMeters(y2_cm),
+                plane,
+                length_cm is double value ? OnshapeUnitConversion.CmToMeters(value) : null);
+        });
+
+    [McpServerTool, Description("Create a circle sketch in a Part Studio using BTMSketch. Coordinates, radius, and optional diameter dimension in cm.")]
+    public Dictionary<string, object?> onshape_sketch_circle(
+        string address_json,
+        double cx_cm,
+        double cy_cm,
+        double radius_cm,
+        string? plane = null,
+        double? diameter_cm = null)
+        => ReplaceSketch(address_json, () =>
+        {
+            ValidateOptionalDimension(diameter_cm, nameof(diameter_cm));
+            return OnshapeSketchBuilder.BuildCircle(
+                OnshapeUnitConversion.CmToMeters(cx_cm),
+                OnshapeUnitConversion.CmToMeters(cy_cm),
+                OnshapeUnitConversion.CmToMeters(radius_cm),
+                plane,
+                diameter_cm is double value ? OnshapeUnitConversion.CmToMeters(value) : null);
+        });
+
+    [McpServerTool, Description("Create a one-row linear pattern of circles in a Part Studio using BTMSketch. Coordinates, radius, and spacing are in cm.")]
+    public Dictionary<string, object?> onshape_sketch_linear_pattern_circle(
+        string address_json,
+        double cx_cm,
+        double cy_cm,
+        double radius_cm,
+        int columns,
+        double spacing_cm,
+        string? plane = null)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildLinearPatternCircle(
+            OnshapeUnitConversion.CmToMeters(cx_cm),
+            OnshapeUnitConversion.CmToMeters(cy_cm),
+            OnshapeUnitConversion.CmToMeters(radius_cm),
+            columns,
+            OnshapeUnitConversion.CmToMeters(spacing_cm),
+            plane));
+
+    [McpServerTool, Description("Create a circular pattern of lines in a Part Studio using BTMSketch. Coordinates, orbit radius, and line length are in cm.")]
+    public Dictionary<string, object?> onshape_sketch_circular_pattern_line(
+        string address_json,
+        double center_x_cm,
+        double center_y_cm,
+        double orbit_radius_cm,
+        double line_length_cm,
+        int instances,
+        string? plane = null)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildCircularPatternLine(
+            OnshapeUnitConversion.CmToMeters(center_x_cm),
+            OnshapeUnitConversion.CmToMeters(center_y_cm),
+            OnshapeUnitConversion.CmToMeters(orbit_radius_cm),
+            OnshapeUnitConversion.CmToMeters(line_length_cm),
+            instances,
+            plane));
+
+    [McpServerTool, Description("Create an ellipse sketch in a Part Studio using BTMSketch. Coordinates, radii, and optional diameter dimensions are in cm; rotation is in degrees.")]
+    public Dictionary<string, object?> onshape_sketch_ellipse(
+        string address_json,
+        double cx_cm,
+        double cy_cm,
+        double major_radius_cm,
+        double minor_radius_cm,
+        double rotation_deg = 0,
+        string? plane = null,
+        double? major_diameter_cm = null,
+        double? minor_diameter_cm = null)
+        => ReplaceSketch(address_json, () =>
+        {
+            ValidateOptionalDimension(major_diameter_cm, nameof(major_diameter_cm));
+            ValidateOptionalDimension(minor_diameter_cm, nameof(minor_diameter_cm));
+            return OnshapeSketchBuilder.BuildEllipse(
+                OnshapeUnitConversion.CmToMeters(cx_cm),
+                OnshapeUnitConversion.CmToMeters(cy_cm),
+                OnshapeUnitConversion.CmToMeters(major_radius_cm),
+                OnshapeUnitConversion.CmToMeters(minor_radius_cm),
+                rotation_deg,
+                plane,
+                major_diameter_cm is double majorDiameter ? OnshapeUnitConversion.CmToMeters(majorDiameter) : null,
+                minor_diameter_cm is double minorDiameter ? OnshapeUnitConversion.CmToMeters(minorDiameter) : null);
+        });
+
+    [McpServerTool, Description("Create an arc sketch in a Part Studio using BTMSketch. Coordinates in cm and angles in degrees.")]
+    public Dictionary<string, object?> onshape_sketch_arc(
+        string address_json,
+        double cx_cm,
+        double cy_cm,
+        double radius_cm,
+        double start_angle_deg,
+        double end_angle_deg,
+        string? plane = null)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildArc(
+            OnshapeUnitConversion.CmToMeters(cx_cm),
+            OnshapeUnitConversion.CmToMeters(cy_cm),
+            OnshapeUnitConversion.CmToMeters(radius_cm),
+            start_angle_deg,
+            end_angle_deg,
+            plane));
+
+    [McpServerTool, Description("Create an open or closed axis-aligned polyline sketch in a Part Studio using BTMSketch. Points JSON contains x_cm/y_cm coordinates.")]
+    public Dictionary<string, object?> onshape_sketch_polyline(
+        string address_json,
+        string points_json,
+        bool closed = false,
+        string? plane = null)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildPolyline(
+            ParsePolylinePoints(points_json)
+                .Select(point => new SketchPoint(
+                    OnshapeUnitConversion.CmToMeters(point.X),
+                    OnshapeUnitConversion.CmToMeters(point.Y)))
+                .ToArray(),
+            closed,
+            plane));
+
+    [McpServerTool, Description("Create a non-periodic interpolated spline sketch in a Part Studio using BTMSketch. Points JSON contains x_cm/y_cm coordinates.")]
+    public Dictionary<string, object?> onshape_sketch_spline(
+        string address_json,
+        string points_json,
+        string? plane = null,
+        bool construction = false)
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildSpline(
+            ParseSplinePoints(points_json)
+                .Select(point => new SketchPoint(
+                    OnshapeUnitConversion.CmToMeters(point.X),
+                    OnshapeUnitConversion.CmToMeters(point.Y)))
+                .ToArray(),
+            plane,
+            construction));
+
     [McpServerTool, Description("Extrude a sketch profile by a given depth in cm.")]
     public Dictionary<string, object?> onshape_extrude(
         string address_json,
@@ -115,6 +279,20 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             using var envelope = OnshapeFeatureTemplates.RevolveFromSketch(
                 sketch_feature_id, axis_sketch_feature_id, angle_deg, direction, boolean_op);
             return provider.FeatureAdd(address, "revolve", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("(P1) Sweep a profile sketch along a path sketch using the Onshape feature API.")]
+    public Dictionary<string, object?> onshape_sweep(
+        string address_json,
+        string profile_sketch_feature_id,
+        string path_sketch_feature_id,
+        string boolean_op = "new")
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.SweepFromSketch(
+                profile_sketch_feature_id, path_sketch_feature_id, boolean_op);
+            return provider.FeatureAdd(address, "sweep", null, envelope.RootElement.GetRawText());
         });
 
     [McpServerTool, Description("(P1) Apply an equal-radius fillet to Part Studio edges; radius is in cm.")]
@@ -207,6 +385,63 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
 
     private static CadElementAddress ParseAddress(string addressJson) =>
         CadElementAddress.Deserialize(addressJson);
+
+    private static IReadOnlyList<SketchPoint> ParseSplinePoints(string pointsJson) =>
+        ParseSketchPoints(pointsJson);
+
+    private static IReadOnlyList<SketchPoint> ParsePolylinePoints(string pointsJson) =>
+        ParseSketchPoints(pointsJson);
+
+    private static IReadOnlyList<SketchPoint> ParseSketchPoints(string pointsJson)
+    {
+        using var document = JsonDocument.Parse(pointsJson);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new ArgumentException("points_json must be a JSON array.", nameof(pointsJson));
+        }
+
+        var points = new List<SketchPoint>();
+        foreach (var point in document.RootElement.EnumerateArray())
+        {
+            if (point.ValueKind != JsonValueKind.Object ||
+                !point.TryGetProperty("x_cm", out var x) ||
+                !point.TryGetProperty("y_cm", out var y) ||
+                x.ValueKind != JsonValueKind.Number ||
+                y.ValueKind != JsonValueKind.Number ||
+                !x.TryGetDouble(out var xCm) ||
+                !y.TryGetDouble(out var yCm) ||
+                !double.IsFinite(xCm) ||
+                !double.IsFinite(yCm))
+            {
+                throw new ArgumentException(
+                    "Each points_json item must contain finite numeric x_cm and y_cm properties.",
+                    nameof(pointsJson));
+            }
+
+            points.Add(new SketchPoint(xCm, yCm));
+        }
+
+        return points;
+    }
+
+    private static void ValidateOptionalDimension(double? dimensionCm, string parameterName)
+    {
+        if (dimensionCm is double value && (!double.IsFinite(value) || value <= 0))
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Dimension must be finite and greater than zero.");
+        }
+    }
+
+    private Dictionary<string, object?> ReplaceSketch(
+        string addressJson,
+        Func<JsonDocument> buildSketch)
+        => Catch(() =>
+        {
+            using var sketch = buildSketch();
+            var request = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketch.RootElement.GetRawText())
+                          ?? new Dictionary<string, object?>();
+            return provider.SketchReplace(ParseAddress(addressJson), request);
+        });
 
     private static Dictionary<string, object?> Catch(Func<Dictionary<string, object?>> action)
     {
