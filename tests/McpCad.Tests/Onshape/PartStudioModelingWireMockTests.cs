@@ -284,6 +284,59 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
+    public void WorkPointOnEdge_FeatureAdd_PostsLiveProvenFlatContract()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureId":"F3OOuyHP004153p_1","featureState":{"featureStatus":"OK"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.WorkPointOnEdge("JPV", 0.5);
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "cPoint", null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+        var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+        body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("cPoint");
+        parameters.EnumerateArray().Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "pointType", "entities", "parameter", "mesh", "x", "y", "z");
+        parameters[0].GetProperty("enumName").GetString().Should().Be("PointType");
+        parameters[0].GetProperty("value").GetString().Should().Be("EDGE_POINT");
+        parameters[1].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JPV");
+        parameters[2].GetProperty("expression").GetString().Should().Be("0.5");
+        parameters[3].GetProperty("queries").GetArrayLength().Should().Be(0);
+        foreach (var coordinate in parameters.EnumerateArray().Skip(4))
+        {
+            coordinate.GetProperty("expression").GetString().Should().BeEmpty();
+            coordinate.GetProperty("value").GetDouble().Should().Be(0.025);
+            coordinate.GetProperty("units").GetString().Should().Be("meter");
+        }
+    }
+
+    [Fact]
+    public void WorkPointOnEdge_FeatureAdd_WithErrorFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"ERROR","errorString":"Invalid edge point"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.WorkPointOnEdge("JPV", 0.5);
+        var act = () => CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "cPoint", null, envelope.RootElement.GetRawText());
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status ERROR: Invalid edge point");
+    }
+
+    [Fact]
     public void OffsetPlane_FeatureAdd_PostsLiveProvenFlatContract()
     {
         _server.ResetMappings();

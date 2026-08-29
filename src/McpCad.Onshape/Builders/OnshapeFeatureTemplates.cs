@@ -157,6 +157,24 @@ public static class OnshapeFeatureTemplates
             ParamBoolean("fullFeaturePattern", false));
     }
 
+    public static JsonDocument WorkPointOnEdge(string edgeId, double parameter = 0.5)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(edgeId);
+        if (!double.IsFinite(parameter) || parameter < 0 || parameter > 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(parameter), "Edge parameter must be finite and between 0 and 1.");
+        }
+
+        return BuildFeatureEnvelope("cPoint", "Point 1",
+            ParamEnum("pointType", "PointType", "EDGE_POINT"),
+            ParamEntities("entities", [edgeId]),
+            ParamUnitlessQuantity("parameter", parameter),
+            ParamEmptyQueryList("mesh"),
+            ParamDisabledMeterQuantity("x", 0.025),
+            ParamDisabledMeterQuantity("y", 0.025),
+            ParamDisabledMeterQuantity("z", 0.025));
+    }
+
     public static JsonDocument OffsetPlane(
         string canonicalPlane,
         double offsetMeters,
@@ -399,6 +417,14 @@ public static class OnshapeFeatureTemplates
             ["btType"] = "BTMParameterQuantity-147",
             ["parameterId"] = parameterId,
             ["expression"] = $"{value.ToString("G9", CultureInfo.InvariantCulture)} m",
+        };
+
+    private static Dictionary<string, object?> ParamUnitlessQuantity(string parameterId, double value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQuantity-147",
+            ["parameterId"] = parameterId,
+            ["expression"] = value.ToString("G9", CultureInfo.InvariantCulture),
         };
 
     private static Dictionary<string, object?> ParamDisabledMeterQuantity(string parameterId, double value) =>

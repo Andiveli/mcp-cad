@@ -354,6 +354,18 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
         string local_direction = "x")
         => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildWorkAxis(canonical_plane, local_direction));
 
+    [McpServerTool, Description("Create a native Onshape point on an existing edge at a normalized parameter from 0 to 1; arbitrary XYZ points are not supported.")]
+    public Dictionary<string, object?> onshape_work_point(
+        string address_json,
+        string edge_id,
+        double parameter = 0.5)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.WorkPointOnEdge(edge_id, parameter);
+            return provider.FeatureAdd(address, "cPoint", null, envelope.RootElement.GetRawText());
+        });
+
     [McpServerTool, Description("Create an offset work plane from a canonical Top, Front, or Right plane; offset is in cm.")]
     public Dictionary<string, object?> onshape_work_plane(
         string address_json,

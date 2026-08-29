@@ -1,0 +1,57 @@
+{
+  "feature": {
+    "featureType": "cPoint",
+    "name": "Point 1",
+    "suppressed": false,
+    "parameters": [
+      {
+        "btType": "BTMParameterEnum-145",
+        "parameterId": "pointType",
+        "enumName": "PointType",
+        "value": "EDGE_POINT"
+      },
+      {
+        "btType": "BTMParameterQueryList-148",
+        "parameterId": "entities",
+        "queries": [
+          {
+            "btType": "BTMIndividualQuery-138",
+            "deterministicIds": ["JPV"]
+          }
+        ]
+      },
+      {
+        "btType": "BTMParameterQuantity-147",
+        "parameterId": "parameter",
+        "expression": "0.5"
+      },
+      {
+        "btType": "BTMParameterQueryList-148",
+        "parameterId": "mesh",
+        "queries": []
+      },
+      {
+        "btType": "BTMParameterQuantity-147",
+        "parameterId": "x",
+        "expression": "",
+        "value": 0.025,
+        "units": "meter"
+      },
+      {
+        "btType": "BTMParameterQuantity-147",
+        "parameterId": "y",
+        "expression": "",
+        "value": 0.025,
+        "units": "meter"
+      },
+      {
+        "btType": "BTMParameterQuantity-147",
+        "parameterId": "z",
+        "expression": "",
+        "value": 0.025,
+        "units": "meter"
+      }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

@@ -61,7 +61,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `draft` | — | Part Studio features POST | declarative-composite | Onshape draft feature payload. |
 | `work_plane` | `onshape_work_plane` | Part Studio features POST | implemented | Canonical Top, Front, or Right offset plane only; nonnegative cm offset, live-proven `cPlane` OFFSET payload with `featureStatus: OK`. Advanced plane modes remain out of scope. |
 | `work_axis` | `onshape_work_axis` | Part Studio features POST | implemented | Sketch-backed construction axis only: one centered local `x` (default) or `y` line on canonical Top, Front, or Right, with `disableImprinting`; use the resulting sketch edge for revolve or pattern axes. This is not native Onshape WorkAxis parity. Live-verified Front/+X with `featureStatus: OK` in `FI9fyDtF3wxmK6E_1`. |
-| `work_point` | — | Part Studio features POST | declarative-composite | Onshape construction feature payload. |
+| `work_point` | `onshape_work_point` | Part Studio features POST | implemented | Native `cPoint` edge point only: supply a topology-dependent Onshape edge ID and normalized parameter in [0,1] (default 0.5). Arbitrary XYZ points are not supported. Live-verified edge `JPV` at 0.5 returned `featureStatus: OK`. |
 | `asm_list_constraints` | — | Assembly definition GET | declarative-composite | Available from assembly definition data. |
 | `asm_ground_component` | — | Assembly instances POST | declarative-composite | Requires an assembly instance payload. |
 | `asm_replace_component` | — | Assembly instances POST | declarative-composite | Replace through an instance update payload. |

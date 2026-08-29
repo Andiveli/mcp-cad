@@ -64,6 +64,15 @@ public class GoldenFixtureConformanceTests
     }
 
     [Fact]
+    public void WorkPointOnEdgeTemplate_MatchesLiveProvenGoldenShape()
+    {
+        using var actual = OnshapeFeatureTemplates.WorkPointOnEdge("JPV", 0.5);
+
+        MatchesGoldenShape(LoadFixture("Features", "work_point_edge_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
+
+    [Fact]
     public void OffsetPlaneTemplate_MatchesLiveProvenGoldenShape()
     {
         using var actual = OnshapeFeatureTemplates.OffsetPlane("Top", 0.01);

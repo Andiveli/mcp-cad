@@ -691,6 +691,47 @@ public class OnshapeAtomicToolsModelingTests
         }
 
         [Fact]
+        public void onshape_work_point_DelegatesNativeEdgePointEnvelope()
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_work_point(SampleAddress(), "JPV");
+
+            result["success"].Should().Be(true);
+            var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
+            call.Args["featureType"].Should().Be("cPoint");
+            call.Args["hasEnvelope"].Should().Be(true);
+        }
+
+        [Theory]
+        [InlineData("", 0.5)]
+        [InlineData("JPV", -0.1)]
+        [InlineData("JPV", 1.1)]
+        [InlineData("JPV", double.NaN)]
+        public void onshape_work_point_RejectsInvalidInputWithoutCallingProvider(string edgeId, double parameter)
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_work_point(SampleAddress(), edgeId, parameter);
+
+            result["success"].Should().Be(false);
+            mock.CallLog.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void onshape_work_point_WhenProviderRejects_ReturnsError()
+        {
+            var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("point failed"));
+
+            var result = tools.onshape_work_point(SampleAddress(), "JPV");
+
+            result["success"].Should().Be(false);
+            result["error"].Should().Be("point failed");
+        }
+
+        [Fact]
         public void onshape_work_plane_ConvertsCentimetersAndDelegatesOffsetPlaneEnvelope()
     {
         string? payload = null;

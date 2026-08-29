@@ -420,6 +420,64 @@ public class OnshapeFeatureTemplatesTests
     }
 
     [Fact]
+    public void WorkPointOnEdge_UsesLiveProvenFlatContractInExactParameterOrder()
+    {
+        using var doc = OnshapeFeatureTemplates.WorkPointOnEdge("JPV", 0.5);
+
+        var feature = doc.RootElement.GetProperty("feature");
+        feature.GetProperty("featureType").GetString().Should().Be("cPoint");
+        var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+        parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "pointType", "entities", "parameter", "mesh", "x", "y", "z");
+        parameters[0].GetProperty("btType").GetString().Should().Be("BTMParameterEnum-145");
+        parameters[0].GetProperty("enumName").GetString().Should().Be("PointType");
+        parameters[0].GetProperty("value").GetString().Should().Be("EDGE_POINT");
+        parameters[1].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JPV");
+        parameters[2].GetProperty("btType").GetString().Should().Be("BTMParameterQuantity-147");
+        parameters[2].GetProperty("expression").GetString().Should().Be("0.5");
+        parameters[3].GetProperty("queries").GetArrayLength().Should().Be(0);
+        foreach (var coordinate in parameters[4..])
+        {
+            coordinate.GetProperty("expression").GetString().Should().BeEmpty();
+            coordinate.GetProperty("value").GetDouble().Should().Be(0.025);
+            coordinate.GetProperty("units").GetString().Should().Be("meter");
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void WorkPointOnEdge_RejectsBlankEdgeId(string edgeId)
+    {
+        var act = () => OnshapeFeatureTemplates.WorkPointOnEdge(edgeId, 0.5);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void WorkPointOnEdge_AllowsNormalizedParameterEndpoints(double parameter)
+    {
+        using var doc = OnshapeFeatureTemplates.WorkPointOnEdge("JPV", parameter);
+
+        doc.RootElement.GetProperty("feature").GetProperty("parameters")[2]
+            .GetProperty("expression").GetString().Should().Be(parameter == 0 ? "0" : "1");
+    }
+
+    [Theory]
+    [InlineData(-0.001)]
+    [InlineData(1.001)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void WorkPointOnEdge_RejectsOutOfRangeOrNonFiniteParameter(double parameter)
+    {
+        var act = () => OnshapeFeatureTemplates.WorkPointOnEdge("JPV", parameter);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public void Chamfer_ReturnsFeatureEnvelope()
     {
         using var doc = OnshapeFeatureTemplates.Chamfer(["edge-1"], 0.003);
