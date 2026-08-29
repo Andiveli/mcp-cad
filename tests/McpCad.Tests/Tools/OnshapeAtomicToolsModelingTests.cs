@@ -644,6 +644,54 @@ public class OnshapeAtomicToolsModelingTests
     }
 
     [Fact]
+    public void onshape_work_plane_ConvertsCentimetersAndDelegatesOffsetPlaneEnvelope()
+    {
+        string? payload = null;
+        var provider = new Mock<ICadWebProvider>();
+        provider.Setup(p => p.FeatureAdd(
+                It.IsAny<CadElementAddress>(), "cPlane", null, It.IsAny<string?>()))
+            .Callback<CadElementAddress, string, IReadOnlyList<Dictionary<string, object?>>?, string?>(
+                (_, _, _, featurePostBodyJson) => payload = featurePostBodyJson)
+            .Returns(new Dictionary<string, object?> { ["success"] = true });
+        var tools = new OnshapeAtomicTools(provider.Object);
+
+        var result = tools.onshape_work_plane(SampleAddress(), "Front", 1);
+
+        result["success"].Should().Be(true);
+        using var envelope = JsonDocument.Parse(payload!);
+        var parameters = envelope.RootElement.GetProperty("feature").GetProperty("parameters");
+        parameters[0].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JCC");
+        parameters[2].GetProperty("expression").GetString().Should().Be("0.01 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("diagonal", 1)]
+    [InlineData("Top", -1)]
+    [InlineData("Top", double.NaN)]
+    public void onshape_work_plane_RejectsInvalidPlaneOrOffsetWithoutCallingProvider(string canonicalPlane, double offsetCm)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_work_plane(SampleAddress(), canonicalPlane, offsetCm);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_work_plane_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("plane failed"));
+
+        var result = tools.onshape_work_plane(SampleAddress(), "Top", 1);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("plane failed");
+    }
+
+    [Fact]
     public void onshape_sketch_spline_ConvertsPointsAndPropagatesPlaneAndConstruction()
     {
         var mock = new MockOnshapeProvider();

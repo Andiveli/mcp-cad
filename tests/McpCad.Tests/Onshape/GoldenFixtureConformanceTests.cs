@@ -62,6 +62,15 @@ public class GoldenFixtureConformanceTests
     }
 
     [Fact]
+    public void OffsetPlaneTemplate_MatchesLiveProvenGoldenShape()
+    {
+        using var actual = OnshapeFeatureTemplates.OffsetPlane("Top", 0.01);
+
+        MatchesGoldenShape(LoadFixture("Features", "offset_plane_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
+
+    [Fact]
     public void ShellTemplate_MatchesLiveProvenGoldenShape()
     {
         using var actual = OnshapeFeatureTemplates.Shell(["JHK"], 0.001);

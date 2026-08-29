@@ -347,6 +347,22 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "mirror", null, envelope.RootElement.GetRawText());
         });
 
+    [McpServerTool, Description("Create an offset work plane from a canonical Top, Front, or Right plane; offset is in cm.")]
+    public Dictionary<string, object?> onshape_work_plane(
+        string address_json,
+        string canonical_plane,
+        double offset_cm,
+        bool opposite_direction = false)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.OffsetPlane(
+                canonical_plane,
+                OnshapeUnitConversion.CmToMeters(offset_cm),
+                opposite_direction);
+            return provider.FeatureAdd(address, "cPlane", null, envelope.RootElement.GetRawText());
+        });
+
     [McpServerTool, Description("(P1) Sweep a profile sketch along a path sketch using the Onshape feature API.")]
     public Dictionary<string, object?> onshape_sweep(
         string address_json,

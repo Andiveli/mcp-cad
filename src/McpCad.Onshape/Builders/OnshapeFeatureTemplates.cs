@@ -157,6 +157,28 @@ public static class OnshapeFeatureTemplates
             ParamBoolean("fullFeaturePattern", false));
     }
 
+    public static JsonDocument OffsetPlane(
+        string canonicalPlane,
+        double offsetMeters,
+        bool oppositeDirection = false)
+    {
+        if (!double.IsFinite(offsetMeters) || offsetMeters < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offsetMeters), "Offset must be finite and nonnegative.");
+        }
+
+        return BuildFeatureEnvelope("cPlane", "Plane 1",
+            ParamCanonicalSketchPlane("entities", canonicalPlane),
+            ParamEnum("cplaneType", "CPlaneType", "OFFSET"),
+            ParamMeterQuantity("offset", offsetMeters),
+            ParamDegreeQuantity("angle", 0),
+            ParamBoolean("oppositeDirection", oppositeDirection),
+            ParamBoolean("flipAlignment", false),
+            ParamBoolean("flipNormal", false),
+            ParamMeterQuantity("width", 0.15),
+            ParamMeterQuantity("height", 0.15));
+    }
+
     public static JsonDocument SweepFromSketch(
         string profileSketchFeatureId,
         string pathSketchFeatureId,

@@ -59,7 +59,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `combine` | — | Part Studio features POST | declarative-composite | Onshape boolean feature payload. |
 | `split` | — | Part Studio features POST | declarative-composite | Onshape split feature payload. |
 | `draft` | — | Part Studio features POST | declarative-composite | Onshape draft feature payload. |
-| `work_plane` | — | Part Studio features POST | declarative-composite | Onshape construction feature payload. |
+| `work_plane` | `onshape_work_plane` | Part Studio features POST | implemented | Canonical Top, Front, or Right offset plane only; nonnegative cm offset, live-proven `cPlane` OFFSET payload with `featureStatus: OK`. Advanced plane modes remain out of scope. |
 | `work_axis` | — | Part Studio features POST | declarative-composite | Onshape construction feature payload. |
 | `work_point` | — | Part Studio features POST | declarative-composite | Onshape construction feature payload. |
 | `asm_list_constraints` | — | Assembly definition GET | declarative-composite | Available from assembly definition data. |

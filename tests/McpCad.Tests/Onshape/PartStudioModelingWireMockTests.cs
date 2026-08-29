@@ -263,6 +263,53 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
+    public void OffsetPlane_FeatureAdd_PostsLiveProvenFlatContract()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"microversion":"mv-plane","featureState":{"featureStatus":"OK"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.OffsetPlane("Top", 0.01);
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "cPlane", null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+        var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+        body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("cPlane");
+        parameters.EnumerateArray().Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "entities", "cplaneType", "offset", "angle", "oppositeDirection", "flipAlignment", "flipNormal", "width", "height");
+        parameters[0].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JDC");
+        parameters[2].GetProperty("expression").GetString().Should().Be("0.01 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[5].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[6].GetProperty("value").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public void OffsetPlane_FeatureAdd_WithErrorFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"ERROR","errorString":"Invalid plane"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.OffsetPlane("Top", 0.01);
+        var act = () => CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "cPlane", null, envelope.RootElement.GetRawText());
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status ERROR: Invalid plane");
+    }
+
+    [Fact]
     public void Shell_FeatureAdd_PostsLiveProvenFlatContractWithOrderedFaceIds()
     {
         _server.ResetMappings();

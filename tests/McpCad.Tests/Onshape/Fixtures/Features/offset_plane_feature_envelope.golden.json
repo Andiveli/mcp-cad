@@ -1,0 +1,19 @@
+{
+  "feature": {
+    "featureType": "cPlane",
+    "name": "Plane 1",
+    "suppressed": false,
+    "parameters": [
+      { "btType": "BTMParameterQueryList-148", "parameterId": "entities", "queries": [{ "btType": "BTMIndividualQuery-138", "deterministicIds": ["JDC"] }] },
+      { "btType": "BTMParameterEnum-145", "parameterId": "cplaneType", "enumName": "CPlaneType", "value": "OFFSET" },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "offset", "expression": "0.01 m" },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "angle", "expression": "0 deg" },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "oppositeDirection", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "flipAlignment", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "flipNormal", "value": false },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "width", "expression": "0.15 m" },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "height", "expression": "0.15 m" }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

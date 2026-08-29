@@ -323,6 +323,52 @@ public class OnshapeFeatureTemplatesTests
         planeAct.Should().Throw<ArgumentException>();
     }
 
+    [Theory]
+    [InlineData("Top", "JDC")]
+    [InlineData("Front", "JCC")]
+    [InlineData("Right", "JEC")]
+    public void OffsetPlane_UsesLiveProvenFlatContractWithCanonicalPlaneQuery(string canonicalPlane, string deterministicId)
+    {
+        using var doc = OnshapeFeatureTemplates.OffsetPlane(canonicalPlane, 0.01);
+
+        var feature = doc.RootElement.GetProperty("feature");
+        feature.GetProperty("featureType").GetString().Should().Be("cPlane");
+        var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+        parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "entities", "cplaneType", "offset", "angle", "oppositeDirection", "flipAlignment", "flipNormal", "width", "height");
+        parameters[0].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be(deterministicId);
+        parameters[1].GetProperty("enumName").GetString().Should().Be("CPlaneType");
+        parameters[1].GetProperty("value").GetString().Should().Be("OFFSET");
+        parameters[2].GetProperty("expression").GetString().Should().Be("0.01 m");
+        parameters[3].GetProperty("expression").GetString().Should().Be("0 deg");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[5].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[6].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[7].GetProperty("expression").GetString().Should().Be("0.15 m");
+        parameters[8].GetProperty("expression").GetString().Should().Be("0.15 m");
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void OffsetPlane_RejectsNegativeOrNonFiniteOffset(double offsetMeters)
+    {
+        var act = () => OnshapeFeatureTemplates.OffsetPlane("Top", offsetMeters);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void OffsetPlane_AllowsZeroOffsetAndPreservesOppositeDirection()
+    {
+        using var doc = OnshapeFeatureTemplates.OffsetPlane("Right", 0, oppositeDirection: true);
+        var parameters = doc.RootElement.GetProperty("feature").GetProperty("parameters");
+
+        parameters[2].GetProperty("expression").GetString().Should().Be("0 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeTrue();
+    }
+
     [Fact]
     public void Shell_UsesLiveProvenFlatContractInExactParameterOrder()
     {
