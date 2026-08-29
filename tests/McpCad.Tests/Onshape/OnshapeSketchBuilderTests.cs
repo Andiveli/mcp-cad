@@ -55,6 +55,36 @@ public class OnshapeSketchBuilderTests
         AssertSketchPlane(feature, "FrontplaneOp", "JCC");
     }
 
+    [Theory]
+    [InlineData("Top", "x", "TopplaneOp", "JDC", 1, 0)]
+    [InlineData("Front", "y", "FrontplaneOp", "JCC", 0, 1)]
+    [InlineData("Right", "x", "RightplaneOp", "JEC", 1, 0)]
+    public void BuildWorkAxis_ReturnsCenteredConstructionLineOnCanonicalPlane(
+        string plane, string direction, string operationId, string deterministicId, double expectedXDirection, double expectedYDirection)
+    {
+        using var doc = OnshapeSketchBuilder.BuildWorkAxis(plane, direction);
+        var feature = doc.RootElement.GetProperty("feature");
+        var entities = feature.GetProperty("entities");
+
+        feature.GetProperty("btType").GetString().Should().Be("BTMSketch-151");
+        AssertSketchPlane(feature, operationId, deterministicId);
+        feature.GetProperty("parameters")[1].GetProperty("parameterId").GetString().Should().Be("disableImprinting");
+        feature.GetProperty("parameters")[1].GetProperty("value").GetBoolean().Should().BeTrue();
+        entities.GetArrayLength().Should().Be(1);
+        var axis = entities[0];
+        axis.GetProperty("entityId").GetString().Should().Be("work-axis-0");
+        axis.GetProperty("startPointId").GetString().Should().Be("work-axis-0.start");
+        axis.GetProperty("endPointId").GetString().Should().Be("work-axis-0.end");
+        axis.GetProperty("isConstruction").GetBoolean().Should().BeTrue();
+        axis.GetProperty("geometry").GetProperty("pntX").GetDouble().Should().Be(0);
+        axis.GetProperty("geometry").GetProperty("pntY").GetDouble().Should().Be(0);
+        axis.GetProperty("geometry").GetProperty("dirX").GetDouble().Should().Be(expectedXDirection);
+        axis.GetProperty("geometry").GetProperty("dirY").GetDouble().Should().Be(expectedYDirection);
+        axis.GetProperty("startParam").GetDouble().Should().Be(-0.02);
+        axis.GetProperty("endParam").GetDouble().Should().Be(0.02);
+        feature.GetProperty("constraints").GetArrayLength().Should().Be(0);
+    }
+
     [Fact]
     public void BuildLine_WithoutDimension_PreservesExistingPayload()
     {
@@ -730,7 +760,7 @@ public class OnshapeSketchBuilderTests
     private static void AssertSketchPlane(JsonElement feature, string operationId, string deterministicId)
     {
         var parameters = feature.GetProperty("parameters");
-        parameters.GetArrayLength().Should().Be(1);
+        parameters.GetArrayLength().Should().BeGreaterThan(0);
         var plane = parameters[0];
         plane.GetProperty("btType").GetString().Should().Be("BTMParameterQueryList-148");
         plane.GetProperty("parameterId").GetString().Should().Be("sketchPlane");

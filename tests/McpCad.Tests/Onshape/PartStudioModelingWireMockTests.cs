@@ -136,7 +136,28 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
-    public void SketchReplace_PostsJsonBody_WithRejectMicroversionSkewOnWrite()
+    public void WorkAxisSketch_PostsConstructionLineWithDisabledImprinting()
+        {
+            using var sketch = OnshapeSketchBuilder.BuildWorkAxis("Front", "x");
+            var result = CreatePartStudioManager().SketchReplace(
+                new CadElementAddress("doc-1", "ws-1", null, "e-part"), sketch.RootElement.GetRawText());
+
+            result["success"].Should().Be(true);
+            using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single().RequestMessage.Body!);
+            var feature = body.RootElement.GetProperty("feature");
+            feature.GetProperty("parameters")[0].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JCC");
+            feature.GetProperty("parameters")[1].GetProperty("parameterId").GetString().Should().Be("disableImprinting");
+            feature.GetProperty("parameters")[1].GetProperty("value").GetBoolean().Should().BeTrue();
+            var axis = feature.GetProperty("entities");
+            axis.GetArrayLength().Should().Be(1);
+            axis = axis[0];
+            axis.GetProperty("isConstruction").GetBoolean().Should().BeTrue();
+            axis.GetProperty("geometry").GetProperty("dirX").GetDouble().Should().Be(1);
+            axis.GetProperty("geometry").GetProperty("dirY").GetDouble().Should().Be(0);
+        }
+
+        [Fact]
+        public void SketchReplace_PostsJsonBody_WithRejectMicroversionSkewOnWrite()
     {
         using var sketch = OnshapeSketchBuilder.BuildRectangle(0, 0, 0.1, 0.1);
         var partStudio = CreatePartStudioManager();

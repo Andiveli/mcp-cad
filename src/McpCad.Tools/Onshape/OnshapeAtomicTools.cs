@@ -347,6 +347,13 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "mirror", null, envelope.RootElement.GetRawText());
         });
 
+    [McpServerTool, Description("Create a sketch-backed construction axis on a canonical Top, Front, or Right plane. The centered local x or y line is usable as an axis edge by revolve and pattern tools; this is not a native Onshape work-axis feature.")]
+    public Dictionary<string, object?> onshape_work_axis(
+        string address_json,
+        string canonical_plane,
+        string local_direction = "x")
+        => ReplaceSketch(address_json, () => OnshapeSketchBuilder.BuildWorkAxis(canonical_plane, local_direction));
+
     [McpServerTool, Description("Create an offset work plane from a canonical Top, Front, or Right plane; offset is in cm.")]
     public Dictionary<string, object?> onshape_work_plane(
         string address_json,

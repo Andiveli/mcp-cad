@@ -43,6 +43,27 @@ public static class OnshapeSketchBuilder
         return BuildSketch(entities, constraints, plane);
     }
 
+    /// <summary>
+    /// Builds a sketch-backed construction axis: a centered 40 mm line on a canonical sketch plane.
+    /// The returned line is usable as an axis edge by revolve and pattern features; it is not a native Onshape work-axis feature.
+    /// </summary>
+    public static JsonDocument BuildWorkAxis(string canonicalPlane, string direction = "x")
+    {
+        var normalizedDirection = direction?.Trim().ToLowerInvariant() switch
+        {
+            "x" => "x",
+            "y" => "y",
+            _ => throw new ArgumentException("Direction must be x or y.", nameof(direction)),
+        };
+        const double halfLengthM = 0.02;
+        var axis = normalizedDirection == "x"
+            ? CurveSegment("work-axis-0", "work-axis-0.start", "work-axis-0.end", -halfLengthM, 0, halfLengthM, 0)
+            : CurveSegment("work-axis-0", "work-axis-0.start", "work-axis-0.end", 0, -halfLengthM, 0, halfLengthM);
+        axis["isConstruction"] = true;
+
+        return BuildSketch([axis], Array.Empty<object>(), canonicalPlane, disableImprinting: true);
+    }
+
     public static JsonDocument BuildPolyline(
         IReadOnlyList<SketchPoint> points,
         bool closed = false,
@@ -453,7 +474,8 @@ public static class OnshapeSketchBuilder
     public static JsonDocument BuildSketch(
         IReadOnlyList<Dictionary<string, object?>> entities,
         IReadOnlyList<object> constraints,
-        string? plane = null)
+        string? plane = null,
+        bool disableImprinting = false)
     {
         var (operationId, deterministicId) = (plane ?? "Top").Trim().ToLowerInvariant() switch
         {
@@ -494,6 +516,20 @@ public static class OnshapeSketchBuilder
             },
             ["rejectMicroversionSkew"] = true,
         };
+        if (disableImprinting)
+        {
+            var feature = (Dictionary<string, object?>)envelope["feature"]!;
+            var parameters = (object[])feature["parameters"]!;
+            feature["parameters"] = parameters.Append(new Dictionary<string, object?>
+            {
+                ["btType"] = "BTMParameterBoolean-144",
+                ["libraryRelationType"] = "DEFAULT",
+                ["parameterId"] = "disableImprinting",
+                ["parameterName"] = "",
+                ["value"] = true,
+            }).ToArray();
+        }
+
         return JsonDocument.Parse(JsonSerializer.Serialize(envelope));
     }
 

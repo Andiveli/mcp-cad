@@ -10,6 +10,7 @@ public class GoldenFixtureConformanceTests
     [InlineData("rectangle_btmsketch.golden.json")]
     [InlineData("line_btmsketch.golden.json")]
     [InlineData("circle_btmsketch.golden.json")]
+    [InlineData("work_axis_btmsketch.golden.json")]
     public void SketchBuilders_MatchGoldenShape(string fixtureName)
     {
         using var actual = fixtureName switch
@@ -17,6 +18,7 @@ public class GoldenFixtureConformanceTests
             "rectangle_btmsketch.golden.json" => OnshapeSketchBuilder.BuildRectangle(0, 0, 0.1, 0.05),
             "line_btmsketch.golden.json" => OnshapeSketchBuilder.BuildLine(0, 0, 1, 0),
             "circle_btmsketch.golden.json" => OnshapeSketchBuilder.BuildCircle(0.05, 0.05, 0.02),
+            "work_axis_btmsketch.golden.json" => OnshapeSketchBuilder.BuildWorkAxis("Front", "x"),
             _ => throw new ArgumentOutOfRangeException(nameof(fixtureName)),
         };
 

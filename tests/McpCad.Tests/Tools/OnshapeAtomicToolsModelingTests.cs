@@ -644,7 +644,54 @@ public class OnshapeAtomicToolsModelingTests
     }
 
     [Fact]
-    public void onshape_work_plane_ConvertsCentimetersAndDelegatesOffsetPlaneEnvelope()
+    public void onshape_work_axis_CreatesSketchBackedConstructionAxis()
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_work_axis(SampleAddress(), "Front", "y");
+
+            result["success"].Should().Be(true);
+            var request = (JsonElement)mock.CallLog.Should().ContainSingle(call => call.Method == "SketchReplace").Subject.Args["sketchRequest"]!;
+            var feature = request.GetProperty("feature");
+            feature.GetProperty("parameters")[0].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JCC");
+            feature.GetProperty("parameters")[1].GetProperty("parameterId").GetString().Should().Be("disableImprinting");
+            feature.GetProperty("parameters")[1].GetProperty("value").GetBoolean().Should().BeTrue();
+            var axis = feature.GetProperty("entities");
+            axis.GetArrayLength().Should().Be(1);
+            axis = axis[0];
+            axis.GetProperty("isConstruction").GetBoolean().Should().BeTrue();
+            axis.GetProperty("geometry").GetProperty("dirX").GetDouble().Should().Be(0);
+            axis.GetProperty("geometry").GetProperty("dirY").GetDouble().Should().Be(1);
+        }
+
+        [Theory]
+        [InlineData("diagonal", "x")]
+        [InlineData("Top", "z")]
+        public void onshape_work_axis_RejectsInvalidPlaneOrDirectionWithoutCallingProvider(string canonicalPlane, string localDirection)
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_work_axis(SampleAddress(), canonicalPlane, localDirection);
+
+            result["success"].Should().Be(false);
+            mock.CallLog.Should().BeEmpty();
+        }
+
+        [Fact]
+        public void onshape_work_axis_WhenProviderRejects_ReturnsError()
+        {
+            var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("axis failed"));
+
+            var result = tools.onshape_work_axis(SampleAddress(), "Front");
+
+            result["success"].Should().Be(false);
+            result["error"].Should().Be("axis failed");
+        }
+
+        [Fact]
+        public void onshape_work_plane_ConvertsCentimetersAndDelegatesOffsetPlaneEnvelope()
     {
         string? payload = null;
         var provider = new Mock<ICadWebProvider>();

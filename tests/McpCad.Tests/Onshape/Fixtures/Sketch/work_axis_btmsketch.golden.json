@@ -1,0 +1,31 @@
+{
+  "feature": {
+    "btType": "BTMSketch-151",
+    "parameters": [
+      {
+        "btType": "BTMParameterQueryList-148",
+        "parameterId": "sketchPlane",
+        "queries": [{ "deterministicIds": ["JCC"] }]
+      },
+      {
+        "btType": "BTMParameterBoolean-144",
+        "parameterId": "disableImprinting",
+        "value": true
+      }
+    ],
+    "entities": [
+      {
+        "btType": "BTMSketchCurveSegment-155",
+        "entityId": "work-axis-0",
+        "startPointId": "work-axis-0.start",
+        "endPointId": "work-axis-0.end",
+        "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0, "pntY": 0, "dirX": 1, "dirY": 0 },
+        "startParam": -0.02,
+        "endParam": 0.02,
+        "isConstruction": true
+      }
+    ],
+    "constraints": []
+  },
+  "rejectMicroversionSkew": true
+}
