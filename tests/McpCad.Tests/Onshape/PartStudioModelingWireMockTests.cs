@@ -145,7 +145,9 @@ public class PartStudioModelingWireMockTests : IDisposable
         var result = partStudio.SketchReplace(addr, sketch.RootElement.GetRawText());
 
         result["success"].Should().Be(true);
-        var entry = _server.LogEntries.Last();
+        var entry = _server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features");
         entry.RequestMessage.Body.Should().Contain("entities");
         entry.RequestMessage.RawQuery.Should().Contain("rejectMicroversionSkew=true");
     }
@@ -167,11 +169,69 @@ public class PartStudioModelingWireMockTests : IDisposable
         var result = features.FeatureAdd(addr, "extrude", null, envelope.RootElement.GetRawText());
 
         result["success"].Should().Be(true);
-        var body = _server.LogEntries.Last().RequestMessage.Body;
+        var body = _server.LogEntries.Single(entry =>
+                entry.RequestMessage.Method == "POST" &&
+                entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features")
+            .RequestMessage.Body;
         body.Should().NotBeNullOrWhiteSpace();
         body!.TrimStart().Should().StartWith("{\"feature\":");
         body.Should().Contain("rejectMicroversionSkew");
         body.TrimStart().Should().NotStartWith("{\"featureType\":");
+    }
+
+    [Fact]
+    public void CircularPattern_FeatureAdd_PostsLiveVerifiedFeatureContract()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"microversion":"mv-pattern","featureState":{"featureStatus":"OK"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.CircularPatternFromFeature("extrude-1", "axis-sketch-1", 4, 180);
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "circularPattern", null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+        var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+        body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("circularPattern");
+        parameters[4].GetProperty("featureIds")[0].GetString().Should().Be("extrude-1");
+        parameters[5].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+            .Be("query = qCreatedBy(id + \"axis-sketch-1\" + \"wireOp\", EntityType.EDGE);");
+        parameters[7].GetProperty("isInteger").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void MirrorFeature_FeatureAdd_PostsLiveVerifiedFeatureContract()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"microversion":"mv-mirror","featureState":{"featureStatus":"OK"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.MirrorFeature("extrude-1", "Front");
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "mirror", null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+        var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+        body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("mirror");
+        parameters.EnumerateArray().Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "patternType", "operationType", "entities", "faces", "instanceFunction", "mirrorPlane",
+            "defaultScope", "booleanScope", "fullFeaturePattern");
+        parameters[0].GetProperty("enumName").GetString().Should().Be("MirrorType");
+        parameters[0].GetProperty("value").GetString().Should().Be("FEATURE");
+        parameters[4].GetProperty("featureIds")[0].GetString().Should().Be("extrude-1");
+        parameters[5].GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString().Should().Be("JCC");
     }
 
     [Fact]
@@ -251,7 +311,10 @@ public class PartStudioModelingWireMockTests : IDisposable
             new CadElementAddress("doc-1", "ws-1", null, "e-part"), featureType, null, envelope.RootElement.GetRawText());
 
         result["success"].Should().Be(true);
-        var body = _server.LogEntries.Last().RequestMessage.Body!;
+        var body = _server.LogEntries.Single(entry =>
+                entry.RequestMessage.Method == "POST" &&
+                entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features")
+            .RequestMessage.Body!;
         body.Should().Contain($"\"featureType\":\"{featureType}\"")
             .And.Contain("\"rejectMicroversionSkew\":true");
     }

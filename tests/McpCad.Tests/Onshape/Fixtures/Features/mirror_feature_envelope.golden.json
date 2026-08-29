@@ -1,0 +1,19 @@
+{
+  "feature": {
+    "featureType": "mirror",
+    "name": "Mirror 1",
+    "suppressed": false,
+    "parameters": [
+      { "btType": "BTMParameterEnum-145", "parameterId": "patternType", "enumName": "MirrorType", "value": "FEATURE" },
+      { "btType": "BTMParameterEnum-145", "parameterId": "operationType", "enumName": "NewBodyOperationType", "value": "NEW" },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "entities", "queries": [] },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "faces", "queries": [] },
+      { "btType": "BTMParameterFeatureList-1749", "parameterId": "instanceFunction", "featureIds": ["extrude-1"] },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "mirrorPlane", "queries": [{ "btType": "BTMIndividualQuery-138", "queryStatement": null, "queryString": "query=qCompressed(1.0,\"%B5$QueryM4Sa$entityTypeBa$EntityTypeS4$FACESb$historyTypeS8$CREATIONSb$operationIdB2$IdA1S5.7$FrontplaneOpS9$queryTypeS5$DUMMY\",id);", "deterministicIds": ["JCC"] }] },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "defaultScope", "value": false },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "booleanScope", "queries": [] },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "fullFeaturePattern", "value": false }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

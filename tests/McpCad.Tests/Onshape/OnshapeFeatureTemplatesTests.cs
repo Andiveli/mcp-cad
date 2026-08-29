@@ -156,6 +156,87 @@ public class OnshapeFeatureTemplatesTests
     }
 
     [Fact]
+    public void CircularPatternFromFeature_UsesLiveVerifiedNativeContractInOrder()
+    {
+        using var doc = OnshapeFeatureTemplates.CircularPatternFromFeature(
+            "extrude-1", "axis-sketch-1", 6, 270, oppositeDirection: true, equalSpace: false);
+
+        var feature = doc.RootElement.GetProperty("feature");
+        feature.GetProperty("featureType").GetString().Should().Be("circularPattern");
+        var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+        parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "patternType", "operationType", "entities", "faces", "instanceFunction", "axis", "angle",
+            "instanceCount", "oppositeDirection", "equalSpace", "isCentered", "defaultScope", "booleanScope",
+            "fullFeaturePattern", "skipInstances", "skippedInstances");
+        parameters[0].GetProperty("value").GetString().Should().Be("FEATURE");
+        parameters[4].GetProperty("btType").GetString().Should().Be("BTMParameterFeatureList-1749");
+        parameters[4].GetProperty("featureIds")[0].GetString().Should().Be("extrude-1");
+        parameters[5].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+            .Be("query = qCreatedBy(id + \"axis-sketch-1\" + \"wireOp\", EntityType.EDGE);");
+        parameters[6].GetProperty("expression").GetString().Should().Be("270 deg");
+        parameters[7].GetProperty("isInteger").GetBoolean().Should().BeTrue();
+        parameters[7].GetProperty("expression").GetString().Should().Be("6");
+        parameters[8].GetProperty("value").GetBoolean().Should().BeTrue();
+        parameters[9].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[10].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[15].GetProperty("items").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public void MirrorFeature_UsesLiveVerifiedNativeContractAndCanonicalFrontPlane()
+    {
+        using var doc = OnshapeFeatureTemplates.MirrorFeature("extrude-1", "Front");
+
+        var feature = doc.RootElement.GetProperty("feature");
+        feature.GetProperty("featureType").GetString().Should().Be("mirror");
+        var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+        parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "patternType", "operationType", "entities", "faces", "instanceFunction", "mirrorPlane",
+            "defaultScope", "booleanScope", "fullFeaturePattern");
+        parameters[0].GetProperty("enumName").GetString().Should().Be("MirrorType");
+        parameters[0].GetProperty("value").GetString().Should().Be("FEATURE");
+        parameters[1].GetProperty("enumName").GetString().Should().Be("NewBodyOperationType");
+        parameters[1].GetProperty("value").GetString().Should().Be("NEW");
+        parameters[2].GetProperty("queries").GetArrayLength().Should().Be(0);
+        parameters[3].GetProperty("queries").GetArrayLength().Should().Be(0);
+        parameters[4].GetProperty("btType").GetString().Should().Be("BTMParameterFeatureList-1749");
+        parameters[4].GetProperty("featureIds")[0].GetString().Should().Be("extrude-1");
+        parameters[5].GetProperty("btType").GetString().Should().Be("BTMParameterQueryList-148");
+        var mirrorPlane = parameters[5].GetProperty("queries")[0];
+        mirrorPlane.GetProperty("btType").GetString().Should().Be("BTMIndividualQuery-138");
+        mirrorPlane.GetProperty("queryString").GetString().Should().Be(
+            "query=qCompressed(1.0,\"%B5$QueryM4Sa$entityTypeBa$EntityTypeS4$FACESb$historyTypeS8$CREATIONSb$operationIdB2$IdA1S5.7$FrontplaneOpS9$queryTypeS5$DUMMY\",id);");
+        mirrorPlane.GetProperty("deterministicIds")[0].GetString().Should().Be("JCC");
+        parameters[6].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[7].GetProperty("queries").GetArrayLength().Should().Be(0);
+        parameters[8].GetProperty("value").GetBoolean().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Top", "JDC")]
+    [InlineData("Right", "JEC")]
+    public void MirrorFeature_UsesExistingCanonicalPlaneMappings(string mirrorPlane, string deterministicId)
+    {
+        using var doc = OnshapeFeatureTemplates.MirrorFeature("extrude-1", mirrorPlane);
+
+        doc.RootElement.GetProperty("feature").GetProperty("parameters")[5]
+            .GetProperty("queries")[0].GetProperty("deterministicIds")[0].GetString()
+            .Should().Be(deterministicId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("diagonal")]
+    public void MirrorFeature_RejectsBlankSourceOrUnknownPlane(string mirrorPlane)
+    {
+        var sourceAct = () => OnshapeFeatureTemplates.MirrorFeature("", "Front");
+        var planeAct = () => OnshapeFeatureTemplates.MirrorFeature("extrude-1", mirrorPlane);
+
+        sourceAct.Should().Throw<ArgumentException>();
+        planeAct.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void Chamfer_ReturnsFeatureEnvelope()
     {
         using var doc = OnshapeFeatureTemplates.Chamfer(["edge-1"], 0.003);

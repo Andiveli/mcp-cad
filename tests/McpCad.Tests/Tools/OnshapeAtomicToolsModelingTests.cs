@@ -449,6 +449,90 @@ public class OnshapeAtomicToolsModelingTests
     }
 
     [Fact]
+    public void onshape_circular_pattern_UsesFeatureAddWithTypedNativeEnvelope()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_circular_pattern(
+            SampleAddress(), "extrude-1", "axis-sketch-1", 4, 180, opposite_direction: true, equal_spacing: false);
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
+        call.Args["featureType"].Should().Be("circularPattern");
+        call.Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Theory]
+    [InlineData(1, 180)]
+    [InlineData(101, 180)]
+    [InlineData(2, 0)]
+    [InlineData(2, 360.1)]
+    [InlineData(2, double.NaN)]
+    public void onshape_circular_pattern_RejectsOutOfRangeOrNonFiniteInputsWithoutCallingProvider(
+        int instanceCount, double totalAngleDeg)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_circular_pattern(
+            SampleAddress(), "extrude-1", "axis-sketch-1", instanceCount, totalAngleDeg);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_circular_pattern_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("pattern failed"));
+
+        var result = tools.onshape_circular_pattern(SampleAddress(), "extrude-1", "axis-sketch-1", 4, 180);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("pattern failed");
+    }
+
+    [Fact]
+    public void onshape_mirror_feature_UsesFeatureAddWithTypedNativeEnvelope()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_mirror_feature(SampleAddress(), "extrude-1", "front");
+
+        result["success"].Should().Be(true);
+        var call = mock.CallLog.Should().ContainSingle(c => c.Method == "FeatureAdd").Subject;
+        call.Args["featureType"].Should().Be("mirror");
+        call.Args["hasEnvelope"].Should().Be(true);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("diagonal")]
+    public void onshape_mirror_feature_RejectsInvalidPlaneWithoutCallingProvider(string mirrorPlane)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_mirror_feature(SampleAddress(), "extrude-1", mirrorPlane);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_mirror_feature_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("mirror failed"));
+
+        var result = tools.onshape_mirror_feature(SampleAddress(), "extrude-1", "Front");
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("mirror failed");
+    }
+
+    [Fact]
     public void onshape_sketch_spline_ConvertsPointsAndPropagatesPlaneAndConstruction()
     {
         var mock = new MockOnshapeProvider();

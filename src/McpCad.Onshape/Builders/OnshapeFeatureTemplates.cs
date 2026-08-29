@@ -38,6 +38,59 @@ public static class OnshapeFeatureTemplates
             ParamBoolean("oppositeDirection", NormalizeDirection(direction, angleDeg) == "negative"),
             ParamEnum("operationType", "NewBodyOperationType", MapBooleanOp(booleanOp)));
 
+    public static JsonDocument CircularPatternFromFeature(
+        string sourceFeatureId,
+        string axisSketchFeatureId,
+        int instanceCount,
+        double totalAngleDeg,
+        bool oppositeDirection = false,
+        bool equalSpace = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceFeatureId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(axisSketchFeatureId);
+        ArgumentOutOfRangeException.ThrowIfLessThan(instanceCount, 2);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(instanceCount, 100);
+        if (!double.IsFinite(totalAngleDeg) || totalAngleDeg <= 0 || totalAngleDeg > 360)
+        {
+            throw new ArgumentOutOfRangeException(nameof(totalAngleDeg), "Total angle must be finite and between 0 and 360 degrees.");
+        }
+
+        return BuildFeatureEnvelope("circularPattern", "Circular pattern 1",
+            ParamEnum("patternType", "PatternType", "FEATURE"),
+            ParamEnum("operationType", "NewBodyOperationType", "NEW"),
+            ParamEmptyQueryList("entities"),
+            ParamEmptyQueryList("faces"),
+            ParamFeatureList("instanceFunction", sourceFeatureId),
+            ParamAxisSketch("axis", axisSketchFeatureId),
+            ParamDegreeQuantity("angle", totalAngleDeg),
+            ParamIntegerQuantity("instanceCount", instanceCount),
+            ParamBoolean("oppositeDirection", oppositeDirection),
+            ParamBoolean("equalSpace", equalSpace),
+            ParamBoolean("isCentered", false),
+            ParamBoolean("defaultScope", false),
+            ParamEmptyQueryList("booleanScope"),
+            ParamBoolean("fullFeaturePattern", false),
+            ParamBoolean("skipInstances", false),
+            ParamEmptyArray("skippedInstances"));
+    }
+
+    public static JsonDocument MirrorFeature(string sourceFeatureId, string mirrorPlane)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceFeatureId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mirrorPlane);
+
+        return BuildFeatureEnvelope("mirror", "Mirror 1",
+            ParamEnum("patternType", "MirrorType", "FEATURE"),
+            ParamEnum("operationType", "NewBodyOperationType", "NEW"),
+            ParamEmptyQueryList("entities"),
+            ParamEmptyQueryList("faces"),
+            ParamFeatureList("instanceFunction", sourceFeatureId),
+            ParamCanonicalSketchPlane("mirrorPlane", mirrorPlane),
+            ParamBoolean("defaultScope", false),
+            ParamEmptyQueryList("booleanScope"),
+            ParamBoolean("fullFeaturePattern", false));
+    }
+
     public static JsonDocument SweepFromSketch(
         string profileSketchFeatureId,
         string pathSketchFeatureId,
@@ -185,6 +238,30 @@ public static class OnshapeFeatureTemplates
             ["value"] = value,
         };
 
+    private static Dictionary<string, object?> ParamFeatureList(string parameterId, string featureId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterFeatureList-1749",
+            ["parameterId"] = parameterId,
+            ["featureIds"] = new[] { featureId },
+        };
+
+    private static Dictionary<string, object?> ParamEmptyQueryList(string parameterId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQueryList-148",
+            ["parameterId"] = parameterId,
+            ["queries"] = Array.Empty<Dictionary<string, object?>>(),
+        };
+
+    private static Dictionary<string, object?> ParamEmptyArray(string parameterId) =>
+        new()
+        {
+            ["btType"] = "BTMParameterArray-2025",
+            ["parameterId"] = parameterId,
+            ["items"] = Array.Empty<object>(),
+        };
+
     private static Dictionary<string, object?> ParamMeterQuantity(string parameterId, double value) =>
         new()
         {
@@ -199,6 +276,15 @@ public static class OnshapeFeatureTemplates
             ["btType"] = "BTMParameterQuantity-147",
             ["parameterId"] = parameterId,
             ["expression"] = $"{value.ToString("G9", CultureInfo.InvariantCulture)} deg",
+        };
+
+    private static Dictionary<string, object?> ParamIntegerQuantity(string parameterId, int value) =>
+        new()
+        {
+            ["btType"] = "BTMParameterQuantity-147",
+            ["parameterId"] = parameterId,
+            ["isInteger"] = true,
+            ["expression"] = value.ToString(CultureInfo.InvariantCulture),
         };
 
     private static Dictionary<string, object?> ParamBoolean(string parameterId, bool value) =>
@@ -223,6 +309,19 @@ public static class OnshapeFeatureTemplates
                 },
             },
         };
+
+    private static Dictionary<string, object?> ParamCanonicalSketchPlane(string parameterId, string plane)
+    {
+        using var sketch = OnshapeSketchBuilder.BuildSketch(
+            Array.Empty<Dictionary<string, object?>>(),
+            Array.Empty<object>(),
+            plane);
+        var parameter = JsonSerializer.Deserialize<Dictionary<string, object?>>(
+            sketch.RootElement.GetProperty("feature").GetProperty("parameters")[0].GetRawText())
+            ?? throw new InvalidOperationException("Canonical sketch plane parameter could not be built.");
+        parameter["parameterId"] = parameterId;
+        return parameter;
+    }
 
     private static Dictionary<string, object?> ParamAxisSketch(string parameterId, string featureId) =>
         new()

@@ -22,7 +22,7 @@ public sealed class DocumentManagerWireMockTests : IDisposable
 
         result["success"].Should().Be(true);
         result["id"].Should().Be("copied-doc");
-        _server.LogEntries.Should().HaveCount(2);
+        AssertCopyRequests();
     }
 
     [Fact]
@@ -36,7 +36,10 @@ public sealed class DocumentManagerWireMockTests : IDisposable
         result["id"].Should().Be("created-doc");
         result["documentId"].Should().Be("created-doc");
         result["workspaceId"].Should().Be("ws-new");
-        _server.LogEntries.Should().HaveCount(1);
+        _server.LogEntries.Where(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/documents")
+            .Should().ContainSingle();
     }
 
     [Fact]
@@ -49,7 +52,19 @@ public sealed class DocumentManagerWireMockTests : IDisposable
 
         result["success"].Should().Be(true);
         result["id"].Should().Be("copied-doc");
-        _server.LogEntries.Should().HaveCount(2);
+        AssertCopyRequests();
+    }
+
+    private void AssertCopyRequests()
+    {
+        _server.LogEntries.Where(entry =>
+            entry.RequestMessage.Method == "GET" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/documents/doc-1")
+            .Should().ContainSingle();
+        _server.LogEntries.Where(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/documents/doc-1/workspaces/ws-1/copy")
+            .Should().ContainSingle();
     }
 
     private void GivenDocumentWithDefaultWorkspace()

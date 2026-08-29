@@ -33,6 +33,24 @@ public class GoldenFixtureConformanceTests
             .Should().BeTrue(actual.RootElement.GetRawText());
     }
 
+    [Fact]
+    public void CircularPatternTemplate_MatchesLiveVerifiedGoldenShape()
+    {
+        using var actual = OnshapeFeatureTemplates.CircularPatternFromFeature("extrude-1", "axis-sketch-1", 4, 180);
+
+        MatchesGoldenShape(LoadFixture("Features", "circular_pattern_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
+
+    [Fact]
+    public void MirrorFeatureTemplate_MatchesLiveVerifiedGoldenShape()
+    {
+        using var actual = OnshapeFeatureTemplates.MirrorFeature("extrude-1", "Front");
+
+        MatchesGoldenShape(LoadFixture("Features", "mirror_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
+
     private static JsonNode? LoadFixture(string folder, string fixtureName)
     {
         var fixturePath = Path.GetFullPath(Path.Combine(

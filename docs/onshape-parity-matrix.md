@@ -47,9 +47,9 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sketch_trim` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
 | `sketch_scale` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
 | `sketch_mirror` | — | Part Studio features POST | declarative-composite | Compose the resulting sketch geometry. |
-| `circular_pattern` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
+| `circular_pattern` | `onshape_circular_pattern` | Part Studio features POST | implemented | Feature-level `circularPattern` for a source feature and axis sketch edge; live-proven with `featureStatus: OK` in disposable document `243b7f4c501d53eaccaea926`. |
 | `rectangular_pattern` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
-| `mirror_feature` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
+| `mirror_feature` | `onshape_mirror_feature` | Part Studio features POST | implemented | Feature-level `mirror` for a source feature across a canonical Top, Front, or Right plane; live-proven with `featureStatus: OK`. |
 | `loft` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `coil` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `rib` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |

@@ -281,6 +281,40 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "revolve", null, envelope.RootElement.GetRawText());
         });
 
+    [McpServerTool, Description("Create a feature-level circular pattern around an axis sketch edge using the Onshape feature API.")]
+    public Dictionary<string, object?> onshape_circular_pattern(
+        string address_json,
+        string source_feature_id,
+        string axis_sketch_feature_id,
+        int instance_count,
+        double total_angle_deg,
+        bool opposite_direction = false,
+        bool equal_spacing = true)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.CircularPatternFromFeature(
+                source_feature_id,
+                axis_sketch_feature_id,
+                instance_count,
+                total_angle_deg,
+                opposite_direction,
+                equal_spacing);
+            return provider.FeatureAdd(address, "circularPattern", null, envelope.RootElement.GetRawText());
+        });
+
+    [McpServerTool, Description("Mirror a source feature across a canonical Top, Front, or Right plane using the Onshape feature API.")]
+    public Dictionary<string, object?> onshape_mirror_feature(
+        string address_json,
+        string source_feature_id,
+        string mirror_plane)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.MirrorFeature(source_feature_id, mirror_plane);
+            return provider.FeatureAdd(address, "mirror", null, envelope.RootElement.GetRawText());
+        });
+
     [McpServerTool, Description("(P1) Sweep a profile sketch along a path sketch using the Onshape feature API.")]
     public Dictionary<string, object?> onshape_sweep(
         string address_json,
