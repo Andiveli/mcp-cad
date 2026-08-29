@@ -183,7 +183,94 @@ public class OnshapeFeatureTemplatesTests
     }
 
     [Fact]
-    public void MirrorFeature_UsesLiveVerifiedNativeContractAndCanonicalFrontPlane()
+    public void RectangularPatternFromFeature_UsesLiveVerifiedTwoDirectionNativeContractInOrder()
+        {
+            using var doc = OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", 0.03, 2, "direction-two-1", 0.03, 2,
+                oppositeDirection: true, isCentered: true, oppositeDirectionTwo: true, isCenteredTwo: true);
+
+            var feature = doc.RootElement.GetProperty("feature");
+            feature.GetProperty("featureType").GetString().Should().Be("linearPattern");
+            var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+            parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+                "patternType", "operationType", "entities", "faces", "instanceFunction", "directionOne", "distance",
+                "instanceCount", "oppositeDirection", "isCentered", "hasSecondDir", "directionTwo", "distanceTwo",
+                "instanceCountTwo", "oppositeDirectionTwo", "isCenteredTwo", "defaultScope", "booleanScope",
+                "fullFeaturePattern", "skipInstances", "skippedInstances");
+            parameters[0].GetProperty("value").GetString().Should().Be("FEATURE");
+            parameters[1].GetProperty("value").GetString().Should().Be("NEW");
+            parameters[4].GetProperty("btType").GetString().Should().Be("BTMParameterFeatureList-1749");
+            parameters[5].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+                .Be("query = qCreatedBy(id + \"direction-one-1\" + \"wireOp\", EntityType.EDGE);");
+            parameters[6].GetProperty("expression").GetString().Should().Be("0.03 m");
+            parameters[7].GetProperty("expression").GetString().Should().Be("2");
+            parameters[10].GetProperty("value").GetBoolean().Should().BeTrue();
+            parameters[11].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+                .Be("query = qCreatedBy(id + \"direction-two-1\" + \"wireOp\", EntityType.EDGE);");
+            parameters[12].GetProperty("expression").GetString().Should().Be("0.03 m");
+            parameters[13].GetProperty("isInteger").GetBoolean().Should().BeTrue();
+            parameters[14].GetProperty("value").GetBoolean().Should().BeTrue();
+            parameters[15].GetProperty("value").GetBoolean().Should().BeTrue();
+            parameters[20].GetProperty("items").GetArrayLength().Should().Be(0);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(double.NaN)]
+        public void RectangularPatternFromFeature_RejectsInvalidFirstDirectionDistance(double distanceMeters)
+        {
+            var act = () => OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", distanceMeters, 2);
+
+            act.Should().Throw<ArgumentOutOfRangeException>();
+        }
+
+        [Fact]
+        public void RectangularPatternFromFeature_OneDirection_UsesFeatureSpecSecondDirectionDefaults()
+        {
+            using var doc = OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", 0.03, 2);
+
+            var parameters = doc.RootElement.GetProperty("feature").GetProperty("parameters");
+            parameters[10].GetProperty("value").GetBoolean().Should().BeFalse();
+            parameters[11].GetProperty("btType").GetString().Should().Be("BTMParameterQueryList-148");
+            parameters[11].GetProperty("queries").GetArrayLength().Should().Be(0);
+            parameters[12].GetProperty("expression").GetString().Should().BeEmpty();
+            parameters[12].GetProperty("value").GetDouble().Should().Be(0.025);
+            parameters[12].GetProperty("units").GetString().Should().Be("meter");
+            parameters[13].GetProperty("expression").GetString().Should().BeEmpty();
+            parameters[13].GetProperty("value").GetDouble().Should().Be(1.0);
+            parameters[13].GetProperty("isInteger").GetBoolean().Should().BeTrue();
+            parameters[14].GetProperty("value").GetBoolean().Should().BeFalse();
+            parameters[15].GetProperty("value").GetBoolean().Should().BeFalse();
+        }
+
+        [Theory]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        public void RectangularPatternFromFeature_RejectsPartialSecondDirectionOrSecondDirectionFlags(
+            bool oppositeDirectionTwo,
+            bool isCenteredTwo)
+        {
+            var act = () => OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", 0.03, 2,
+                oppositeDirectionTwo: oppositeDirectionTwo,
+                isCenteredTwo: isCenteredTwo);
+
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public void RectangularPatternFromFeature_RejectsPartialSecondDirection()
+        {
+            var act = () => OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", 0.03, 2, directionTwoSketchFeatureId: "direction-two-1");
+
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public void MirrorFeature_UsesLiveVerifiedNativeContractAndCanonicalFrontPlane()
     {
         using var doc = OnshapeFeatureTemplates.MirrorFeature("extrude-1", "Front");
 

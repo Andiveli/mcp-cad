@@ -1,0 +1,31 @@
+{
+  "feature": {
+    "featureType": "linearPattern",
+    "name": "Linear pattern 1",
+    "suppressed": false,
+    "parameters": [
+      { "btType": "BTMParameterEnum-145", "parameterId": "patternType", "enumName": "PatternType", "value": "FEATURE" },
+      { "btType": "BTMParameterEnum-145", "parameterId": "operationType", "enumName": "NewBodyOperationType", "value": "NEW" },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "entities", "queries": [] },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "faces", "queries": [] },
+      { "btType": "BTMParameterFeatureList-1749", "parameterId": "instanceFunction", "featureIds": ["extrude-1"] },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "directionOne", "queries": [{ "btType": "BTMIndividualQuery-138", "queryString": "query = qCreatedBy(id + \"direction-one-1\" + \"wireOp\", EntityType.EDGE);", "deterministicIds": [] }] },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "distance", "expression": "0.03 m" },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "instanceCount", "isInteger": true, "expression": "2" },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "oppositeDirection", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "isCentered", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "hasSecondDir", "value": true },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "directionTwo", "queries": [{ "btType": "BTMIndividualQuery-138", "queryString": "query = qCreatedBy(id + \"direction-two-1\" + \"wireOp\", EntityType.EDGE);", "deterministicIds": [] }] },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "distanceTwo", "expression": "0.03 m" },
+      { "btType": "BTMParameterQuantity-147", "parameterId": "instanceCountTwo", "isInteger": true, "expression": "2" },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "oppositeDirectionTwo", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "isCenteredTwo", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "defaultScope", "value": false },
+      { "btType": "BTMParameterQueryList-148", "parameterId": "booleanScope", "queries": [] },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "fullFeaturePattern", "value": false },
+      { "btType": "BTMParameterBoolean-144", "parameterId": "skipInstances", "value": false },
+      { "btType": "BTMParameterArray-2025", "parameterId": "skippedInstances", "items": [] }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

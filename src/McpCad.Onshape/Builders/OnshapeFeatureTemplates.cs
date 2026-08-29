@@ -74,6 +74,72 @@ public static class OnshapeFeatureTemplates
             ParamEmptyArray("skippedInstances"));
     }
 
+    public static JsonDocument RectangularPatternFromFeature(
+        string sourceFeatureId,
+        string directionOneSketchFeatureId,
+        double distanceMeters,
+        int instanceCount,
+        string? directionTwoSketchFeatureId = null,
+        double? distanceTwoMeters = null,
+        int? instanceCountTwo = null,
+        bool oppositeDirection = false,
+        bool isCentered = false,
+        bool oppositeDirectionTwo = false,
+        bool isCenteredTwo = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceFeatureId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directionOneSketchFeatureId);
+        EnsurePatternDistance(distanceMeters, nameof(distanceMeters));
+        EnsurePatternInstanceCount(instanceCount, nameof(instanceCount));
+
+        var hasSecondDirection = directionTwoSketchFeatureId is not null ||
+                distanceTwoMeters.HasValue ||
+                instanceCountTwo.HasValue ||
+                oppositeDirectionTwo ||
+                isCenteredTwo;
+        if (hasSecondDirection &&
+            (string.IsNullOrWhiteSpace(directionTwoSketchFeatureId) || !distanceTwoMeters.HasValue || !instanceCountTwo.HasValue))
+        {
+            throw new ArgumentException("Second direction, distance, and instance count must be supplied together.");
+        }
+
+        var secondDirection = hasSecondDirection ? directionTwoSketchFeatureId! : null;
+        var secondDistance = hasSecondDirection ? distanceTwoMeters!.Value : 0.025;
+        var secondCount = hasSecondDirection ? instanceCountTwo!.Value : 1;
+        if (hasSecondDirection)
+        {
+            EnsurePatternDistance(secondDistance, nameof(distanceTwoMeters));
+            EnsurePatternInstanceCount(secondCount, nameof(instanceCountTwo));
+        }
+
+        return BuildFeatureEnvelope("linearPattern", "Linear pattern 1",
+            ParamEnum("patternType", "PatternType", "FEATURE"),
+            ParamEnum("operationType", "NewBodyOperationType", "NEW"),
+            ParamEmptyQueryList("entities"),
+            ParamEmptyQueryList("faces"),
+            ParamFeatureList("instanceFunction", sourceFeatureId),
+            ParamAxisSketch("directionOne", directionOneSketchFeatureId),
+            ParamMeterQuantity("distance", distanceMeters),
+            ParamIntegerQuantity("instanceCount", instanceCount),
+            ParamBoolean("oppositeDirection", oppositeDirection),
+            ParamBoolean("isCentered", isCentered),
+            ParamBoolean("hasSecondDir", hasSecondDirection),
+            hasSecondDirection ? ParamAxisSketch("directionTwo", secondDirection!) : ParamEmptyQueryList("directionTwo"),
+            hasSecondDirection
+                    ? ParamMeterQuantity("distanceTwo", secondDistance)
+                    : ParamDisabledMeterQuantity("distanceTwo", secondDistance),
+            hasSecondDirection
+                    ? ParamIntegerQuantity("instanceCountTwo", secondCount)
+                    : ParamDisabledIntegerQuantity("instanceCountTwo", secondCount),
+            ParamBoolean("oppositeDirectionTwo", hasSecondDirection && oppositeDirectionTwo),
+            ParamBoolean("isCenteredTwo", hasSecondDirection && isCenteredTwo),
+            ParamBoolean("defaultScope", false),
+            ParamEmptyQueryList("booleanScope"),
+            ParamBoolean("fullFeaturePattern", false),
+            ParamBoolean("skipInstances", false),
+            ParamEmptyArray("skippedInstances"));
+    }
+
     public static JsonDocument MirrorFeature(string sourceFeatureId, string mirrorPlane)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceFeatureId);
@@ -148,6 +214,20 @@ public static class OnshapeFeatureTemplates
             },
             ["rejectMicroversionSkew"] = true,
         };
+    }
+
+    private static void EnsurePatternDistance(double distanceMeters, string parameterName)
+    {
+        if (!double.IsFinite(distanceMeters) || distanceMeters <= 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Pattern distance must be finite and positive.");
+        }
+    }
+
+    private static void EnsurePatternInstanceCount(int instanceCount, string parameterName)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(instanceCount, 2, parameterName);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(instanceCount, 100, parameterName);
     }
 
     private static string NormalizeDirection(string direction, double depthMeters)
@@ -270,7 +350,27 @@ public static class OnshapeFeatureTemplates
             ["expression"] = $"{value.ToString("G9", CultureInfo.InvariantCulture)} m",
         };
 
-    private static Dictionary<string, object?> ParamDegreeQuantity(string parameterId, double value) =>
+    private static Dictionary<string, object?> ParamDisabledMeterQuantity(string parameterId, double value) =>
+            new()
+            {
+                ["btType"] = "BTMParameterQuantity-147",
+                ["parameterId"] = parameterId,
+                ["expression"] = string.Empty,
+                ["value"] = value,
+                ["units"] = "meter",
+            };
+
+        private static Dictionary<string, object?> ParamDisabledIntegerQuantity(string parameterId, int value) =>
+            new()
+            {
+                ["btType"] = "BTMParameterQuantity-147",
+                ["parameterId"] = parameterId,
+                ["expression"] = string.Empty,
+                ["value"] = (double)value,
+                ["isInteger"] = true,
+            };
+
+        private static Dictionary<string, object?> ParamDegreeQuantity(string parameterId, double value) =>
         new()
         {
             ["btType"] = "BTMParameterQuantity-147",

@@ -206,7 +206,35 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
-    public void MirrorFeature_FeatureAdd_PostsLiveVerifiedFeatureContract()
+    public void RectangularPattern_FeatureAdd_PostsLiveVerifiedFeatureContract()
+        {
+            _server.ResetMappings();
+            _server
+                .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+                .RespondWith(Response.Create().WithStatusCode(200)
+                    .WithHeader("Content-Type", "application/json")
+                    .WithBody("""{"microversion":"mv-pattern","featureState":{"featureStatus":"OK"}}"""));
+
+            using var envelope = OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                "extrude-1", "direction-one-1", 0.03, 2, "direction-two-1", 0.03, 2);
+            var result = CreateFeatureManager().FeatureAdd(
+                new CadElementAddress("doc-1", "ws-1", null, "e-part"), "linearPattern", null, envelope.RootElement.GetRawText());
+
+            result["success"].Should().Be(true);
+            using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+                entry.RequestMessage.Method == "POST" &&
+                entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+            var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+            body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("linearPattern");
+            parameters[5].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+                .Be("query = qCreatedBy(id + \"direction-one-1\" + \"wireOp\", EntityType.EDGE);"); parameters.EnumerateArray().Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal("patternType", "operationType", "entities", "faces", "instanceFunction", "directionOne", "distance", "instanceCount", "oppositeDirection", "isCentered", "hasSecondDir", "directionTwo", "distanceTwo", "instanceCountTwo", "oppositeDirectionTwo", "isCenteredTwo", "defaultScope", "booleanScope", "fullFeaturePattern", "skipInstances", "skippedInstances"); parameters[4].GetProperty("featureIds")[0].GetString().Should().Be("extrude-1"); parameters[6].GetProperty("expression").GetString().Should().Be("0.03 m"); parameters[7].GetProperty("isInteger").GetBoolean().Should().BeTrue(); parameters[7].GetProperty("expression").GetString().Should().Be("2"); parameters[10].GetProperty("value").GetBoolean().Should().BeTrue(); parameters[12].GetProperty("expression").GetString().Should().Be("0.03 m"); parameters[13].GetProperty("isInteger").GetBoolean().Should().BeTrue(); parameters[13].GetProperty("expression").GetString().Should().Be("2");
+            parameters[10].GetProperty("value").GetBoolean().Should().BeTrue();
+            parameters[11].GetProperty("queries")[0].GetProperty("queryString").GetString().Should()
+                .Be("query = qCreatedBy(id + \"direction-two-1\" + \"wireOp\", EntityType.EDGE);");
+        }
+
+        [Fact]
+        public void MirrorFeature_FeatureAdd_PostsLiveVerifiedFeatureContract()
     {
         _server.ResetMappings();
         _server

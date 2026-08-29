@@ -303,8 +303,40 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "circularPattern", null, envelope.RootElement.GetRawText());
         });
 
-    [McpServerTool, Description("Mirror a source feature across a canonical Top, Front, or Right plane using the Onshape feature API.")]
-    public Dictionary<string, object?> onshape_mirror_feature(
+    [McpServerTool, Description("Create a rectangular pattern of a source feature along one or two sketch-defined directions using the Onshape feature API.")]
+    public Dictionary<string, object?> onshape_rectangular_pattern(
+            string address_json,
+            string source_feature_id,
+            string direction_one_sketch_feature_id,
+            double distance_cm,
+            int instance_count,
+            string? direction_two_sketch_feature_id = null,
+            double? distance_two_cm = null,
+            int? instance_count_two = null,
+            bool opposite_direction = false,
+            bool is_centered = false,
+            bool opposite_direction_two = false,
+            bool is_centered_two = false)
+            => Catch(() =>
+            {
+                var address = ParseAddress(address_json);
+                using var envelope = OnshapeFeatureTemplates.RectangularPatternFromFeature(
+                    source_feature_id,
+                    direction_one_sketch_feature_id,
+                    OnshapeUnitConversion.CmToMeters(distance_cm),
+                    instance_count,
+                    direction_two_sketch_feature_id,
+                    distance_two_cm is double value ? OnshapeUnitConversion.CmToMeters(value) : null,
+                    instance_count_two,
+                    opposite_direction,
+                    is_centered,
+                    opposite_direction_two,
+                    is_centered_two);
+                return provider.FeatureAdd(address, "linearPattern", null, envelope.RootElement.GetRawText());
+            });
+
+        [McpServerTool, Description("Mirror a source feature across a canonical Top, Front, or Right plane using the Onshape feature API.")]
+        public Dictionary<string, object?> onshape_mirror_feature(
         string address_json,
         string source_feature_id,
         string mirror_plane)

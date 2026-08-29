@@ -1,3 +1,4 @@
+using McpCad.Core;
 using McpCad.Core.Models;
 using McpCad.Tests.Mocks;
 using McpCad.Tools.Onshape;
@@ -463,13 +464,50 @@ public class OnshapeAtomicToolsModelingTests
         call.Args["hasEnvelope"].Should().Be(true);
     }
 
-    [Theory]
-    [InlineData(1, 180)]
-    [InlineData(101, 180)]
-    [InlineData(2, 0)]
-    [InlineData(2, 360.1)]
-    [InlineData(2, double.NaN)]
-    public void onshape_circular_pattern_RejectsOutOfRangeOrNonFiniteInputsWithoutCallingProvider(
+    [Fact]
+    public void onshape_rectangular_pattern_ConvertsCentimetersAndDelegatesTypedLinearPatternEnvelope()
+    {
+        string? payload = null;
+        var provider = new Mock<ICadWebProvider>();
+        provider.Setup(p => p.FeatureAdd(
+                It.IsAny<CadElementAddress>(), "linearPattern", null, It.IsAny<string?>()))
+            .Callback<CadElementAddress, string, IReadOnlyList<Dictionary<string, object?>>?, string?>(
+                (_, _, _, featurePostBodyJson) => payload = featurePostBodyJson)
+            .Returns(new Dictionary<string, object?> { ["success"] = true });
+        var tools = new OnshapeAtomicTools(provider.Object);
+
+        var result = tools.onshape_rectangular_pattern(
+            SampleAddress(), "extrude-1", "direction-one-1", 4.7, 2,
+            "direction-two-1", 6.3, 3, true, true, true, true);
+
+        result["success"].Should().Be(true);
+        using var envelope = JsonDocument.Parse(payload!);
+        var parameters = envelope.RootElement.GetProperty("feature").GetProperty("parameters");
+        parameters[6].GetProperty("expression").GetString().Should().Be("0.047 m");
+        parameters[12].GetProperty("expression").GetString().Should().Be("0.063 m");
+    }
+
+        [Fact]
+        public void onshape_rectangular_pattern_RejectsPartialSecondDirectionWithoutCallingProvider()
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_rectangular_pattern(
+                SampleAddress(), "extrude-1", "direction-one-1", 3, 2,
+                direction_two_sketch_feature_id: "direction-two-1");
+
+            result["success"].Should().Be(false);
+            mock.CallLog.Should().BeEmpty();
+        }
+
+        [Theory]
+        [InlineData(1, 180)]
+        [InlineData(101, 180)]
+        [InlineData(2, 0)]
+        [InlineData(2, 360.1)]
+        [InlineData(2, double.NaN)]
+        public void onshape_circular_pattern_RejectsOutOfRangeOrNonFiniteInputsWithoutCallingProvider(
         int instanceCount, double totalAngleDeg)
     {
         var mock = new MockOnshapeProvider();
