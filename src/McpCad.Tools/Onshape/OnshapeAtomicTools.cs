@@ -387,6 +387,20 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
             return provider.FeatureAdd(address, "chamfer", null, envelope.RootElement.GetRawText());
         });
 
+    [McpServerTool, Description("(P1) Shell a Part Studio by removing selected faces; thickness is in cm.")]
+    public Dictionary<string, object?> onshape_shell(
+        string address_json,
+        string[] face_ids,
+        double thickness_cm,
+        bool opposite_direction = false)
+        => Catch(() =>
+        {
+            var address = ParseAddress(address_json);
+            using var envelope = OnshapeFeatureTemplates.Shell(
+                face_ids, OnshapeUnitConversion.CmToMeters(thickness_cm), opposite_direction);
+            return provider.FeatureAdd(address, "shell", null, envelope.RootElement.GetRawText());
+        });
+
     [McpServerTool, Description("List instances in an Onshape assembly.")]
     public Dictionary<string, object?> onshape_asm_list_instances(string address_json)
         => Catch(() => provider.AssemblyListInstances(ParseAddress(address_json)));

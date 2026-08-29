@@ -188,6 +188,25 @@ public static class OnshapeFeatureTemplates
             ParamMeterQuantity("width", distanceMeters));
     }
 
+    public static JsonDocument Shell(
+        IReadOnlyList<string> faceIds,
+        double thicknessMeters,
+        bool oppositeDirection = false)
+    {
+        if (!double.IsFinite(thicknessMeters) || thicknessMeters <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(thicknessMeters), "Shell thickness must be finite and positive.");
+        }
+
+        EnsureFaces(faceIds);
+        return BuildFeatureEnvelope("shell", "Shell 1",
+            ParamBoolean("isHollow", false),
+            ParamEntities("entities", faceIds),
+            ParamEmptyQueryList("parts"),
+            ParamMeterQuantity("thickness", thicknessMeters),
+            ParamBoolean("oppositeDirection", oppositeDirection));
+    }
+
     internal static Dictionary<string, object?> BuildMinimalFeatureEnvelope(
         string featureType,
         IReadOnlyList<Dictionary<string, object?>>? parameters)
@@ -274,6 +293,16 @@ public static class OnshapeFeatureTemplates
         if (edgeIds.Any(string.IsNullOrWhiteSpace))
         {
             throw new ArgumentException("Edge IDs must be non-empty.", nameof(edgeIds));
+        }
+    }
+
+    private static void EnsureFaces(IReadOnlyList<string> faceIds)
+    {
+        ArgumentNullException.ThrowIfNull(faceIds);
+        ArgumentOutOfRangeException.ThrowIfEqual(faceIds.Count, 0);
+        if (faceIds.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Face IDs must be non-empty.", nameof(faceIds));
         }
     }
 

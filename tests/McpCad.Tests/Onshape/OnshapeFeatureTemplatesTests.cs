@@ -324,6 +324,56 @@ public class OnshapeFeatureTemplatesTests
     }
 
     [Fact]
+    public void Shell_UsesLiveProvenFlatContractInExactParameterOrder()
+    {
+        using var doc = OnshapeFeatureTemplates.Shell(["JHK", "JHL"], 0.001, oppositeDirection: true);
+
+        var feature = doc.RootElement.GetProperty("feature");
+        feature.GetProperty("featureType").GetString().Should().Be("shell");
+        var parameters = feature.GetProperty("parameters").EnumerateArray().ToArray();
+        parameters.Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "isHollow", "entities", "parts", "thickness", "oppositeDirection");
+        parameters[0].GetProperty("value").GetBoolean().Should().BeFalse();
+        parameters[1].GetProperty("btType").GetString().Should().Be("BTMParameterQueryList-148");
+        parameters[1].GetProperty("queries")[0].GetProperty("btType").GetString().Should().Be("BTMIndividualQuery-138");
+        parameters[1].GetProperty("queries")[0].GetProperty("deterministicIds").EnumerateArray()
+            .Select(id => id.GetString()).Should().Equal("JHK", "JHL");
+        parameters[2].GetProperty("queries").GetArrayLength().Should().Be(0);
+        parameters[3].GetProperty("btType").GetString().Should().Be("BTMParameterQuantity-147");
+        parameters[3].GetProperty("expression").GetString().Should().Be("0.001 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void Shell_RejectsNonPositiveOrNonFiniteThickness(double thicknessMeters)
+    {
+        var act = () => OnshapeFeatureTemplates.Shell(["JHK"], thicknessMeters);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Shell_RejectsEmptyFaceIds(string faceId)
+    {
+        var act = () => OnshapeFeatureTemplates.Shell([faceId], 0.001);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Shell_RejectsNoFaceIds()
+    {
+        var act = () => OnshapeFeatureTemplates.Shell([], 0.001);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public void Chamfer_ReturnsFeatureEnvelope()
     {
         using var doc = OnshapeFeatureTemplates.Chamfer(["edge-1"], 0.003);

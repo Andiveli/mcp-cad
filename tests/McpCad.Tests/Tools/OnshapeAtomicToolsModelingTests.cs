@@ -450,6 +450,79 @@ public class OnshapeAtomicToolsModelingTests
     }
 
     [Fact]
+    public void onshape_shell_ConvertsCentimetersAndDelegatesLiveProvenEnvelope()
+    {
+        string? payload = null;
+        var provider = new Mock<ICadWebProvider>();
+        provider.Setup(p => p.FeatureAdd(
+                It.IsAny<CadElementAddress>(), "shell", null, It.IsAny<string?>()))
+            .Callback<CadElementAddress, string, IReadOnlyList<Dictionary<string, object?>>?, string?>(
+                (_, _, _, featurePostBodyJson) => payload = featurePostBodyJson)
+            .Returns(new Dictionary<string, object?> { ["success"] = true });
+        var tools = new OnshapeAtomicTools(provider.Object);
+
+        var result = tools.onshape_shell(SampleAddress(), ["JHK", "JHL"], 0.1, opposite_direction: true);
+
+        result["success"].Should().Be(true);
+        using var envelope = JsonDocument.Parse(payload!);
+        var parameters = envelope.RootElement.GetProperty("feature").GetProperty("parameters");
+        parameters[1].GetProperty("queries")[0].GetProperty("deterministicIds").EnumerateArray()
+            .Select(id => id.GetString()).Should().Equal("JHK", "JHL");
+        parameters[3].GetProperty("expression").GetString().Should().Be("0.001 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    public void onshape_shell_RejectsInvalidInputWithoutCallingProvider(double thicknessCm)
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_shell(SampleAddress(), ["JHK"], thicknessCm);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_shell_RejectsEmptyFaceIdsWithoutCallingProvider()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_shell(SampleAddress(), [], 0.1);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_shell_RejectsInvalidAddressWithoutCallingProvider()
+    {
+        var mock = new MockOnshapeProvider();
+        var tools = new OnshapeAtomicTools(mock);
+
+        var result = tools.onshape_shell("not-json", ["JHK"], 0.1);
+
+        result["success"].Should().Be(false);
+        mock.CallLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void onshape_shell_WhenProviderRejects_ReturnsError()
+    {
+        var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("shell failed"));
+
+        var result = tools.onshape_shell(SampleAddress(), ["JHK"], 0.1);
+
+        result["success"].Should().Be(false);
+        result["error"].Should().Be("shell failed");
+    }
+
+    [Fact]
     public void onshape_circular_pattern_UsesFeatureAddWithTypedNativeEnvelope()
     {
         var mock = new MockOnshapeProvider();

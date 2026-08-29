@@ -263,6 +263,53 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
+    public void Shell_FeatureAdd_PostsLiveProvenFlatContractWithOrderedFaceIds()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"microversion":"mv-shell","featureState":{"featureStatus":"OK"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.Shell(["JHK", "JHL"], 0.001, oppositeDirection: true);
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "shell", null, envelope.RootElement.GetRawText());
+
+        result["success"].Should().Be(true);
+        using var body = System.Text.Json.JsonDocument.Parse(_server.LogEntries.Single(entry =>
+            entry.RequestMessage.Method == "POST" &&
+            entry.RequestMessage.AbsolutePath == "/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").RequestMessage.Body!);
+        var parameters = body.RootElement.GetProperty("feature").GetProperty("parameters");
+        body.RootElement.GetProperty("feature").GetProperty("featureType").GetString().Should().Be("shell");
+        parameters.EnumerateArray().Select(parameter => parameter.GetProperty("parameterId").GetString()).Should().Equal(
+            "isHollow", "entities", "parts", "thickness", "oppositeDirection");
+        parameters[1].GetProperty("queries")[0].GetProperty("deterministicIds").EnumerateArray()
+            .Select(id => id.GetString()).Should().Equal("JHK", "JHL");
+        parameters[3].GetProperty("expression").GetString().Should().Be("0.001 m");
+        parameters[4].GetProperty("value").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Shell_FeatureAdd_WithErrorFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"ERROR","errorString":"Invalid shell"}}"""));
+
+        using var envelope = OnshapeFeatureTemplates.Shell(["JHK"], 0.001);
+        var act = () => CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "shell", null, envelope.RootElement.GetRawText());
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status ERROR: Invalid shell");
+    }
+
+    [Fact]
     public void FeatureAdd_WithErrorFeatureStatus_ThrowsProviderException()
     {
         _server.ResetMappings();

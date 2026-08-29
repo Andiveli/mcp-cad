@@ -18,6 +18,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sweep` | `onshape_sweep` | Part Studio features POST | implemented | P1 SOLID profile-plus-path sweep; live-verified with `featureStatus: OK`. |
 | `fillet` | `onshape_fillet` | Part Studio features POST | implemented | P1 equal-radius fillet. |
 | `chamfer` | `onshape_chamfer` | Part Studio features POST | implemented | P1 equal-distance chamfer. |
+| `shell` | `onshape_shell` | Part Studio features POST | implemented | P1 selected-face shell; live-proven flat `btType` envelope with `featureStatus: OK`. |
 | `asm_list_components` | `onshape_asm_list_instances` | Assembly definition GET | implemented | P2 assembly instance listing from `rootAssembly.instances`. |
 | `asm_place_component` | `onshape_asm_create_instance` | Assembly instances POST | implemented | P2 part document and element references. |
 | Assembly instance delete (Onshape-specific) | `onshape_asm_delete_instance` | Assembly instance node-id DELETE | implemented | P2 instance deletion; method verified against current OpenAPI. |
@@ -54,7 +55,6 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `coil` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `rib` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `emboss` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
-| `shell` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `thicken` | — | Part Studio features POST | declarative-composite | Onshape feature API can express it. |
 | `combine` | — | Part Studio features POST | declarative-composite | Onshape boolean feature payload. |
 | `split` | — | Part Studio features POST | declarative-composite | Onshape split feature payload. |

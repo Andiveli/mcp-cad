@@ -44,20 +44,29 @@ public class GoldenFixtureConformanceTests
 
     [Fact]
     public void RectangularPatternTemplate_MatchesLiveVerifiedGoldenShape()
-        {
-            using var actual = OnshapeFeatureTemplates.RectangularPatternFromFeature(
-                "extrude-1", "direction-one-1", 0.03, 2, "direction-two-1", 0.03, 2);
+    {
+        using var actual = OnshapeFeatureTemplates.RectangularPatternFromFeature(
+            "extrude-1", "direction-one-1", 0.03, 2, "direction-two-1", 0.03, 2);
 
-            MatchesGoldenShape(LoadFixture("Features", "rectangular_pattern_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
-                .Should().BeTrue(actual.RootElement.GetRawText());
-        }
+        MatchesGoldenShape(LoadFixture("Features", "rectangular_pattern_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
 
-        [Fact]
-        public void MirrorFeatureTemplate_MatchesLiveVerifiedGoldenShape()
+    [Fact]
+    public void MirrorFeatureTemplate_MatchesLiveVerifiedGoldenShape()
     {
         using var actual = OnshapeFeatureTemplates.MirrorFeature("extrude-1", "Front");
 
         MatchesGoldenShape(LoadFixture("Features", "mirror_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
+            .Should().BeTrue(actual.RootElement.GetRawText());
+    }
+
+    [Fact]
+    public void ShellTemplate_MatchesLiveProvenGoldenShape()
+    {
+        using var actual = OnshapeFeatureTemplates.Shell(["JHK"], 0.001);
+
+        MatchesGoldenShape(LoadFixture("Features", "shell_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
             .Should().BeTrue(actual.RootElement.GetRawText());
     }
 
