@@ -263,7 +263,15 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
 
     [McpServerTool, Description("List features in a Part Studio (analogous to Inventor sketch_profiles).")]
     public Dictionary<string, object?> onshape_feature_list(string address_json)
-        => Catch(() => provider.FeatureList(ParseAddress(address_json)));
+            => Catch(() => provider.FeatureList(ParseAddress(address_json)));
+
+        [McpServerTool, Description("Read Onshape Part Studio edge topology. Results use cm and opaque native topology IDs.")]
+        public Dictionary<string, object?> onshape_inspect_edges(string address_json, string? body_id = null)
+            => Catch(() => provider.InspectEdges(ParseAddress(address_json), body_id));
+
+        [McpServerTool, Description("Read Onshape Part Studio face topology. Results use cm/cm2 and opaque native topology IDs.")]
+        public Dictionary<string, object?> onshape_inspect_faces(string address_json, string? body_id = null)
+        => Catch(() => provider.InspectFaces(ParseAddress(address_json), body_id));
 
     [McpServerTool, Description("(P1) Revolve a sketch profile by an angle in degrees using the Onshape feature API.")]
     public Dictionary<string, object?> onshape_revolve(

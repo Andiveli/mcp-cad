@@ -40,6 +40,8 @@ Onshape modeling tools accept an `address_json` value that serializes a `CadElem
 
 The P0 workflow is: `onshape_sketch_rectangle` → `onshape_feature_list` → `onshape_extrude` → `onshape_export_step` (or `onshape_export_stl`). The listed sandbox document, workspace, and Part Studio are the reference values shown above; live calls still require configured Onshape credentials.
 
+`onshape_inspect_edges` and `onshape_inspect_faces` issue one authenticated read-only `bodydetails` GET per call. They accept the same address plus an optional exact, case-sensitive `body_id`, return opaque native topology IDs, and normalize observed meter and square-meter values to cm and cm2. An unknown body ID is an error; it never falls back to all bodies.
+
 See [the Onshape parity matrix](onshape-parity-matrix.md) for the full implemented and declarative-composite tool catalog, including P1 feature and P2 assembly tools.
 
 ## Routing rules

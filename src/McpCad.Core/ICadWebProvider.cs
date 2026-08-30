@@ -48,6 +48,10 @@ public interface ICadWebProvider : ICadProvider
 
     Dictionary<string, object?> FeatureList(CadElementAddress partStudio);
 
+    Dictionary<string, object?> InspectEdges(CadElementAddress partStudio, string? bodyId = null);
+
+    Dictionary<string, object?> InspectFaces(CadElementAddress partStudio, string? bodyId = null);
+
     Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement);
 
     Dictionary<string, object?> AssemblyCreateInstance(

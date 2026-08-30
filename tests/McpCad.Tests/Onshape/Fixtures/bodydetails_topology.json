@@ -1,0 +1,40 @@
+{
+  "microversionId": { "theId": "mv-bodydetails-1" },
+  "bodies": [
+    {
+      "id": "Body-B",
+      "type": "SOLID",
+      "properties": { "name": "Live circle body" },
+      "edges": [
+        {
+          "id": "E-10",
+          "curve": { "type": "circle", "origin": [0.005, 0, 0], "radius": 0.0025, "normal": [0, 0, 1] },
+          "geometry": {
+            "length": 0.005,
+            "startPoint": [0.0075, 0, 0],
+            "endPoint": [0.0025, 0, 0],
+            "midPoint": [0.005, 0.0025, 0],
+            "quarterPoint": [0.006767767, 0.001767767, 0]
+          }
+        },
+        { "id": "E-unknown", "curve": { "type": "bezier" } }
+      ],
+      "faces": [
+        {
+          "id": "F-2",
+          "area": 0.000025,
+          "surface": { "type": "plane", "origin": [0, 0, 0], "normal": [0, 0, 1] },
+          "box": { "minCorner": [0, 0, 0], "maxCorner": [0.005, 0.005, 0] },
+          "loops": [{ "coedges": [{ "edge": { "id": "E-10" }, "orientation": true }] }]
+        },
+        { "id": "F-unknown", "surface": { "type": "nurbs" }, "loops": [] }
+      ]
+    },
+    {
+      "id": "Body-A",
+      "type": "SHEET",
+      "edges": [],
+      "faces": [{ "id": "F-1", "area": 0.00001, "surface": { "type": "cylinder", "origin": [0, 0, 0], "axis": [0, 0, 1], "radius": 0.005 } }]
+    }
+  ]
+}

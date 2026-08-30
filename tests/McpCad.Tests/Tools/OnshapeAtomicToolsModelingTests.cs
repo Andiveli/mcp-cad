@@ -918,7 +918,48 @@ public class OnshapeAtomicToolsModelingTests
     }
 
     [Fact]
-    public void onshape_asm_list_instances_Calls_AssemblyListInstances_AndReturnsEmptyInstances()
+    public void onshape_inspect_edges_DelegatesParsedAddressAndOptionalExactBodyFilter()
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_inspect_edges(SampleAddress(), "Body-A");
+
+            result["success"].Should().Be(true);
+            result["operation"].Should().Be("inspect_edges");
+            var call = mock.CallLog.Should().ContainSingle(c => c.Method == "InspectEdges").Subject;
+            call.Args["address"].Should().Be(SampleAddress());
+            call.Args["bodyId"].Should().Be("Body-A");
+        }
+
+        [Fact]
+        public void onshape_inspect_faces_DelegatesParsedAddressAndOptionalExactBodyFilter()
+        {
+            var mock = new MockOnshapeProvider();
+            var tools = new OnshapeAtomicTools(mock);
+
+            var result = tools.onshape_inspect_faces(SampleAddress(), "Body-B");
+
+            result["success"].Should().Be(true);
+            result["operation"].Should().Be("inspect_faces");
+            var call = mock.CallLog.Should().ContainSingle(c => c.Method == "InspectFaces").Subject;
+            call.Args["address"].Should().Be(SampleAddress());
+            call.Args["bodyId"].Should().Be("Body-B");
+        }
+
+        [Fact]
+        public void onshape_inspect_faces_WhenProviderRejects_ReturnsError()
+        {
+            var tools = new OnshapeAtomicTools(MockOnshapeProvider.WithError("body not found"));
+
+            var result = tools.onshape_inspect_faces(SampleAddress(), "missing");
+
+            result["success"].Should().Be(false);
+            result["error"].Should().Be("body not found");
+        }
+
+        [Fact]
+        public void onshape_asm_list_instances_Calls_AssemblyListInstances_AndReturnsEmptyInstances()
     {
         var mock = new MockOnshapeProvider();
         var tools = new OnshapeAtomicTools(mock);

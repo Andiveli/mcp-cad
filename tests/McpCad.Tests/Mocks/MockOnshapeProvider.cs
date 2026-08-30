@@ -265,7 +265,27 @@ public sealed class MockOnshapeProvider : ICadWebProvider
         return Ok(new Dictionary<string, object?> { ["features"] = Array.Empty<object>() });
     }
 
-    public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement)
+    public Dictionary<string, object?> InspectEdges(CadElementAddress partStudio, string? bodyId = null)
+        {
+            ThrowIfError();
+            CallLog.Add(("InspectEdges", new Dictionary<string, object?>
+            {
+                ["address"] = partStudio.Serialize(), ["bodyId"] = bodyId,
+            }));
+            return Ok(new Dictionary<string, object?> { ["operation"] = "inspect_edges", ["edges"] = Array.Empty<object>() });
+        }
+
+        public Dictionary<string, object?> InspectFaces(CadElementAddress partStudio, string? bodyId = null)
+        {
+            ThrowIfError();
+            CallLog.Add(("InspectFaces", new Dictionary<string, object?>
+            {
+                ["address"] = partStudio.Serialize(), ["bodyId"] = bodyId,
+            }));
+            return Ok(new Dictionary<string, object?> { ["operation"] = "inspect_faces", ["faces"] = Array.Empty<object>() });
+        }
+
+        public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement)
     {
         ThrowIfError();
         CallLog.Add(("AssemblyListInstances", new Dictionary<string, object?> { ["elementId"] = assemblyElement.ElementId }));

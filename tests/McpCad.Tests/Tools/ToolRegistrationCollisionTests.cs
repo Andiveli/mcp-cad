@@ -54,6 +54,8 @@ public class ToolRegistrationCollisionTests
         Assert.Contains("onshape_sketch_rectangle", names);
         Assert.Contains("onshape_extrude", names);
         Assert.Contains("onshape_feature_list", names);
+            Assert.Contains("onshape_inspect_edges", names);
+            Assert.Contains("onshape_inspect_faces", names);
         Assert.Contains("onshape_revolve", names);
         Assert.Contains("onshape_circular_pattern", names);
         Assert.Contains("onshape_rectangular_pattern", names);

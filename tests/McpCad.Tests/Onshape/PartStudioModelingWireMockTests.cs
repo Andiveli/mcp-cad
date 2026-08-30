@@ -515,7 +515,67 @@ public class PartStudioModelingWireMockTests : IDisposable
             .And.Contain("\"rejectMicroversionSkew\":true");
     }
 
-    private (OnshapeClient Client, OnshapeDriver Driver) CreateStack()
+    [Fact]
+        public void InspectTopology_GetsBodyDetailsOnce_ConvertsUnitsAndFiltersExactBody()
+        {
+            _server.ResetMappings();
+            var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Onshape", "Fixtures", "bodydetails_topology.json"));
+            _server.Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/bodydetails").UsingGet())
+                .RespondWith(Response.Create().WithStatusCode(200).WithHeader("Content-Type", "application/json").WithBody(File.ReadAllText(fixturePath)));
+
+            var result = CreatePartStudioManager().InspectEdges(new CadElementAddress("doc-1", "ws-1", null, "e-part"), "Body-B");
+
+            result["success"].Should().Be(true);
+            result["operation"].Should().Be("inspect_edges");
+            ((Dictionary<string, object?>)result["source"]!)["responseMicroversion"].Should().Be("mv-bodydetails-1");
+            var body = ((IEnumerable<Dictionary<string, object?>>)result["bodies"]!).Single();
+            body["topologyId"].Should().Be("Body-B");
+            body["bodyName"].Should().Be("Live circle body");
+            var edge = ((IEnumerable<Dictionary<string, object?>>)result["edges"]!).First();
+            edge["topologyId"].Should().Be("E-10");
+            ((double?)edge["lengthCm"]).Should().BeApproximately(0.5, 1e-9);
+            ((double?)edge["radiusCm"]).Should().BeApproximately(0.25, 1e-9);
+            ((IEnumerable<double>)edge["centerCm"]!).Should().Equal(0.5, 0, 0);
+            _server.LogEntries.Should().ContainSingle();
+        }
+
+        [Fact]
+        public void InspectFaces_ConvertsAreaAndCylinderRadius_AndPreservesUnknownType()
+        {
+            _server.ResetMappings();
+            var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Onshape", "Fixtures", "bodydetails_topology.json"));
+            _server.Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/bodydetails").UsingGet())
+                .RespondWith(Response.Create().WithStatusCode(200).WithBody(File.ReadAllText(fixturePath)));
+
+            var result = CreatePartStudioManager().InspectFaces(new CadElementAddress("doc-1", "ws-1", null, "e-part"));
+
+            var faces = ((IEnumerable<Dictionary<string, object?>>)result["faces"]!).ToList();
+            faces.Select(face => face["topologyId"]).Should().Equal("F-1", "F-2", "F-unknown");
+            ((double?)faces[0]["areaCm2"]).Should().BeApproximately(0.1, 1e-9);
+            ((double?)faces[0]["radiusCm"]).Should().BeApproximately(0.5, 1e-9);
+            faces[1]["boundsCm"].Should().BeOfType<Dictionary<string, object?>>().Which["maxCm"]
+                .Should().BeEquivalentTo(new[] { 0.5, 0.5, 0.0 });
+            ((IEnumerable<string?>)((IEnumerable<Dictionary<string, object?>>)faces[1]["loops"]!).Single()["edgeIds"]!)
+                .Should().Equal("E-10");
+            faces[2]["surfaceType"].Should().Be("unknown");
+            faces[2]["areaCm2"].Should().BeNull();
+            _server.LogEntries.Should().ContainSingle();
+        }
+
+        [Fact]
+        public void InspectTopology_UnknownBody_ThrowsProviderErrorAfterSingleRead()
+        {
+            _server.ResetMappings();
+            _server.Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/bodydetails").UsingGet())
+                .RespondWith(Response.Create().WithStatusCode(200).WithBody("{\"bodies\":[]}"));
+
+            var act = () => CreatePartStudioManager().InspectFaces(new CadElementAddress("doc-1", "ws-1", null, "e-part"), "missing");
+
+            act.Should().Throw<CadProviderOperationException>().WithMessage("*missing*not found*");
+            _server.LogEntries.Should().ContainSingle();
+        }
+
+        private (OnshapeClient Client, OnshapeDriver Driver) CreateStack()
     {
         var http = new HttpClient { BaseAddress = new Uri(_server.Url!) };
         var client = new OnshapeClient(http, "ak", "sk", _server.Url);

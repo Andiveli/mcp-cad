@@ -13,6 +13,8 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sketch_rectangle` | `onshape_sketch_rectangle` | Part Studio features POST | implemented | P0; rectangle BTMSketch payload. |
 | `sketch_point` | `onshape_sketch_point` | Part Studio features POST | implemented | Dedicated BTMSketch point entity; live-verified with `featureStatus: OK`. |
 | `sketch_profiles` | `onshape_feature_list` | Part Studio features GET | implemented | P0 feature discovery seam. |
+| `inspect_edges` | `onshape_inspect_edges` | Part Studio bodydetails GET | implemented | Read-only native topology inspection; optional exact case-sensitive body ID filter; cm output. |
+| `inspect_faces` | `onshape_inspect_faces` | Part Studio bodydetails GET | implemented | Read-only native topology inspection; optional exact case-sensitive body ID filter; cm/cm2 output. |
 | `extrude` | `onshape_extrude` | Part Studio features POST | implemented | P0 BT feature envelope. |
 | `revolve` | `onshape_revolve` | Part Studio features POST | implemented | P1 profile sketch plus single-edge axis sketch. |
 | `sweep` | `onshape_sweep` | Part Studio features POST | implemented | P1 SOLID profile-plus-path sweep; live-verified with `featureStatus: OK`. |
@@ -77,7 +79,6 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `derive` | — | — | not_supported | File-path based Inventor derive has no cloud equivalent. |
 | `thread` | — | — | not_supported | No dedicated atomic template. |
 | `hole` | — | Part Studio features POST | not_supported | Native V3 location queries resolved live, but every tested payload regenerated with `featureStatus: ERROR`; the unproven MCP tool was removed. |
-| `inspect_edges` | — | — | not_supported | No inspection atomic. |
 | `param_list` | — | — | not_supported | Post-creation parameter catalog is out of scope. |
 | `param_get` | — | — | not_supported | Post-creation parameter access is out of scope. |
 | `param_set` | — | — | not_supported | Post-creation parameter editing is out of scope. |

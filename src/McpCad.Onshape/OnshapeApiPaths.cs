@@ -43,6 +43,9 @@ internal static class OnshapeApiPaths
     public static string AssemblyInstance(string documentId, string workspaceId, string elementId, string nodeId) =>
         $"/api/v6/assemblies/d/{Seg(documentId)}/w/{Seg(workspaceId)}/e/{Seg(elementId)}/instance/nodeid/{Seg(nodeId)}";
 
+    public static string PartStudioBodyDetails(string documentId, string wvm, string wvmId, string elementId) =>
+        $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/bodydetails";
+
     public static string PartStudioExportStep(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/export/step";
 

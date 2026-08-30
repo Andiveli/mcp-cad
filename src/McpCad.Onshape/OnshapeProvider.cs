@@ -139,6 +139,12 @@ public sealed class OnshapeProvider : ICadWebProvider
     public Dictionary<string, object?> FeatureList(CadElementAddress partStudio) =>
         _features.FeatureList(partStudio);
 
+    public Dictionary<string, object?> InspectEdges(CadElementAddress partStudio, string? bodyId = null) =>
+        _partStudio.InspectEdges(partStudio, bodyId);
+
+    public Dictionary<string, object?> InspectFaces(CadElementAddress partStudio, string? bodyId = null) =>
+        _partStudio.InspectFaces(partStudio, bodyId);
+
     public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement) =>
         _assembly.ListInstances(assemblyElement);
 
