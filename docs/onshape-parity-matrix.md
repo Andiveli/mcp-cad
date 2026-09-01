@@ -27,6 +27,12 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `export_step` | `onshape_export_step` | Translation/export API | implemented | Existing polling implementation. |
 | `export_stl` | `onshape_export_stl` | Translation/export API | implemented | Existing polling implementation. |
 
+## Implemented composite skills
+
+| Workflow | Onshape MCP | REST endpoint | Status | Notes |
+| --- | --- | --- | --- | --- |
+| Rectangle sketch + extrude | `skill_sketch_and_extrude` | Two Part Studio features POSTs | implemented | Creates a rectangle sketch, then links its returned feature ID to the extrude sketch-region query. Returns `success`, `sketch`, and `extrude` phase results; skips extrusion when sketch creation fails or returns no feature ID. |
+
 ## Declarative-composite tools
 
 | Inventor Atomic | Onshape MCP | REST endpoint | Status | Notes |

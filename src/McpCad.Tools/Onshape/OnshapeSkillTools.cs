@@ -1,8 +1,11 @@
+using System.ComponentModel;
+using System.Text.Json;
 using McpCad.Core;
 using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
+using McpCad.Onshape;
+using McpCad.Onshape.Builders;
 using ModelContextProtocol.Server;
-using System.ComponentModel;
 
 namespace McpCad.Tools.Onshape;
 
@@ -12,32 +15,45 @@ namespace McpCad.Tools.Onshape;
 [McpServerToolType]
 public class OnshapeSkillTools(ICadWebProvider provider)
 {
-    [McpServerTool, Description("Sketch then add extrude on a Part Studio (composed skill).")]
+    [McpServerTool, Description("Create a rectangle sketch and extrude it in one bounded Part Studio call. Coordinates and depth are in cm.")]
     public Dictionary<string, object?> skill_sketch_and_extrude(
         string address_json,
-        double distance_cm,
-        string direction = "positive")
+        double x1_cm,
+        double y1_cm,
+        double x2_cm,
+        double y2_cm,
+        double depth_cm,
+        string? plane = null,
+        string direction = "positive",
+        string boolean_op = "new")
     {
         return Catch(() =>
         {
             var address = CadElementAddress.Deserialize(address_json);
-            var sketch = provider.SketchReplace(address);
-            if (sketch.TryGetValue("success", out var ok) && ok is false)
+            using var sketchPayload = OnshapeSketchBuilder.BuildRectangle(
+                OnshapeUnitConversion.CmToMeters(x1_cm),
+                OnshapeUnitConversion.CmToMeters(y1_cm),
+                OnshapeUnitConversion.CmToMeters(x2_cm),
+                OnshapeUnitConversion.CmToMeters(y2_cm),
+                plane);
+            var sketchRequest = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketchPayload.RootElement.GetRawText())
+                                ?? new Dictionary<string, object?>();
+            var sketchResult = provider.SketchReplace(address, sketchRequest);
+            if (!IsSuccessful(sketchResult) || !TryGetFeatureId(sketchResult, out var sketchFeatureId))
             {
-                return sketch;
+                var error = IsSuccessful(sketchResult)
+                    ? "Onshape sketch creation did not return a usable feature ID."
+                    : GetError(sketchResult, "Onshape sketch creation failed.");
+                return SkillResult(sketchResult, null, error);
             }
 
-            return provider.FeatureAdd(
-                address,
-                "extrude",
-                new[]
-                {
-                    new Dictionary<string, object?>
-                    {
-                        ["distanceCm"] = distance_cm,
-                        ["direction"] = direction,
-                    },
-                });
+            using var extrudePayload = OnshapeFeatureTemplates.ExtrudeFromSketch(
+                sketchFeatureId,
+                OnshapeUnitConversion.CmToMeters(depth_cm),
+                direction,
+                boolean_op);
+            var extrudeResult = provider.FeatureAdd(address, "extrude", null, extrudePayload.RootElement.GetRawText());
+            return SkillResult(sketchResult, extrudeResult, null, sketchFeatureId);
         });
     }
 
@@ -59,6 +75,60 @@ public class OnshapeSkillTools(ICadWebProvider provider)
             return provider.ExportStep(CadElementAddress.Deserialize(export_address_json));
         });
     }
+
+    private static Dictionary<string, object?> SkillResult(
+        Dictionary<string, object?> sketchResult,
+        Dictionary<string, object?>? extrudeResult,
+        string? error,
+        string? sketchFeatureId = null)
+    {
+        var sketch = new Dictionary<string, object?>
+        {
+            ["success"] = IsSuccessful(sketchResult),
+            ["featureId"] = sketchFeatureId,
+            ["result"] = sketchResult,
+        };
+        var extrude = extrudeResult is null
+            ? new Dictionary<string, object?>
+            {
+                ["success"] = false,
+                ["featureId"] = null,
+                ["skipped"] = true,
+            }
+            : new Dictionary<string, object?>
+            {
+                ["success"] = IsSuccessful(extrudeResult),
+                ["featureId"] = TryGetFeatureId(extrudeResult, out var extrudeFeatureId) ? extrudeFeatureId : null,
+                ["result"] = extrudeResult,
+            };
+
+        var result = new Dictionary<string, object?>
+        {
+            ["success"] = extrudeResult is not null && IsSuccessful(extrudeResult),
+            ["sketch"] = sketch,
+            ["extrude"] = extrude,
+        };
+        if (error is not null)
+        {
+            result["error"] = error;
+        }
+
+        return result;
+    }
+
+    private static bool IsSuccessful(IReadOnlyDictionary<string, object?> result) =>
+        result.TryGetValue("success", out var success) && success is true;
+
+    private static bool TryGetFeatureId(IReadOnlyDictionary<string, object?> result, out string featureId)
+    {
+        featureId = result.TryGetValue("featureId", out var value) ? value as string ?? string.Empty : string.Empty;
+        return !string.IsNullOrWhiteSpace(featureId);
+    }
+
+    private static string GetError(IReadOnlyDictionary<string, object?> result, string fallback) =>
+        result.TryGetValue("error", out var error) && error is string message && !string.IsNullOrWhiteSpace(message)
+            ? message
+            : fallback;
 
     private static Dictionary<string, object?> Catch(Func<Dictionary<string, object?>> action)
     {
