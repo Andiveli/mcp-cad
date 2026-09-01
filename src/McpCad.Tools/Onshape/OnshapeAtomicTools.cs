@@ -4,6 +4,7 @@ using McpCad.Core.Exceptions;
 using McpCad.Core.Models;
 using McpCad.Onshape;
 using McpCad.Onshape.Builders;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 
@@ -273,7 +274,58 @@ public class OnshapeAtomicTools(ICadWebProvider provider)
         public Dictionary<string, object?> onshape_inspect_faces(string address_json, string? body_id = null)
         => Catch(() => provider.InspectFaces(ParseAddress(address_json), body_id));
 
-    [McpServerTool, Description("(P1) Revolve a sketch profile by an angle in degrees using the Onshape feature API.")]
+    [McpServerTool, Description("Capture a Part Studio shaded PNG view. Supports iso or top views and returns MCP-compatible image content.")]
+        public CallToolResult onshape_capture_view(
+            string address_json,
+            string view = "iso",
+            int width = 800,
+            int height = 600,
+            string edges = "show")
+        {
+            var result = Catch(() =>
+            {
+                var normalizedView = view.ToLowerInvariant();
+                var normalizedEdges = edges.ToLowerInvariant();
+                if (normalizedView is not ("iso" or "top"))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(view), "view must be 'iso' or 'top'.");
+                }
+
+                if (normalizedEdges is not ("show" or "hide"))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(edges), "edges must be 'show' or 'hide'.");
+                }
+
+                if (width is < 1 or > 4096 || height is < 1 or > 4096)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(width), "width and height must be between 1 and 4096.");
+                }
+
+                return provider.CaptureView(ParseAddress(address_json), normalizedView, width, height, normalizedEdges);
+            });
+
+            var structuredContent = JsonSerializer.SerializeToElement(result);
+            if (result.TryGetValue("success", out var success) && success is true &&
+                result.TryGetValue("image_base64", out var image) && image is string imageBase64 &&
+                !string.IsNullOrWhiteSpace(imageBase64))
+            {
+                var bytes = Convert.FromBase64String(imageBase64);
+                return new CallToolResult
+                {
+                    Content = [ImageContentBlock.FromBytes(bytes, "image/png")],
+                    StructuredContent = structuredContent,
+                };
+            }
+
+            return new CallToolResult
+            {
+                IsError = true,
+                Content = [new TextContentBlock { Text = JsonSerializer.Serialize(result) }],
+                StructuredContent = structuredContent,
+            };
+        }
+
+        [McpServerTool, Description("(P1) Revolve a sketch profile by an angle in degrees using the Onshape feature API.")]
     public Dictionary<string, object?> onshape_revolve(
         string address_json,
         string sketch_feature_id,

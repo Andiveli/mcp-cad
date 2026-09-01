@@ -9,6 +9,11 @@ namespace McpCad.Onshape.Managers;
 /// </summary>
 public sealed class PartStudioManager
 {
+    // Canonical project ISO orientation for Onshape's right-handed axes; this is not an Onshape named view.
+    // Rows are the orthonormal camera basis: (1/sqrt(2), -1/sqrt(6), 1/sqrt(3)),
+    // (0, sqrt(2/3), 1/sqrt(3)), and (-1/sqrt(2), -1/sqrt(6), 1/sqrt(3)).
+    private const string IsometricViewMatrix = "0.7071067811865476,-0.4082482904638631,0.5773502691896258,0,0,0.8164965809277261,0.5773502691896258,0,-0.7071067811865476,-0.4082482904638631,0.5773502691896258,0";
+
     private readonly OnshapeClient _client;
     private readonly OnshapeDriver _driver;
 
@@ -107,6 +112,104 @@ public sealed class PartStudioManager
 
     public Dictionary<string, object?> InspectFaces(CadElementAddress address, string? bodyId = null) =>
         InspectTopology(address, bodyId, "inspect_faces");
+
+    public Dictionary<string, object?> CaptureView(CadElementAddress address, string view, int width, int height, string edges)
+    {
+        var (did, wvm, wvmId) = ResolveWvm(address);
+        var viewMatrix = view switch
+        {
+            "iso" => IsometricViewMatrix,
+            "top" => "top",
+            _ => throw new ArgumentOutOfRangeException(nameof(view), "View must be 'iso' or 'top'."),
+        };
+        using var doc = _client.SendJsonAsync(
+                HttpMethod.Get,
+                OnshapeApiPaths.PartStudioShadedViews(did, wvm, wvmId, address.ElementId),
+                query: new Dictionary<string, string?>
+                {
+                    ["viewMatrix"] = viewMatrix,
+                    ["outputHeight"] = height.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["outputWidth"] = width.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["pixelSize"] = "0",
+                    ["edges"] = edges,
+                    ["showAllParts"] = "true",
+                    ["includeSurfaces"] = "true",
+                    ["useAntiAliasing"] = "true",
+                    ["includeWires"] = "false",
+                })
+            .GetAwaiter().GetResult();
+
+        var imageBase64 = ReadFirstImage(doc.RootElement);
+        return OnshapeJsonHelper.SuccessEnvelope(new Dictionary<string, object?>
+        {
+            ["operation"] = "capture_view",
+            ["address"] = address.Serialize(),
+            ["view"] = view,
+            ["width"] = width,
+            ["height"] = height,
+            ["edges"] = edges,
+            ["image_base64"] = imageBase64,
+            ["mime_type"] = "image/png",
+        });
+    }
+
+    private static string ReadFirstImage(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("images", out var images) ||
+            images.ValueKind != JsonValueKind.Array)
+        {
+            throw new CadProviderOperationException("Onshape shaded views response did not contain a valid PNG image.");
+        }
+
+        foreach (var imageOrRow in images.EnumerateArray())
+        {
+            if (TryReadValidPng(imageOrRow, out var imageBase64))
+            {
+                return imageBase64;
+            }
+
+            if (imageOrRow.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var image in imageOrRow.EnumerateArray())
+            {
+                if (TryReadValidPng(image, out imageBase64))
+                {
+                    return imageBase64;
+                }
+            }
+        }
+
+        throw new CadProviderOperationException("Onshape shaded views response did not contain a valid PNG image.");
+    }
+
+    private static bool TryReadValidPng(JsonElement image, out string imageBase64)
+    {
+        imageBase64 = string.Empty;
+        if (image.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(image.GetString()))
+        {
+            return false;
+        }
+
+        imageBase64 = image.GetString()!;
+        try
+        {
+            return HasPngSignature(Convert.FromBase64String(imageBase64));
+        }
+        catch (FormatException)
+        {
+            imageBase64 = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool HasPngSignature(ReadOnlySpan<byte> bytes) =>
+        bytes.Length >= 8 &&
+        bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 &&
+        bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
 
     private Dictionary<string, object?> InspectTopology(CadElementAddress address, string? bodyId, string operation)
     {

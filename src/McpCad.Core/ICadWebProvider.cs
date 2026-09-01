@@ -52,6 +52,13 @@ public interface ICadWebProvider : ICadProvider
 
     Dictionary<string, object?> InspectFaces(CadElementAddress partStudio, string? bodyId = null);
 
+    Dictionary<string, object?> CaptureView(
+        CadElementAddress partStudio,
+        string view,
+        int width,
+        int height,
+        string edges);
+
     Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement);
 
     Dictionary<string, object?> AssemblyCreateInstance(

@@ -285,6 +285,25 @@ public sealed class MockOnshapeProvider : ICadWebProvider
             return Ok(new Dictionary<string, object?> { ["operation"] = "inspect_faces", ["faces"] = Array.Empty<object>() });
         }
 
+        public Dictionary<string, object?> CaptureView(
+            CadElementAddress partStudio,
+            string view,
+            int width,
+            int height,
+            string edges)
+        {
+            ThrowIfError();
+            CallLog.Add(("CaptureView", new Dictionary<string, object?>
+            {
+                ["address"] = partStudio.Serialize(), ["view"] = view, ["width"] = width,
+                ["height"] = height, ["edges"] = edges,
+            }));
+            return Ok(new Dictionary<string, object?>
+            {
+                ["operation"] = "capture_view", ["image_base64"] = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL1ZQAAAABJRU5ErkJggg==", ["mime_type"] = "image/png",
+            });
+        }
+
         public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement)
     {
         ThrowIfError();

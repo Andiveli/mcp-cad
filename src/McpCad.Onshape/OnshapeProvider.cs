@@ -145,6 +145,14 @@ public sealed class OnshapeProvider : ICadWebProvider
     public Dictionary<string, object?> InspectFaces(CadElementAddress partStudio, string? bodyId = null) =>
         _partStudio.InspectFaces(partStudio, bodyId);
 
+    public Dictionary<string, object?> CaptureView(
+        CadElementAddress partStudio,
+        string view,
+        int width,
+        int height,
+        string edges) =>
+        _partStudio.CaptureView(partStudio, view, width, height, edges);
+
     public Dictionary<string, object?> AssemblyListInstances(CadElementAddress assemblyElement) =>
         _assembly.ListInstances(assemblyElement);
 

@@ -44,6 +44,8 @@ The P0 workflow is: `onshape_sketch_rectangle` → `onshape_feature_list` → `o
 
 `onshape_inspect_edges` and `onshape_inspect_faces` issue one authenticated read-only `bodydetails` GET per call. They accept the same address plus an optional exact, case-sensitive `body_id`, return opaque native topology IDs, and normalize observed meter and square-meter values to cm and cm2. An unknown body ID is an error; it never falls back to all bodies.
 
+`onshape_capture_view` reads the v16 Part Studio shaded-views endpoint for an `iso` or `top` view. It defaults to 800×600, accepts dimensions from 1 through 4096, and normalizes supported view and edge casing. It traverses all shaded-view image cells and returns the first valid PNG without writing a local file. The MCP result contains an `ImageContentBlock` in `CallToolResult.Content`; `StructuredContent` retains `image_base64` and `mime_type: image/png`. `iso` is this project's canonical right-handed isometric orientation, not a claim about an Onshape named view.
+
 See [the Onshape parity matrix](onshape-parity-matrix.md) for the full implemented and declarative-composite tool catalog, including P1 feature and P2 assembly tools.
 
 ## Routing rules

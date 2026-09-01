@@ -15,6 +15,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | `sketch_profiles` | `onshape_feature_list` | Part Studio features GET | implemented | P0 feature discovery seam. |
 | `inspect_edges` | `onshape_inspect_edges` | Part Studio bodydetails GET | implemented | Read-only native topology inspection; optional exact case-sensitive body ID filter; cm output. |
 | `inspect_faces` | `onshape_inspect_faces` | Part Studio bodydetails GET | implemented | Read-only native topology inspection; optional exact case-sensitive body ID filter; cm/cm2 output. |
+| `capture_viewport_image` | `onshape_capture_view` | v16 Part Studio shadedviews GET | implemented | `iso` or `top`; 800×600 default; 1–4096 dimensions; case-normalized `show`/`hide` edges; returns the first valid PNG as native MCP image content plus structured base64 metadata. |
 | `extrude` | `onshape_extrude` | Part Studio features POST | implemented | P0 BT feature envelope. |
 | `revolve` | `onshape_revolve` | Part Studio features POST | implemented | P1 profile sketch plus single-edge axis sketch. |
 | `sweep` | `onshape_sweep` | Part Studio features POST | implemented | P1 SOLID profile-plus-path sweep; live-verified with `featureStatus: OK`. |

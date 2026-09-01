@@ -46,6 +46,9 @@ internal static class OnshapeApiPaths
     public static string PartStudioBodyDetails(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/bodydetails";
 
+    public static string PartStudioShadedViews(string documentId, string wvm, string wvmId, string elementId) =>
+        $"/api/v16/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/shadedviews";
+
     public static string PartStudioExportStep(string documentId, string wvm, string wvmId, string elementId) =>
         $"/api/v6/partstudios/d/{Seg(documentId)}/{Seg(wvm)}/{Seg(wvmId)}/e/{Seg(elementId)}/export/step";
 
