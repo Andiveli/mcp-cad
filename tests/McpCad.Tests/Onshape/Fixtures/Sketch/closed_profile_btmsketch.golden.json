@@ -1,0 +1,17 @@
+{
+  "feature": {
+    "btType": "BTMSketch-151",
+    "parameters": [{ "btType": "BTMParameterQueryList-148", "parameterId": "sketchPlane" }],
+    "entities": [
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "closed-profile-line-0", "startPointId": "closed-profile-point-0", "endPointId": "closed-profile-point-1", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0.02, "pntY": 0, "dirX": 1, "dirY": 0 }, "startParam": -0.02, "endParam": 0.02, "isConstruction": false },
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "closed-profile-line-1", "startPointId": "closed-profile-point-1", "endPointId": "closed-profile-point-2", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0.03, "pntY": 0.015, "dirX": -0.554700196, "dirY": 0.832050294 }, "startParam": -0.0180277564, "endParam": 0.0180277564, "isConstruction": false },
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "closed-profile-line-2", "startPointId": "closed-profile-point-2", "endPointId": "closed-profile-point-0", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0.01, "pntY": 0.015, "dirX": -0.554700196, "dirY": -0.832050294 }, "startParam": -0.0180277564, "endParam": 0.0180277564, "isConstruction": false }
+    ],
+    "constraints": [
+      { "btType": "BTMSketchConstraint-2", "entityId": "closed-profile-constraint-coincident-0", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "closed-profile-line-0.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "closed-profile-line-1.start" }] },
+      { "btType": "BTMSketchConstraint-2", "entityId": "closed-profile-constraint-coincident-1", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "closed-profile-line-1.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "closed-profile-line-2.start" }] },
+      { "btType": "BTMSketchConstraint-2", "entityId": "closed-profile-constraint-coincident-2", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "closed-profile-line-2.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "closed-profile-line-0.start" }] }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

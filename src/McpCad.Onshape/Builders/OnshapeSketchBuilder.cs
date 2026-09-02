@@ -140,6 +140,46 @@ public static class OnshapeSketchBuilder
         return BuildSketch(entities, constraints, plane);
     }
 
+    /// <summary>
+    /// Builds a simple closed straight-line profile from ordered centimeter coordinates.
+    /// </summary>
+    public static JsonDocument BuildClosedProfile(IReadOnlyList<SketchPoint> pointsCm, string? plane = null)
+    {
+        ArgumentNullException.ThrowIfNull(pointsCm);
+        var normalizedPointsCm = NormalizeClosedProfile(pointsCm);
+        ValidateClosedProfile(normalizedPointsCm, nameof(pointsCm));
+
+        // The profile boundary is centimeters; conversion to the meter payload boundary occurs once here.
+        var pointsM = normalizedPointsCm
+            .Select(point => new SketchPoint(N9(point.X * 0.01), N9(point.Y * 0.01)))
+            .ToArray();
+        ValidateClosedProfile(pointsM, nameof(pointsCm));
+
+        var entities = new List<Dictionary<string, object?>>(pointsM.Length);
+        var constraints = new List<object>(pointsM.Length);
+        for (var index = 0; index < pointsM.Length; index++)
+        {
+            var nextIndex = (index + 1) % pointsM.Length;
+            var start = pointsM[index];
+            var end = pointsM[nextIndex];
+            entities.Add(CurveSegment(
+                $"closed-profile-line-{index}",
+                $"closed-profile-point-{index}",
+                $"closed-profile-point-{nextIndex}",
+                start.X,
+                start.Y,
+                end.X,
+                end.Y));
+            constraints.Add(Constraint(
+                $"closed-profile-constraint-coincident-{index}",
+                "COINCIDENT",
+                $"closed-profile-line-{index}.end",
+                $"closed-profile-line-{nextIndex}.start"));
+        }
+
+        return BuildSketch(entities, constraints, plane);
+    }
+
     public static JsonDocument BuildCircle(
         double cxM,
         double cyM,
@@ -532,6 +572,149 @@ public static class OnshapeSketchBuilder
 
         return JsonDocument.Parse(JsonSerializer.Serialize(envelope));
     }
+
+    private static SketchPoint[] NormalizeClosedProfile(IReadOnlyList<SketchPoint> points)
+    {
+        var normalized = points.ToArray();
+        if (normalized.Length > 1 && normalized[0] == normalized[^1])
+        {
+            Array.Resize(ref normalized, normalized.Length - 1);
+        }
+
+        return normalized;
+    }
+
+    private static void ValidateClosedProfile(IReadOnlyList<SketchPoint> points, string parameterName)
+    {
+        if (points.Count is < 3 or > 256)
+        {
+            throw new ArgumentException("A closed profile requires between 3 and 256 vertices.", parameterName);
+        }
+        if (points.Any(point => !double.IsFinite(point.X) || !double.IsFinite(point.Y)))
+        {
+            throw new ArgumentException("Closed-profile vertices must have finite coordinates.", parameterName);
+        }
+
+        for (var first = 0; first < points.Count; first++)
+        {
+            for (var second = first + 1; second < points.Count; second++)
+            {
+                if (points[first] == points[second])
+                {
+                    throw new ArgumentException("Closed-profile vertices cannot repeat.", parameterName);
+                }
+            }
+        }
+
+        var scale = ProfileScale(points);
+        var normalized = points.Select(point => new SketchPoint(
+            (point.X - points[0].X) / scale,
+            (point.Y - points[0].Y) / scale)).ToArray();
+        if (normalized.Any(point => !double.IsFinite(point.X) || !double.IsFinite(point.Y)))
+        {
+            throw new ArgumentException("Closed-profile coordinates exceed the supported geometric range.", parameterName);
+        }
+
+        const double relativeTolerance = 1e-12;
+        var twiceArea = 0d;
+        for (var index = 0; index < normalized.Length; index++)
+        {
+            var next = normalized[(index + 1) % normalized.Length];
+            twiceArea += normalized[index].X * next.Y - normalized[index].Y * next.X;
+        }
+        if (!double.IsFinite(twiceArea) || Math.Abs(twiceArea) <= relativeTolerance)
+        {
+            throw new ArgumentException("Closed-profile area must exceed 1e-12 times the squared coordinate scale.", parameterName);
+        }
+
+        for (var index = 0; index < normalized.Length; index++)
+        {
+            var nextIndex = (index + 1) % normalized.Length;
+            if (SquaredDistance(normalized[index], normalized[nextIndex]) == 0)
+            {
+                throw new ArgumentException("Closed-profile edges cannot have zero length.", parameterName);
+            }
+
+            var followingIndex = (index + 2) % normalized.Length;
+            if (followingIndex != index && IsCollinear(normalized[index], normalized[nextIndex], normalized[followingIndex], relativeTolerance)
+                && Dot(normalized[index], normalized[nextIndex], normalized[followingIndex]) < -relativeTolerance)
+            {
+                throw new ArgumentException("Closed-profile adjacent edges cannot backtrack or overlap.", parameterName);
+            }
+        }
+
+        for (var first = 0; first < normalized.Length; first++)
+        {
+            var firstNext = (first + 1) % normalized.Length;
+            for (var second = first + 1; second < normalized.Length; second++)
+            {
+                var secondNext = (second + 1) % normalized.Length;
+                if (firstNext == second || secondNext == first)
+                {
+                    continue;
+                }
+                if (SegmentsIntersect(normalized[first], normalized[firstNext], normalized[second], normalized[secondNext], relativeTolerance))
+                {
+                    throw new ArgumentException("Closed-profile edges cannot cross, touch, or overlap non-adjacently.", parameterName);
+                }
+            }
+        }
+    }
+
+    private static double ProfileScale(IReadOnlyList<SketchPoint> points)
+    {
+        var minX = points.Min(point => point.X);
+        var maxX = points.Max(point => point.X);
+        var minY = points.Min(point => point.Y);
+        var maxY = points.Max(point => point.Y);
+        var scale = Math.Max(maxX - minX, maxY - minY);
+        if (!double.IsFinite(scale) || scale <= 0)
+        {
+            throw new ArgumentException("Closed-profile coordinates exceed the supported geometric range.");
+        }
+        return scale;
+    }
+
+    private static double SquaredDistance(SketchPoint first, SketchPoint second)
+    {
+        var dx = second.X - first.X;
+        var dy = second.Y - first.Y;
+        return dx * dx + dy * dy;
+    }
+
+    private static double Cross(SketchPoint first, SketchPoint second, SketchPoint third) =>
+        (second.X - first.X) * (third.Y - first.Y) - (second.Y - first.Y) * (third.X - first.X);
+
+    private static double Dot(SketchPoint first, SketchPoint vertex, SketchPoint third) =>
+        (vertex.X - first.X) * (third.X - vertex.X) + (vertex.Y - first.Y) * (third.Y - vertex.Y);
+
+    private static bool IsCollinear(SketchPoint first, SketchPoint second, SketchPoint third, double tolerance) =>
+        Math.Abs(Cross(first, second, third)) <= tolerance;
+
+    private static bool SegmentsIntersect(SketchPoint firstStart, SketchPoint firstEnd, SketchPoint secondStart, SketchPoint secondEnd, double tolerance)
+    {
+        var firstSecondStart = Cross(firstStart, firstEnd, secondStart);
+        var firstSecondEnd = Cross(firstStart, firstEnd, secondEnd);
+        var secondFirstStart = Cross(secondStart, secondEnd, firstStart);
+        var secondFirstEnd = Cross(secondStart, secondEnd, firstEnd);
+
+        if ((Math.Abs(firstSecondStart) <= tolerance && PointOnSegment(firstStart, firstEnd, secondStart, tolerance))
+            || (Math.Abs(firstSecondEnd) <= tolerance && PointOnSegment(firstStart, firstEnd, secondEnd, tolerance))
+            || (Math.Abs(secondFirstStart) <= tolerance && PointOnSegment(secondStart, secondEnd, firstStart, tolerance))
+            || (Math.Abs(secondFirstEnd) <= tolerance && PointOnSegment(secondStart, secondEnd, firstEnd, tolerance)))
+        {
+            return true;
+        }
+
+        return ((firstSecondStart > tolerance && firstSecondEnd < -tolerance) || (firstSecondStart < -tolerance && firstSecondEnd > tolerance))
+            && ((secondFirstStart > tolerance && secondFirstEnd < -tolerance) || (secondFirstStart < -tolerance && secondFirstEnd > tolerance));
+    }
+
+    private static bool PointOnSegment(SketchPoint start, SketchPoint end, SketchPoint point, double tolerance) =>
+        point.X >= Math.Min(start.X, end.X) - tolerance
+        && point.X <= Math.Max(start.X, end.X) + tolerance
+        && point.Y >= Math.Min(start.Y, end.Y) - tolerance
+        && point.Y <= Math.Max(start.Y, end.Y) + tolerance;
 
     private static Dictionary<string, object?> SketchPlaneFilter() => new()
     {
