@@ -13,7 +13,7 @@ namespace McpCad.Tools.Onshape;
 /// Composed Onshape MCP skills (multi-step cloud workflows).
 /// </summary>
 [McpServerToolType]
-public class OnshapeSkillTools(ICadWebProvider provider)
+public partial class OnshapeSkillTools(ICadWebProvider provider)
 {
     [McpServerTool, Description("Create a rectangle sketch and extrude it in one bounded Part Studio call. Coordinates and depth are in cm.")]
     public Dictionary<string, object?> skill_sketch_and_extrude(

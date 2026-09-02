@@ -33,6 +33,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | Workflow | Onshape MCP | REST endpoint | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Rectangle sketch + extrude | `skill_sketch_and_extrude` | Two Part Studio features POSTs | implemented | Creates a rectangle sketch, then links its returned feature ID to the extrude sketch-region query. Returns `success`, `sketch`, and `extrude` phase results; skips extrusion when sketch creation fails or returns no feature ID. |
+| Bounded 3D part orchestration | `skill_onshape_god_part` | 2–8 Part Studio feature POSTs | implemented | Fixed `options_json` schema: rectangle + extrude, then optional fillet, chamfer, shell, circular/rectangular pattern, and canonical-plane mirror. Validates before mutation, including non-degenerate rectangle dimensions; explicit topology/axis IDs only; defaults pattern/mirror source to the latest successful feature; stops on the first failed modeling phase without rollback. |
 
 ## Declarative-composite tools
 

@@ -21,7 +21,7 @@ The MCP server runs **one** CAD backend per process. Selection is via `Provider:
 | **Auth** | HMAC-signed API requests (`OnshapeClient`). |
 | **Units** | Tool APIs use **cm**; Onshape REST uses meters; conversion happens inside `McpCad.Onshape`. |
 | **Latency** | Network round-trips; STEP/STL export **polls** translations (up to ~120s, blocking at the tool layer). |
-| **Tools** | `OnshapeAtomicTools`, `OnshapeSkillTools` (`onshape_*`, `create_sketch`, `add_extrude`, `skill_sketch_and_extrude`, `onshape_export_step`, `onshape_export_stl`, …). |
+| **Tools** | `OnshapeAtomicTools`, `OnshapeSkillTools` (`onshape_*`, `create_sketch`, `add_extrude`, `skill_sketch_and_extrude`, `skill_onshape_god_part`, `onshape_export_step`, `onshape_export_stl`, …). |
 | **Inventor in Onshape mode** | `IMechanicalCadProvider` resolves to `NullMechanicalCadProvider` (no COM; mechanical tools return `success: false`). |
 
 ### Modeling
@@ -41,6 +41,8 @@ Onshape modeling tools accept an `address_json` value that serializes a `CadElem
 The P0 workflow is: `onshape_sketch_rectangle` → `onshape_feature_list` → `onshape_extrude` → `onshape_export_step` (or `onshape_export_stl`). The listed sandbox document, workspace, and Part Studio are the reference values shown above; live calls still require configured Onshape credentials.
 
 `skill_sketch_and_extrude` combines rectangle-sketch creation and extrusion for one Part Studio address. It accepts rectangle coordinates and depth in cm, links the extrusion to the returned sketch feature ID, and returns `success`, `sketch`, and `extrude` phase results. If sketch creation fails or returns no feature ID, it skips the extrusion.
+
+`skill_onshape_god_part` creates a rectangle and extrude, then optionally applies fillet, chamfer, shell, circular or rectangular pattern, and mirror features. Its fixed `options_json` schema accepts `plane`, `direction`, `booleanOp`, and optional feature objects. Fillet/chamfer require `edgeIds` plus `radiusCm`/`distanceCm`; shell requires `faceIds` and `thicknessCm`; patterns require explicit axis/direction feature IDs; mirror accepts only Top, Front, or Right. It validates the complete request before the first write, rejects degenerate rectangles, uses each immediate response feature ID, defaults pattern/mirror sources to the latest successful feature, and returns the god-macro phase envelope in `CallToolResult.StructuredContent`. It does not infer topology IDs or roll back completed writes.
 
 `onshape_inspect_edges` and `onshape_inspect_faces` issue one authenticated read-only `bodydetails` GET per call. They accept the same address plus an optional exact, case-sensitive `body_id`, return opaque native topology IDs, and normalize observed meter and square-meter values to cm and cm2. An unknown body ID is an error; it never falls back to all bodies.
 
