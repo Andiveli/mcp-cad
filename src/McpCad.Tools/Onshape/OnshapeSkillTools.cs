@@ -121,8 +121,24 @@ public class OnshapeSkillTools(ICadWebProvider provider)
 
     private static bool TryGetFeatureId(IReadOnlyDictionary<string, object?> result, out string featureId)
     {
-        featureId = result.TryGetValue("featureId", out var value) ? value as string ?? string.Empty : string.Empty;
-        return !string.IsNullOrWhiteSpace(featureId);
+        if (result.TryGetValue("featureId", out var value) && value is string topLevelFeatureId && !string.IsNullOrWhiteSpace(topLevelFeatureId))
+        {
+            featureId = topLevelFeatureId;
+            return true;
+        }
+
+        if (result.TryGetValue("feature", out var feature) &&
+            feature is IReadOnlyDictionary<string, object?> nestedFeature &&
+            nestedFeature.TryGetValue("featureId", out var nestedValue) &&
+            nestedValue is string nestedFeatureId &&
+            !string.IsNullOrWhiteSpace(nestedFeatureId))
+        {
+            featureId = nestedFeatureId;
+            return true;
+        }
+
+        featureId = string.Empty;
+        return false;
     }
 
     private static string GetError(IReadOnlyDictionary<string, object?> result, string fallback) =>

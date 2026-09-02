@@ -43,6 +43,23 @@ internal static class OnshapeJsonHelper
         }
     }
 
+    public static Dictionary<string, object?> NormalizeFeatureWriteResponse(JsonElement element)
+    {
+        var result = JsonElementToDictionary(element);
+        if (!result.ContainsKey("featureId") &&
+            element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty("feature", out var feature) &&
+            feature.ValueKind == JsonValueKind.Object &&
+            feature.TryGetProperty("featureId", out var featureId) &&
+            featureId.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(featureId.GetString()))
+        {
+            result["featureId"] = featureId.GetString();
+        }
+
+        return result;
+    }
+
     public static Dictionary<string, object?> SuccessEnvelope(Dictionary<string, object?> payload)
     {
         var result = new Dictionary<string, object?> { ["success"] = true };

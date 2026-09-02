@@ -104,7 +104,7 @@ public sealed class PartStudioManager
         using var doc = _client.SendJsonAsync(HttpMethod.Post, path, body).GetAwaiter().GetResult();
         ThrowIfFeatureFailed(doc.RootElement);
         _driver.UpdateMicroversionFromJson(doc.RootElement);
-        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.NormalizeFeatureWriteResponse(doc.RootElement));
     }
 
     public Dictionary<string, object?> InspectEdges(CadElementAddress address, string? bodyId = null) =>

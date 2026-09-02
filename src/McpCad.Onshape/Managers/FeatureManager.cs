@@ -67,7 +67,7 @@ public sealed class FeatureManager
         }
 
         _driver.UpdateMicroversionFromJson(doc.RootElement);
-        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.JsonElementToDictionary(doc.RootElement));
+        return OnshapeJsonHelper.SuccessEnvelope(OnshapeJsonHelper.NormalizeFeatureWriteResponse(doc.RootElement));
     }
 
     public Dictionary<string, object?> FeatureGetResult(CadElementAddress partStudio, string featureId)

@@ -174,6 +174,48 @@ public class PartStudioModelingWireMockTests : IDisposable
     }
 
     [Fact]
+    public void SketchReplace_NestedLiveFeatureResponse_NormalizesTopLevelFeatureIdAndPreservesFeature()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"feature":{"featureId":"live-sketch-1","featureType":"newSketch"},"featureState":{"featureStatus":"OK"},"microversion":"mv-sketch"}"""));
+
+        var result = CreatePartStudioManager().SketchReplace(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), """{"entities":[]}""");
+
+        result["success"].Should().Be(true);
+        result["featureId"].Should().Be("live-sketch-1");
+        result["feature"].Should().BeOfType<Dictionary<string, object?>>().Which["featureId"].Should().Be("live-sketch-1");
+        result["microversion"].Should().Be("mv-sketch");
+        result["featureState"].Should().BeOfType<Dictionary<string, object?>>().Which["featureStatus"].Should().Be("OK");
+    }
+
+    [Fact]
+    public void FeatureAdd_NestedLiveFeatureResponse_NormalizesTopLevelFeatureIdAndPreservesFeature()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"feature":{"featureId":"live-extrude-1","featureType":"extrude"},"featureState":{"featureStatus":"OK"},"microversion":"mv-extrude"}"""));
+
+        var result = CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "extrude");
+
+        result["success"].Should().Be(true);
+        result["featureId"].Should().Be("live-extrude-1");
+        result["feature"].Should().BeOfType<Dictionary<string, object?>>().Which["featureId"].Should().Be("live-extrude-1");
+        result["microversion"].Should().Be("mv-extrude");
+        result["featureState"].Should().BeOfType<Dictionary<string, object?>>().Which["featureStatus"].Should().Be("OK");
+    }
+
+    [Fact]
     public void FeatureAdd_FlatPayload_RegressionGuard_UsesFeatureEnvelope()
     {
         _server.ResetMappings();
@@ -428,6 +470,24 @@ public class PartStudioModelingWireMockTests : IDisposable
 
         act.Should().Throw<CadProviderOperationException>()
             .WithMessage("*status ERROR: Invalid shell");
+    }
+
+    [Fact]
+    public void FeatureAdd_WithUnknownFeatureStatus_ThrowsProviderException()
+    {
+        _server.ResetMappings();
+        _server
+            .Given(Request.Create().WithPath("/api/v6/partstudios/d/doc-1/w/ws-1/e/e-part/features").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"featureState":{"featureStatus":"UNKNOWN","errorString":"Unresolved feature"}}"""));
+
+        var act = () => CreateFeatureManager().FeatureAdd(
+            new CadElementAddress("doc-1", "ws-1", null, "e-part"), "extrude");
+
+        act.Should().Throw<CadProviderOperationException>()
+            .WithMessage("*status UNKNOWN: Unresolved feature");
     }
 
     [Fact]

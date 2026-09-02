@@ -53,6 +53,32 @@ public class OnshapeSkillToolsTests
     }
 
     [Fact]
+    public void skill_sketch_and_extrude_AcceptsNestedFeatureIdsAsProviderDefenseInDepth()
+    {
+        var provider = RecordingProvider.Create(
+            sketchResult: new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature"] = new Dictionary<string, object?> { ["featureId"] = "live-sketch-42" },
+            },
+            extrudeResult: new Dictionary<string, object?>
+            {
+                ["success"] = true,
+                ["feature"] = new Dictionary<string, object?> { ["featureId"] = "live-extrude-99" },
+            });
+
+        var result = new OnshapeSkillTools(provider.Provider).skill_sketch_and_extrude(AddressJson(), 0, 0, 10, 10, 5);
+
+        Assert.True((bool)result["success"]!);
+        Assert.Equal("live-extrude-99", Assert.IsType<Dictionary<string, object?>>(result["extrude"])["featureId"]);
+        var extrudeCall = Assert.Single(provider.Calls.Where(call => call.Method == nameof(ICadWebProvider.FeatureAdd)));
+        using var payload = JsonDocument.Parse(Assert.IsType<string>(extrudeCall.Arguments[3]));
+        payload.RootElement.GetProperty("feature").GetProperty("parameters").EnumerateArray()
+            .Single(parameter => parameter.GetProperty("parameterId").GetString() == "entities")
+            .GetProperty("queries")[0].GetProperty("featureId").GetString().Should().Be("live-sketch-42");
+    }
+
+    [Fact]
     public void skill_sketch_and_extrude_WhenExtrudeFails_ReportsPhaseFailure()
     {
         var provider = RecordingProvider.Create(
