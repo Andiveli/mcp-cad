@@ -10,7 +10,7 @@ namespace McpCad.Tools.Onshape;
 
 public partial class OnshapeSkillTools
 {
-    [McpServerTool, Description("Create a rectangle, extrude it, optionally apply bounded features, then capture final iso and top verification views. All dimensions are in cm.")]
+    [McpServerTool, Description("Create a rectangle or fixed-schema straight-line closed profile, extrude it, optionally apply bounded features, then capture final iso and top verification views. All dimensions are in cm.")]
     public CallToolResult skill_onshape_god_part(
         string address_json, double x1_cm, double y1_cm, double x2_cm, double y2_cm, double depth_cm,
         string? options_json = null, int capture_width = 800, int capture_height = 600, string capture_edges = "show")
@@ -42,15 +42,19 @@ public partial class OnshapeSkillTools
         try
         {
             var options = GodPartOptions.Parse(options_json);
-            ValidateBaseArguments(x1_cm, y1_cm, x2_cm, y2_cm, depth_cm);
+            ValidateDepth(depth_cm);
+                if (options.Profile is null) ValidateRectangleArguments(x1_cm, y1_cm, x2_cm, y2_cm);
             options.Validate();
                             var address = CadElementAddress.Deserialize(address_json);
 
-            activePhase = "sketch";
-            using var sketchPayload = OnshapeSketchBuilder.BuildRectangle(
+            activePhase = "validation";
+            using var sketchPayload = options.Profile is null
+                    ? OnshapeSketchBuilder.BuildRectangle(
                 OnshapeUnitConversion.CmToMeters(x1_cm), OnshapeUnitConversion.CmToMeters(y1_cm),
-                OnshapeUnitConversion.CmToMeters(x2_cm), OnshapeUnitConversion.CmToMeters(y2_cm), options.Plane);
-            var sketchRequest = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketchPayload.RootElement.GetRawText())
+                OnshapeUnitConversion.CmToMeters(x2_cm), OnshapeUnitConversion.CmToMeters(y2_cm), options.Plane)
+                    : OnshapeSketchBuilder.BuildClosedProfile(options.Profile, options.Plane);
+            activePhase = "sketch";
+                var sketchRequest = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketchPayload.RootElement.GetRawText())
                 ?? new Dictionary<string, object?>();
             var sketchResult = provider.SketchReplace(address, sketchRequest);
             if (!Complete("sketch", sketchResult, phases, ref latestFeatureId, out var failure))
@@ -174,21 +178,30 @@ public partial class OnshapeSkillTools
     };
     private static Dictionary<string, object?> Skipped() => new() { ["success"] = false, ["featureId"] = null, ["skipped"] = true };
     private static double Cm(double value) => OnshapeUnitConversion.CmToMeters(value);
-    private static void ValidateBaseArguments(params double[] values)
+    private static void ValidateDepth(double depthCm)
+        {
+            if (!double.IsFinite(depthCm) || depthCm == 0) throw new ArgumentException("depth_cm must be finite and nonzero.");
+        }
+        private static void ValidateRectangleArguments(double x1Cm, double y1Cm, double x2Cm, double y2Cm)
+        {
+            if (!double.IsFinite(x1Cm) || !double.IsFinite(y1Cm) || !double.IsFinite(x2Cm) || !double.IsFinite(y2Cm)) throw new ArgumentException("Rectangle coordinates must be finite.");
+            if (x1Cm == x2Cm || y1Cm == y2Cm) throw new ArgumentException("Rectangle coordinates must define nonzero width and height.");
+        }
+        private static void ValidateBaseArguments(params double[] values)
     {
         if (values.Any(value => !double.IsFinite(value)) || values[^1] == 0) throw new ArgumentException("Coordinates must be finite and depth_cm must be nonzero.");
         if (values[0] == values[2] || values[1] == values[3]) throw new ArgumentException("Rectangle coordinates must define nonzero width and height.");
     }
 
-    private sealed record GodPartOptions(string? Plane, string Direction, string BooleanOp, SelectionOption? Fillet, SelectionOption? Chamfer, ShellOption? Shell, CircularPatternOption? CircularPattern, RectangularPatternOption? RectangularPattern, MirrorOption? Mirror)
+    private sealed record GodPartOptions(string? Plane, string Direction, string BooleanOp, IReadOnlyList<SketchPoint>? Profile, SelectionOption? Fillet, SelectionOption? Chamfer, ShellOption? Shell, CircularPatternOption? CircularPattern, RectangularPatternOption? RectangularPattern, MirrorOption? Mirror)
     {
         public static GodPartOptions Parse(string? json)
         {
-            if (string.IsNullOrWhiteSpace(json)) return new(null, "positive", "new", null, null, null, null, null, null);
+            if (string.IsNullOrWhiteSpace(json)) return new(null, "positive", "new", null, null, null, null, null, null, null);
             using var document = JsonDocument.Parse(json);
             var root = RequireObject(document.RootElement, "options_json");
-            RejectUnknown(root, "plane", "direction", "booleanOp", "fillet", "chamfer", "shell", "circularPattern", "rectangularPattern", "mirror");
-            return new(GetOptionalString(root, "plane"), GetOptionalString(root, "direction") ?? "positive", GetOptionalString(root, "booleanOp") ?? "new",
+            RejectUnknown(root, "plane", "direction", "booleanOp", "profile", "fillet", "chamfer", "shell", "circularPattern", "rectangularPattern", "mirror");
+            return new(GetOptionalString(root, "plane"), GetOptionalString(root, "direction") ?? "positive", GetOptionalString(root, "booleanOp") ?? "new", ParseProfile(root),
                 ParseSelection(root, "fillet", "radiusCm"), ParseSelection(root, "chamfer", "distanceCm"), ParseShell(root), ParseCircular(root), ParseRectangular(root), ParseMirror(root));
         }
 
@@ -222,7 +235,19 @@ public partial class OnshapeSkillTools
         public void Validate() { OptionalId(SourceFeatureId, "sourceFeatureId"); if (!CanonicalPlane(Plane)) throw new ArgumentException("mirror.plane must be Top, Front, or Right."); }
     }
 
-    private static SelectionOption? ParseSelection(JsonElement root, string name, string dimension)
+    private static IReadOnlyList<SketchPoint>? ParseProfile(JsonElement root)
+        {
+            if (!root.TryGetProperty("profile", out var element)) return null;
+            if (element.ValueKind != JsonValueKind.Array) throw new ArgumentException("profile must be an array of point objects.");
+            return element.EnumerateArray().Select((point, index) =>
+            {
+                var obj = RequireObject(point, $"profile[{index}]");
+                RejectUnknown(obj, "x_cm", "y_cm");
+                return new SketchPoint(RequiredNumber(obj, "x_cm"), RequiredNumber(obj, "y_cm"));
+            }).ToArray();
+        }
+
+        private static SelectionOption? ParseSelection(JsonElement root, string name, string dimension)
     {
         if (!root.TryGetProperty(name, out var element)) return null; var obj = RequireObject(element, name); RejectUnknown(obj, "edgeIds", dimension);
         return new(ReadIds(obj, "edgeIds"), RequiredNumber(obj, dimension));
