@@ -34,6 +34,7 @@ Every element-scoped Onshape tool takes `address_json`, a serialized `CadElement
 | --- | --- | --- | --- | --- |
 | Rectangle sketch + extrude | `skill_sketch_and_extrude` | Two Part Studio features POSTs | implemented | Creates a rectangle sketch, then links its returned feature ID to the extrude sketch-region query. Returns `success`, `sketch`, and `extrude` phase results; skips extrusion when sketch creation fails or returns no feature ID. |
 | Bounded 3D part orchestration | `skill_onshape_god_part` | 2–8 Part Studio feature POSTs | implemented | Fixed `options_json` schema: rectangle + extrude, then optional fillet, chamfer, shell, circular/rectangular pattern, and canonical-plane mirror. Validates before mutation, including non-degenerate rectangle dimensions; explicit topology/axis IDs only; defaults pattern/mirror source to the latest successful feature; stops on the first failed modeling phase without rollback. |
+| Final 3D part diagnostics | `skill_onshape_god_part` | 2 Part Studio shaded-view GETs | implemented | After successful modeling, captures ordered `iso` and `top` PNG diagnostics as native MCP image content with per-view structured metadata. Capture dimensions are 1–4096 and `capture_edges` is `show` or `hide`; invalid capture options use the validation status envelope, and an iso failure still permits the top diagnostic attempt. |
 
 ## Declarative-composite tools
 
