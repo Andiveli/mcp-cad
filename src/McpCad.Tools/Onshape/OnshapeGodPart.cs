@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text.Json;
 using McpCad.Core.Models;
@@ -10,7 +11,7 @@ namespace McpCad.Tools.Onshape;
 
 public partial class OnshapeSkillTools
 {
-    [McpServerTool, Description("Create a rectangle or fixed-schema straight-line closed profile, extrude it, optionally apply bounded features, then capture final iso and top verification views. All dimensions are in cm.")]
+    [McpServerTool, Description("Create a rectangle, a legacy straight-line closed profile, or a fixed-schema mixed profile of straight lines plus exactly one three-point arc; extrude it, optionally apply bounded features, then capture final iso and top verification views. The exactly-one-arc mixed profile is live-proven; splines and multiple arcs are unsupported. All dimensions are in cm.")]
     public CallToolResult skill_onshape_god_part(
         string address_json, double x1_cm, double y1_cm, double x2_cm, double y2_cm, double depth_cm,
         string? options_json = null, int capture_width = 800, int capture_height = 600, string capture_edges = "show")
@@ -52,7 +53,9 @@ public partial class OnshapeSkillTools
                     ? OnshapeSketchBuilder.BuildRectangle(
                 OnshapeUnitConversion.CmToMeters(x1_cm), OnshapeUnitConversion.CmToMeters(y1_cm),
                 OnshapeUnitConversion.CmToMeters(x2_cm), OnshapeUnitConversion.CmToMeters(y2_cm), options.Plane)
-                    : OnshapeSketchBuilder.BuildClosedProfile(options.Profile, options.Plane);
+                    : options.Profile.SingleArc is { } singleArc
+                        ? OnshapeMixedProfileFacade.BuildSingleArcClosedProfile(singleArc, options.Plane)
+                        : OnshapeSketchBuilder.BuildClosedProfile(options.Profile.LegacyPoints!, options.Plane);
             activePhase = "sketch";
                 var sketchRequest = JsonSerializer.Deserialize<Dictionary<string, object?>>(sketchPayload.RootElement.GetRawText())
                 ?? new Dictionary<string, object?>();
@@ -193,7 +196,7 @@ public partial class OnshapeSkillTools
         if (values[0] == values[2] || values[1] == values[3]) throw new ArgumentException("Rectangle coordinates must define nonzero width and height.");
     }
 
-    private sealed record GodPartOptions(string? Plane, string Direction, string BooleanOp, IReadOnlyList<SketchPoint>? Profile, SelectionOption? Fillet, SelectionOption? Chamfer, ShellOption? Shell, CircularPatternOption? CircularPattern, RectangularPatternOption? RectangularPattern, MirrorOption? Mirror)
+    private sealed record GodPartOptions(string? Plane, string Direction, string BooleanOp, ProfileOption? Profile, SelectionOption? Fillet, SelectionOption? Chamfer, ShellOption? Shell, CircularPatternOption? CircularPattern, RectangularPatternOption? RectangularPattern, MirrorOption? Mirror)
     {
         public static GodPartOptions Parse(string? json)
         {
@@ -235,16 +238,63 @@ public partial class OnshapeSkillTools
         public void Validate() { OptionalId(SourceFeatureId, "sourceFeatureId"); if (!CanonicalPlane(Plane)) throw new ArgumentException("mirror.plane must be Top, Front, or Right."); }
     }
 
-    private static IReadOnlyList<SketchPoint>? ParseProfile(JsonElement root)
+    private static ProfileOption? ParseProfile(JsonElement root)
         {
             if (!root.TryGetProperty("profile", out var element)) return null;
-            if (element.ValueKind != JsonValueKind.Array) throw new ArgumentException("profile must be an array of point objects.");
-            return element.EnumerateArray().Select((point, index) =>
+            if (element.ValueKind == JsonValueKind.Object) return ParseStrictProfile(element);
+                if (element.ValueKind != JsonValueKind.Array) throw new ArgumentException("profile must be an array or a strict object.");
+            return new(element.EnumerateArray().Select((point, index) =>
             {
                 var obj = RequireObject(point, $"profile[{index}]");
                 RejectUnknown(obj, "x_cm", "y_cm");
                 return new SketchPoint(RequiredNumber(obj, "x_cm"), RequiredNumber(obj, "y_cm"));
-            }).ToArray();
+            }).ToArray(), null);
+        }
+
+        private sealed record ProfileOption(IReadOnlyList<SketchPoint>? LegacyPoints, SingleArcClosedProfile? SingleArc);
+
+        private static ProfileOption ParseStrictProfile(JsonElement element)
+        {
+            var profile = RequireObject(element, "profile");
+            RejectUnknown(profile, "start", "segments");
+            if (!profile.TryGetProperty("start", out var start)) throw new ArgumentException("profile.start is required.");
+            if (!profile.TryGetProperty("segments", out var segments) || segments.ValueKind != JsonValueKind.Array)
+                throw new ArgumentException("profile.segments must be an array.");
+            return new(null, new(ParsePoint(start, "profile.start"), segments.EnumerateArray()
+                .Select((segment, index) => ParseStrictSegment(segment, index)).ToImmutableArray()));
+        }
+
+        private static MixedProfileSegmentInput ParseStrictSegment(JsonElement element, int index)
+        {
+            var segment = RequireObject(element, $"profile.segments[{index}]");
+            return RequiredString(segment, "type") switch
+            {
+                "line" => ParseLine(segment, index),
+                "arc" => ParseArc(segment, index),
+                _ => throw new ArgumentException($"profile.segments[{index}].type must be line or arc."),
+            };
+        }
+
+        private static MixedProfileLineSegment ParseLine(JsonElement segment, int index)
+        {
+            RejectUnknown(segment, "type", "end");
+            if (!segment.TryGetProperty("end", out var end)) throw new ArgumentException($"profile.segments[{index}].end is required.");
+            return new(ParsePoint(end, $"profile.segments[{index}].end"));
+        }
+
+        private static MixedProfileThreePointArcSegment ParseArc(JsonElement segment, int index)
+        {
+            RejectUnknown(segment, "type", "through", "end");
+            if (!segment.TryGetProperty("through", out var through)) throw new ArgumentException($"profile.segments[{index}].through is required.");
+            if (!segment.TryGetProperty("end", out var end)) throw new ArgumentException($"profile.segments[{index}].end is required.");
+            return new(ParsePoint(through, $"profile.segments[{index}].through"), ParsePoint(end, $"profile.segments[{index}].end"));
+        }
+
+        private static MixedProfilePointCm ParsePoint(JsonElement element, string name)
+        {
+            var point = RequireObject(element, name);
+            RejectUnknown(point, "x_cm", "y_cm");
+            return new(RequiredNumber(point, "x_cm"), RequiredNumber(point, "y_cm"));
         }
 
         private static SelectionOption? ParseSelection(JsonElement root, string name, string dimension)

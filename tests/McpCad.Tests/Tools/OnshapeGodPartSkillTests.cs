@@ -83,7 +83,32 @@ public class OnshapeGodPartModelingTests
     }
 
     [Fact]
-    public void skill_onshape_god_part_AcceptsRepeatedClosingProfilePoint()
+    public void skill_onshape_god_part_UsesStrictSingleArcProfile()
+        {
+            var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
+            var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2,
+                """{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"line","end":{"x_cm":2,"y_cm":2}},{"type":"line","end":{"x_cm":0,"y_cm":2}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}"""));
+
+            result["success"].Should().Be(true);
+            var sketch = SketchPayload(provider).GetProperty("feature");
+            sketch.GetProperty("entities").GetArrayLength().Should().Be(4);
+            sketch.GetProperty("entities")[0].GetProperty("geometry").GetProperty("btType").GetString().Should().Be("BTCurveGeometryCircle-115");
+            sketch.GetProperty("constraints").GetArrayLength().Should().Be(4);
+        }
+
+        [Theory]
+        [InlineData("""{"profile":{"start":null,"segments":[]}}""", "profile.start must be an object.")]
+        [InlineData("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"line","end":{"x_cm":0,"y_cm":0},"extra":true}]}}""", "Unknown option 'extra'.")]
+        [InlineData("""{"profile":{"start":{"x_cm":0,"y_cm":0},"start":{"x_cm":1,"y_cm":0},"segments":[]}}""", "Duplicate option 'start'.")]
+        [InlineData("""{"profile":{"segments":[]}}""", "profile.start is required.")]
+        public void skill_onshape_god_part_RejectsMalformedStrictProfileBeforeProviderMutation(string options, string error) => AssertValidationNoCalls(options, error);
+
+        [Fact]
+        public void skill_onshape_god_part_RejectsSecondArcBeforeProviderMutation() =>
+            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"arc","through":{"x_cm":1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}}]}}""", "exactly one arc");
+
+        [Fact]
+        public void skill_onshape_god_part_AcceptsRepeatedClosingProfilePoint()
     {
         var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
         var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, """{"profile":[{"x_cm":0,"y_cm":0},{"x_cm":4,"y_cm":0},{"x_cm":2,"y_cm":3},{"x_cm":0,"y_cm":0}]}"""));
@@ -108,11 +133,12 @@ public class OnshapeGodPartModelingTests
         result["failedPhase"].Should().Be("fillet"); result["finalFeatureId"].Should().Be("extrude-1"); provider.Calls.Should().HaveCount(3);
     }
 
-    private static void AssertValidationNoCalls(string options)
+    private static void AssertValidationNoCalls(string options, string? expectedError = null)
     {
         var provider = RecordingProvider.Create([]);
         var result = new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 10, 5, 2, options);
         result.IsError.Should().BeTrue(); Structured(result)["failedPhase"].Should().Be("validation"); provider.Calls.Should().BeEmpty();
+            if (expectedError is not null) Structured(result)["error"].Should().BeOfType<string>().Which.Should().Contain(expectedError);
     }
     private static JsonElement SketchPayload(RecordingProvider provider)
     {

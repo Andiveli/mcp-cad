@@ -38,7 +38,7 @@ public sealed class OnshapeGodPartWireMockTests : IDisposable
         var provider = new OnshapeProvider(client, new OnshapeDriver(client) { DefaultWvm = "w" });
         var result = new OnshapeSkillTools(provider).skill_onshape_god_part(
             new CadElementAddress("doc-1", "ws-1", null, "e-part").Serialize(), 0, 0, 10, 5, 2,
-                """{"profile":[{"x_cm":0,"y_cm":0},{"x_cm":10,"y_cm":5},{"x_cm":0,"y_cm":5}]}""");
+                """{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":5,"y_cm":-5},"end":{"x_cm":10,"y_cm":0}},{"type":"line","end":{"x_cm":10,"y_cm":5}},{"type":"line","end":{"x_cm":0,"y_cm":5}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}""");
 
         result.IsError.Should().NotBe(true);
         result.Content.Should().HaveCount(2).And.OnlyContain(content => content is ImageContentBlock);
@@ -54,13 +54,13 @@ public sealed class OnshapeGodPartWireMockTests : IDisposable
         posts.Should().HaveCount(2);
             using var sketch = JsonDocument.Parse(posts.Single(entry => entry.RequestMessage.Body!.Contains("\"btType\":\"BTMSketch-151\"")).RequestMessage.Body!);
             var sketchFeature = sketch.RootElement.GetProperty("feature");
-            sketchFeature.GetProperty("entities").GetArrayLength().Should().Be(3);
-            sketchFeature.GetProperty("constraints").GetArrayLength().Should().Be(3);
-            var diagonal = sketchFeature.GetProperty("entities")[0].GetProperty("geometry");
-            diagonal.GetProperty("pntX").GetDouble().Should().Be(0.05);
-            diagonal.GetProperty("pntY").GetDouble().Should().Be(0.025);
-            diagonal.GetProperty("dirX").GetDouble().Should().BeApproximately(0.894427191, 0.000000001);
-            diagonal.GetProperty("dirY").GetDouble().Should().BeApproximately(0.447213595, 0.000000001);
+            sketchFeature.GetProperty("entities").GetArrayLength().Should().Be(4);
+            sketchFeature.GetProperty("constraints").GetArrayLength().Should().Be(4);
+            var arc = sketchFeature.GetProperty("entities")[0].GetProperty("geometry");
+            arc.GetProperty("btType").GetString().Should().Be("BTCurveGeometryCircle-115");
+            arc.GetProperty("radius").GetDouble().Should().BeApproximately(0.05, 0.000000001);
+            arc.GetProperty("clockwise").GetBoolean().Should().BeFalse();
+
         using var extrude = JsonDocument.Parse(posts.Single(entry => entry.RequestMessage.Body!.Contains("\"featureType\":\"extrude\"")).RequestMessage.Body!);
         extrude.RootElement.GetProperty("feature").GetProperty("parameters").EnumerateArray()
             .Single(parameter => parameter.GetProperty("parameterId").GetString() == "entities")
