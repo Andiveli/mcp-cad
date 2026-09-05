@@ -12,6 +12,7 @@ public class GoldenFixtureConformanceTests
     [InlineData("circle_btmsketch.golden.json")]
     [InlineData("work_axis_btmsketch.golden.json")]
     [InlineData("closed_profile_btmsketch.golden.json")]
+    [InlineData("single_arc_closed_profile_btmsketch.golden.json")]
     public void SketchBuilders_MatchGoldenShape(string fixtureName)
     {
         using var actual = fixtureName switch
@@ -21,6 +22,7 @@ public class GoldenFixtureConformanceTests
             "circle_btmsketch.golden.json" => OnshapeSketchBuilder.BuildCircle(0.05, 0.05, 0.02),
             "work_axis_btmsketch.golden.json" => OnshapeSketchBuilder.BuildWorkAxis("Front", "x"),
             "closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildClosedProfile([new(0, 0), new(4, 0), new(2, 3)]),
+            "single_arc_closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildSingleArcClosedProfile(DProfile()),
             _ => throw new ArgumentOutOfRangeException(nameof(fixtureName)),
         };
 
@@ -91,6 +93,14 @@ public class GoldenFixtureConformanceTests
         MatchesGoldenShape(LoadFixture("Features", "shell_feature_envelope.golden.json"), JsonNode.Parse(actual.RootElement.GetRawText()))
             .Should().BeTrue(actual.RootElement.GetRawText());
     }
+
+    private static MixedProfileInput DProfile() => new(new(0, 0),
+    [
+        new MixedProfileArc(new(1, -1), new(2, 0)),
+        new MixedProfileLine(new(2, 2)),
+        new MixedProfileLine(new(0, 2)),
+        new MixedProfileLine(new(0, 0)),
+    ]);
 
     private static JsonNode? LoadFixture(string folder, string fixtureName)
     {

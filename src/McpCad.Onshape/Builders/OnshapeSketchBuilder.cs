@@ -180,6 +180,60 @@ public static class OnshapeSketchBuilder
         return BuildSketch(entities, constraints, plane);
     }
 
+    /// <summary>Builds a validated, exactly-one-arc closed profile from ordered centimeter coordinates.</summary>
+    internal static JsonDocument BuildSingleArcClosedProfile(MixedProfileInput input, string? plane = null)
+    {
+        var normalized = OnshapeMixedProfileGeometry.Normalize(input);
+        var validated = OnshapeMixedProfileTopology.Validate(normalized);
+        var segments = validated.Profile.Segments;
+        var entities = new List<Dictionary<string, object?>>(segments.Length);
+        var constraints = new List<object>(segments.Length);
+
+        for (var index = 0; index < segments.Length; index++)
+        {
+            var segment = segments[index];
+            var entityId = $"mixed-profile-segment-{index}";
+            if (segment.Kind == MixedProfileSegmentKind.Line)
+            {
+                entities.Add(CurveSegment(entityId, $"{entityId}.start", $"{entityId}.end",
+                    segment.Start.X, segment.Start.Y, segment.End.X, segment.End.Y));
+            }
+            else
+            {
+                var arc = segment.Arc ?? throw new ArgumentException("Arc geometry is required.", nameof(input));
+                entities.Add(new Dictionary<string, object?>
+                {
+                    ["btType"] = CurveSegmentType,
+                    ["entityId"] = entityId,
+                    ["startPointId"] = $"{entityId}.start",
+                    ["endPointId"] = $"{entityId}.end",
+                    ["centerId"] = $"{entityId}.center",
+                    ["geometry"] = new Dictionary<string, object?>
+                    {
+                        ["btType"] = CircleGeometryType,
+                        ["xCenter"] = N9(arc.Center.X),
+                        ["yCenter"] = N9(arc.Center.Y),
+                        ["radius"] = N9(arc.Radius),
+                        ["clockwise"] = arc.Clockwise,
+                        ["xDir"] = 1.0,
+                        ["yDir"] = 0.0,
+                    },
+                    ["startParam"] = N9(arc.StartParameter),
+                    ["endParam"] = N9(arc.EndParameter),
+                    ["isConstruction"] = false,
+                });
+            }
+
+            constraints.Add(Constraint(
+                $"mixed-profile-constraint-coincident-{index}",
+                "COINCIDENT",
+                $"{entityId}.end",
+                $"mixed-profile-segment-{(index + 1) % segments.Length}.start"));
+        }
+
+        return BuildSketch(entities, constraints, plane);
+    }
+
     public static JsonDocument BuildCircle(
         double cxM,
         double cyM,
