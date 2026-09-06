@@ -13,7 +13,8 @@ public class GoldenFixtureConformanceTests
     [InlineData("work_axis_btmsketch.golden.json")]
     [InlineData("closed_profile_btmsketch.golden.json")]
     [InlineData("single_arc_closed_profile_btmsketch.golden.json")]
-        [InlineData("two_arc_closed_profile_btmsketch.golden.json")]
+    [InlineData("two_arc_closed_profile_btmsketch.golden.json")]
+    [InlineData("four_arc_closed_profile_btmsketch.golden.json")]
     public void SketchBuilders_MatchGoldenShape(string fixtureName)
     {
         using var actual = fixtureName switch
@@ -24,7 +25,8 @@ public class GoldenFixtureConformanceTests
             "work_axis_btmsketch.golden.json" => OnshapeSketchBuilder.BuildWorkAxis("Front", "x"),
             "closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildClosedProfile([new(0, 0), new(4, 0), new(2, 3)]),
             "single_arc_closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildSingleArcClosedProfile(DProfile()),
-                "two_arc_closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildMixedClosedProfile(CapsuleProfile()),
+            "two_arc_closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildMixedClosedProfile(CapsuleProfile()),
+            "four_arc_closed_profile_btmsketch.golden.json" => OnshapeSketchBuilder.BuildMixedClosedProfile(RoundedRectangleProfile()),
             _ => throw new ArgumentOutOfRangeException(nameof(fixtureName)),
         };
 
@@ -110,6 +112,18 @@ public class GoldenFixtureConformanceTests
             new MixedProfileLine(new(2, 4)),
             new MixedProfileArc(new(1, 5), new(0, 4)),
             new MixedProfileLine(new(0, 0)),
+        ]);
+
+    private static MixedProfileInput RoundedRectangleProfile() => new(new(1, 0),
+        [
+            new MixedProfileLine(new(9, 0)),
+            new MixedProfileArc(new(9.707106781186548, 0.2928932188134524), new(10, 1)),
+            new MixedProfileLine(new(10, 5)),
+            new MixedProfileArc(new(9.707106781186548, 5.707106781186548), new(9, 6)),
+            new MixedProfileLine(new(1, 6)),
+            new MixedProfileArc(new(0.2928932188134524, 5.707106781186548), new(0, 5)),
+            new MixedProfileLine(new(0, 1)),
+            new MixedProfileArc(new(0.2928932188134524, 0.2928932188134524), new(1, 0)),
         ]);
 
         private static JsonNode? LoadFixture(string folder, string fixtureName)

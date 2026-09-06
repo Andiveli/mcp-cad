@@ -148,7 +148,148 @@ public class OnshapeMixedProfileTopologyTests
         yield return ["near-internal tangent", ArcArcFixture(false, Arc(new(0, 0), 2, Math.PI, -Math.PI), Arc(new(1 + 5e-11, 0), 1, 0, Math.PI / 2)), false];
     }
 
-    private static NormalizedMixedProfile ArcArcFixture(bool adjacent, NormalizedMixedProfileSegment first, NormalizedMixedProfileSegment second)
+    [Theory]
+        [InlineData(false, 1)]
+        [InlineData(true, -1)]
+        public void Validate_AcceptsFourArcRoundedRectangle(bool reverse, int winding)
+        {
+            var result = OnshapeMixedProfileTopology.Validate(RoundedRectangle(reverse));
+            result.Profile.Segments.Count(segment => segment.Arc is not null).Should().Be(4);
+            Math.Sign(result.SignedArea).Should().Be(winding);
+            Math.Abs(result.SignedArea).Should().BeApproximately((56 + Math.PI) * 1e-4, 1e-12);
+        }
+
+        [Fact]
+        public void Validate_AcceptsBoundedEightArcProfile()
+        {
+            var result = OnshapeMixedProfileTopology.Validate(EightArcCircle());
+            result.Profile.Segments.Should().HaveCount(8);
+            result.Profile.Segments.Should().OnlyContain(segment => segment.Kind == MixedProfileSegmentKind.Arc);
+        }
+
+        private static MixedProfileInput EightArcCircle() => new(new(5, 0), Enumerable.Range(1, 8)
+            .Select(index =>
+            {
+                var start = (index - 1) * Math.PI / 4;
+                var end = index * Math.PI / 4;
+                return (MixedProfileSegment)new MixedProfileArc(
+                    new(5 * Math.Cos((start + end) / 2), 5 * Math.Sin((start + end) / 2)),
+                    index == 8 ? new(5, 0) : new(5 * Math.Cos(end), 5 * Math.Sin(end)));
+            }).ToArray());
+
+        private static MixedProfileInput RoundedRectangle(bool reverse) => reverse
+            ? new(new(1, 0), [
+                new MixedProfileArc(new(1 - Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(0, 1)), new MixedProfileLine(new(0, 5)),
+                new MixedProfileArc(new(1 - Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(1, 6)), new MixedProfileLine(new(9, 6)),
+                new MixedProfileArc(new(9 + Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(10, 5)), new MixedProfileLine(new(10, 1)),
+                new MixedProfileArc(new(9 + Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(9, 0)), new MixedProfileLine(new(1, 0))])
+            : new(new(1, 0), [
+                new MixedProfileLine(new(9, 0)), new MixedProfileArc(new(9 + Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(10, 1)),
+                new MixedProfileLine(new(10, 5)), new MixedProfileArc(new(9 + Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(9, 6)),
+                new MixedProfileLine(new(1, 6)), new MixedProfileArc(new(1 - Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(0, 5)),
+                new MixedProfileLine(new(0, 1)), new MixedProfileArc(new(1 - Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(1, 0))]);
+
+        [Fact]
+        public void Validate_FourArcLatePairCrossing_NormalizesThenRejectsTopology()
+        {
+            var normalized = OnshapeMixedProfileGeometry.Normalize(FourArcLateCrossingProfile(), 1, 8);
+
+            normalized.Segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc).Should().Be(4);
+            var act = () => OnshapeMixedProfileTopology.Validate(normalized);
+
+            act.Should().Throw<ArgumentException>().WithMessage("*contact*");
+        }
+
+        [Theory]
+        [MemberData(nameof(LateArcPairRejections))]
+        public void Validate_LateNonAdjacentArcPairContacts_Rejects(string _, object value)
+        {
+            var profile = (NormalizedMixedProfile)value;
+            profile.Segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc).Should().BeGreaterThanOrEqualTo(4);
+            var act = () => OnshapeMixedProfileTopology.Validate(profile);
+
+            act.Should().Throw<ArgumentException>().WithMessage("*contact*");
+        }
+
+        public static IEnumerable<object[]> LateArcPairRejections()
+        {
+            yield return ["late bounded interior crossing", LateArcPairProfile(
+                Arc(new(0, 0), 1, Math.PI, Math.PI), Arc(new(1, 0), 1, 0, -Math.PI))];
+            yield return ["late coincident positive overlap", LateArcPairProfile(
+                Arc(new(0, 0), 1, Math.PI, -Math.PI), Arc(new(0, 0), 1, 5 * Math.PI / 4, -Math.PI / 2))];
+            yield return ["late non-adjacent tangent", LateArcPairProfile(
+                Arc(new(0, 0), 1, Math.PI, -Math.PI), Arc(new(2, 0), 1, Math.PI, -Math.PI / 2))];
+        }
+
+        [Theory]
+        [MemberData(nameof(LateLineArcRejections))]
+        public void Validate_LateNonAdjacentLineArcContactAfterCleanPairs_Rejects(string _, object value)
+        {
+            var profile = (NormalizedMixedProfile)value;
+            var act = () => OnshapeMixedProfileTopology.Validate(profile);
+
+            act.Should().Throw<ArgumentException>().WithMessage("*contact*");
+        }
+
+        public static IEnumerable<object[]> LateLineArcRejections()
+        {
+            yield return ["late line intersects late arc", LateLineArcProfile(new(MixedProfileSegmentKind.Line, new(-2, 0), new(2, 0)), Arc(new(0, 0), 1, Math.PI, -Math.PI))];
+            yield return ["late line touches late arc", LateLineArcProfile(new(MixedProfileSegmentKind.Line, new(-2, 1), new(2, 1)), Arc(new(0, 0), 1, Math.PI, -Math.PI))];
+        }
+
+        [Fact]
+        public void Validate_Bounded256SegmentFourArcProfile_CompletesWithinGenerousBound()
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var result = OnshapeMixedProfileTopology.Validate(Bounded256SegmentFourArcProfile());
+            stopwatch.Stop();
+
+            result.Profile.Segments.Should().HaveCount(256);
+            result.Profile.Segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc).Should().Be(4);
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(10));
+        }
+
+        private static MixedProfileInput FourArcLateCrossingProfile() => new(new(1, 0), [
+            new MixedProfileArc(new(Math.Sqrt(.5), Math.Sqrt(.5)), new(0, 1)),
+            new MixedProfileArc(new(-Math.Sqrt(.5), Math.Sqrt(.5)), new(-1, 0)),
+            new MixedProfileArc(new(-Math.Sqrt(.5), -Math.Sqrt(.5)), new(0, -1)),
+            new MixedProfileArc(new(-Math.Sqrt(.5), Math.Sqrt(.5)), new(1, 0)),
+        ]);
+
+        private static NormalizedMixedProfile LateArcPairProfile(NormalizedMixedProfileSegment first, NormalizedMixedProfileSegment second)
+        {
+            var remote = new[] { Arc(new(-100, 100), 1, 0, Math.PI / 2), Arc(new(-90, 100), 1, 0, Math.PI / 2), Arc(new(-80, 100), 1, 0, Math.PI / 2), Arc(new(-70, 100), 1, 0, Math.PI / 2) };
+            var line = new NormalizedMixedProfileSegment(MixedProfileSegmentKind.Line, new(100, 100), new(100, 101));
+            return OnshapeMixedProfileGeometry.Normalize(Capsule(), 1, 8) with { Segments = [.. remote, first, line, second, line with { Start = new(102, 100), End = new(102, 101) }] };
+        }
+
+        private static NormalizedMixedProfile LateLineArcProfile(NormalizedMixedProfileSegment line, NormalizedMixedProfileSegment arc)
+        {
+            var remote = new[] { Arc(new(-100, 100), 1, 0, Math.PI / 2), Arc(new(-90, 100), 1, 0, Math.PI / 2), Arc(new(-80, 100), 1, 0, Math.PI / 2), Arc(new(-70, 100), 1, 0, Math.PI / 2) };
+            return OnshapeMixedProfileGeometry.Normalize(Capsule(), 1, 8) with { Segments = [.. remote, line, new(MixedProfileSegmentKind.Line, new(100, 100), new(100, 101)), arc] };
+        }
+
+        private static MixedProfileInput Bounded256SegmentFourArcProfile()
+        {
+            var segments = new List<MixedProfileSegment>();
+            static void AddSide(List<MixedProfileSegment> target, SketchPoint start, SketchPoint end)
+            {
+                for (var index = 1; index <= 63; index++)
+                    target.Add(new MixedProfileLine(new(start.X + (end.X - start.X) * index / 63, start.Y + (end.Y - start.Y) * index / 63)));
+            }
+
+            AddSide(segments, new(1, 0), new(9, 0));
+            segments.Add(new MixedProfileArc(new(9 + Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(10, 1)));
+            AddSide(segments, new(10, 1), new(10, 5));
+            segments.Add(new MixedProfileArc(new(9 + Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(9, 6)));
+            AddSide(segments, new(9, 6), new(1, 6));
+            segments.Add(new MixedProfileArc(new(1 - Math.Sqrt(.5), 5 + Math.Sqrt(.5)), new(0, 5)));
+            AddSide(segments, new(0, 5), new(0, 1));
+            segments.Add(new MixedProfileArc(new(1 - Math.Sqrt(.5), 1 - Math.Sqrt(.5)), new(1, 0)));
+            return new(new(1, 0), segments);
+        }
+
+        private static NormalizedMixedProfile ArcArcFixture(bool adjacent, NormalizedMixedProfileSegment first, NormalizedMixedProfileSegment second)
     {
         var baseline = OnshapeMixedProfileGeometry.Normalize(Capsule(), 1, 2);
         var remoteFirst = new NormalizedMixedProfileSegment(MixedProfileSegmentKind.Line, new(100, 100), new(100, 101));

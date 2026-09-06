@@ -113,8 +113,29 @@ public class OnshapeGodPartModelingTests
         public void skill_onshape_god_part_RejectsMalformedStrictProfileBeforeProviderMutation(string options, string error) => AssertValidationNoCalls(options, error);
 
         [Fact]
-        public void skill_onshape_god_part_RejectsThreeArcsBeforeProviderMutation() =>
-            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"arc","through":{"x_cm":1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}},{"type":"arc","through":{"x_cm":-1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}}]}}""", "1 to 2 arcs");
+        public void skill_onshape_god_part_UsesStrictFourArcProfile()
+        {
+            var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
+            var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, RoundedRectangleOptions()));
+
+            result["success"].Should().Be(true);
+            var sketch = SketchPayload(provider).GetProperty("feature");
+            sketch.GetProperty("entities").GetArrayLength().Should().Be(8);
+            sketch.GetProperty("entities").EnumerateArray().Count(entity => entity.GetProperty("geometry").GetProperty("btType").GetString() == "BTCurveGeometryCircle-115").Should().Be(4);
+            sketch.GetProperty("constraints").GetArrayLength().Should().Be(8);
+        }
+
+        [Fact]
+        public void skill_onshape_god_part_AcceptsEightArcsAtBoundary()
+        {
+            var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
+            Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, ArcRingOptions(8)))["success"].Should().Be(true);
+            SketchPayload(provider).GetProperty("feature").GetProperty("entities").GetArrayLength().Should().Be(8);
+        }
+
+        [Fact]
+        public void skill_onshape_god_part_RejectsNineArcsBeforeProviderMutation() =>
+            AssertValidationNoCalls(ArcRingOptions(9), "1 to 8 arcs");
 
         [Fact]
         public void skill_onshape_god_part_UsesStrictTwoArcProfile()
@@ -130,7 +151,7 @@ public class OnshapeGodPartModelingTests
 
     [Fact]
     public void skill_onshape_god_part_RejectsZeroArcsBeforeProviderMutation() =>
-            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"line","end":{"x_cm":2,"y_cm":0}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}""", "1 to 2 arcs");
+            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"line","end":{"x_cm":2,"y_cm":0}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}""", "1 to 8 arcs");
 
         [Fact]
         public void skill_onshape_god_part_PreservesRectangleFallbackPayload()
@@ -148,6 +169,28 @@ public class OnshapeGodPartModelingTests
         var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 10, 5, 2, """{"fillet":{"edgeIds":["edge-1"],"radiusCm":0.2},"mirror":{"plane":"Top"}}"""));
         result["failedPhase"].Should().Be("fillet"); result["finalFeatureId"].Should().Be("extrude-1"); provider.Calls.Should().HaveCount(3);
     }
+
+    private static string RoundedRectangleOptions() =>
+        """{"profile":{"start":{"x_cm":1,"y_cm":0},"segments":[{"type":"line","end":{"x_cm":9,"y_cm":0}},{"type":"arc","through":{"x_cm":9.707106781186548,"y_cm":0.2928932188134524},"end":{"x_cm":10,"y_cm":1}},{"type":"line","end":{"x_cm":10,"y_cm":5}},{"type":"arc","through":{"x_cm":9.707106781186548,"y_cm":5.707106781186548},"end":{"x_cm":9,"y_cm":6}},{"type":"line","end":{"x_cm":1,"y_cm":6}},{"type":"arc","through":{"x_cm":0.2928932188134524,"y_cm":5.707106781186548},"end":{"x_cm":0,"y_cm":5}},{"type":"line","end":{"x_cm":0,"y_cm":1}},{"type":"arc","through":{"x_cm":0.2928932188134524,"y_cm":0.2928932188134524},"end":{"x_cm":1,"y_cm":0}}]}}""";
+
+    private static string ArcRingOptions(int count) => JsonSerializer.Serialize(new
+    {
+        profile = new
+        {
+            start = new { x_cm = 5d, y_cm = 0d },
+            segments = Enumerable.Range(1, count).Select(index =>
+            {
+                var start = (index - 1) * 2 * Math.PI / count;
+                var end = index * 2 * Math.PI / count;
+                return new
+                {
+                    type = "arc",
+                    through = new { x_cm = 5 * Math.Cos((start + end) / 2), y_cm = 5 * Math.Sin((start + end) / 2) },
+                    end = new { x_cm = index == count ? 5d : 5 * Math.Cos(end), y_cm = index == count ? 0d : 5 * Math.Sin(end) },
+                };
+            }),
+        },
+    });
 
     private static void AssertValidationNoCalls(string options, string? expectedError = null)
     {

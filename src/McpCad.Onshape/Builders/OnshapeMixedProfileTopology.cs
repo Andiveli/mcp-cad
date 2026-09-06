@@ -1,6 +1,6 @@
 namespace McpCad.Onshape.Builders;
 
-/// <summary>Whole-boundary contact validation and Green-theorem area for one- or two-arc profiles.</summary>
+/// <summary>Whole-boundary contact validation and Green-theorem area for one- to eight-arc profiles.</summary>
 internal sealed record ValidatedMixedProfile(NormalizedMixedProfile Profile, double SignedArea);
 
 internal static class OnshapeMixedProfileTopology
@@ -8,14 +8,14 @@ internal static class OnshapeMixedProfileTopology
     private const double RelativeTolerance = 1e-10;
     private const double MinimumArea = 1e-10; // square metres
 
-    public static ValidatedMixedProfile Validate(MixedProfileInput input) => Validate(OnshapeMixedProfileGeometry.Normalize(input, 1, 2));
+    public static ValidatedMixedProfile Validate(MixedProfileInput input) => Validate(OnshapeMixedProfileGeometry.Normalize(input, OnshapeMixedProfileGeometry.MinimumMixedArcCount, OnshapeMixedProfileGeometry.MaximumMixedArcCount));
 
     public static ValidatedMixedProfile Validate(NormalizedMixedProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
         var segments = profile.Segments;
-        if (segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc) is < 1 or > 2)
-            throw new ArgumentException("A mixed profile requires one or two arcs.", nameof(profile));
+        if (segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc) is < OnshapeMixedProfileGeometry.MinimumMixedArcCount or > OnshapeMixedProfileGeometry.MaximumMixedArcCount)
+            throw new ArgumentException("A mixed profile requires one to eight arcs.", nameof(profile));
         var tolerance = RelativeTolerance * Scale(profile);
         for (var i = 0; i < segments.Length; i++)
             for (var j = i + 1; j < segments.Length; j++)

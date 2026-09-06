@@ -11,7 +11,7 @@ namespace McpCad.Tools.Onshape;
 
 public partial class OnshapeSkillTools
 {
-    [McpServerTool, Description("Create a rectangle, a legacy straight-line closed profile, or a fixed-schema mixed profile of straight lines plus one or two three-point arcs; extrude it, optionally apply bounded features, then capture final iso and top verification views. One- and two-arc mixed profiles are live-proven; splines and more than two arcs are unsupported. All dimensions are in cm.")]
+    [McpServerTool, Description("Create a rectangle, a legacy straight-line closed profile, or a fixed-schema mixed profile of straight lines plus one to eight three-point arcs; extrude it, optionally apply bounded features, then capture final iso and top verification views. One-, two-, and four-arc mixed profiles are live-proven; three and five to eight arcs are not live-proven yet; splines and more than eight arcs are unsupported. All dimensions are in cm.")]
     public CallToolResult skill_onshape_god_part(
         string address_json, double x1_cm, double y1_cm, double x2_cm, double y2_cm, double depth_cm,
         string? options_json = null, int capture_width = 800, int capture_height = 600, string capture_edges = "show")

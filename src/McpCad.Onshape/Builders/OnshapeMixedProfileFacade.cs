@@ -3,10 +3,10 @@ using System.Text.Json;
 
 namespace McpCad.Onshape.Builders;
 
-/// <summary>A centimeter-space point supplied to a one-or-two-arc mixed closed profile.</summary>
+/// <summary>A centimeter-space point supplied to a one-to-eight-arc mixed closed profile.</summary>
 public readonly record struct MixedProfilePointCm(double Xcm, double Ycm);
 
-/// <summary>Base type for a typed one-or-two-arc mixed-profile segment.</summary>
+/// <summary>Base type for a typed one-to-eight-arc mixed-profile segment.</summary>
 public abstract record MixedProfileSegmentInput(MixedProfilePointCm End);
 
 /// <summary>A straight segment ending at <see cref="End"/>.</summary>
@@ -18,7 +18,7 @@ public sealed record MixedProfileThreePointArcSegment(MixedProfilePointCm Throug
 /// <summary>A closed centimeter-space profile containing exactly one three-point arc.</summary>
 public sealed record SingleArcClosedProfile(MixedProfilePointCm Start, ImmutableArray<MixedProfileSegmentInput> Segments);
 
-/// <summary>A closed centimeter-space profile containing one or two three-point arcs.</summary>
+/// <summary>A closed centimeter-space profile containing one to eight three-point arcs.</summary>
 public sealed record MixedClosedProfile(MixedProfilePointCm Start, ImmutableArray<MixedProfileSegmentInput> Segments);
 
 /// <summary>Public boundary for validated mixed-profile sketch payloads.</summary>

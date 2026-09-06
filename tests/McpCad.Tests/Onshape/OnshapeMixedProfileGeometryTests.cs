@@ -92,7 +92,22 @@ public class OnshapeMixedProfileGeometryTests
         result.Segments[^1].End.Should().Be(result.Start);
     }
 
-    public static IEnumerable<object[]> ValidTwoArcProfiles()
+    [Fact]
+        public void Normalize_LaterArcDuplicateCanonicalEndpoint_RejectsBeforeTopology()
+        {
+            var input = new MixedProfileInput(new(1, 0), [
+                new MixedProfileArc(new(Math.Sqrt(.5), Math.Sqrt(.5)), new(0, 1)),
+                new MixedProfileArc(new(-Math.Sqrt(.5), Math.Sqrt(.5)), new(-1, 0)),
+                new MixedProfileArc(new(-Math.Sqrt(.5), Math.Sqrt(.5)), new(0, 1)),
+                new MixedProfileArc(new(Math.Sqrt(.5), -Math.Sqrt(.5)), new(1, 0)),
+            ]);
+
+            var act = () => OnshapeMixedProfileGeometry.Normalize(input, 1, 8);
+
+            act.Should().Throw<ArgumentException>().WithMessage("*vertices cannot repeat*");
+        }
+
+        public static IEnumerable<object[]> ValidTwoArcProfiles()
     {
         yield return [new MixedProfileInput(new(0, 1), [
             new MixedProfileArc(new(1, 2), new(2, 1)), new MixedProfileLine(new(2, -1)),

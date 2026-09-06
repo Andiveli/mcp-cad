@@ -96,19 +96,31 @@ public class OnshapeMixedProfilePayloadTests
     }
 
     [Fact]
-    public void BuildMixedClosedProfile_RejectsZeroOrMoreThanTwoArcs()
+    public void BuildMixedClosedProfile_EmitsFourArcRoundedRectangle()
+    {
+        using var doc = OnshapeMixedProfileFacade.BuildMixedClosedProfile(RoundedRectangle());
+        var feature = doc.RootElement.GetProperty("feature");
+        var entities = feature.GetProperty("entities");
+        var constraints = feature.GetProperty("constraints");
+
+        entities.GetArrayLength().Should().Be(8);
+        entities.EnumerateArray().Select(entity => entity.GetProperty("geometry").GetProperty("btType").GetString()).Should()
+            .Equal("BTCurveGeometryLine-117", "BTCurveGeometryCircle-115", "BTCurveGeometryLine-117", "BTCurveGeometryCircle-115",
+                "BTCurveGeometryLine-117", "BTCurveGeometryCircle-115", "BTCurveGeometryLine-117", "BTCurveGeometryCircle-115");
+        entities.EnumerateArray().Count(entity => entity.GetProperty("geometry").GetProperty("btType").GetString() == "BTCurveGeometryCircle-115").Should().Be(4);
+        entities.EnumerateArray().Should().NotContain(entity => entity.GetProperty("btType").GetString() == "BTMSketchPoint-158");
+        constraints.GetArrayLength().Should().Be(8);
+        constraints.EnumerateArray().Select(constraint => constraint.GetProperty("constraintType").GetString()).Should().OnlyContain(type => type == "COINCIDENT");
+    }
+
+    [Fact]
+    public void BuildMixedClosedProfile_RejectsZeroOrMoreThanEightArcs()
     {
         var zero = new MixedClosedProfile(new(0, 0), [new MixedProfileLineSegment(new(1, 0)), new MixedProfileLineSegment(new(0, 0))]);
-        var three = new MixedClosedProfile(new(0, 0), [
-            new MixedProfileThreePointArcSegment(new(1, -1), new(2, 0)),
-            new MixedProfileThreePointArcSegment(new(3, 1), new(4, 0)),
-            new MixedProfileThreePointArcSegment(new(3, -1), new(0, 0))]);
+        var nine = ArcRing(9);
 
-        var zeroAct = () => OnshapeMixedProfileFacade.BuildMixedClosedProfile(zero);
-        var threeAct = () => OnshapeMixedProfileFacade.BuildMixedClosedProfile(three);
-
-        zeroAct.Should().Throw<ArgumentException>();
-        threeAct.Should().Throw<ArgumentException>();
+        ((Action)(() => OnshapeMixedProfileFacade.BuildMixedClosedProfile(zero))).Should().Throw<ArgumentException>();
+        ((Action)(() => OnshapeMixedProfileFacade.BuildMixedClosedProfile(nine))).Should().Throw<ArgumentException>();
     }
 
     [Fact]
@@ -121,6 +133,28 @@ public class OnshapeMixedProfilePayloadTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    private static MixedClosedProfile RoundedRectangle() => new(new(1, 0),
+    [
+        new MixedProfileLineSegment(new(9, 0)),
+        new MixedProfileThreePointArcSegment(new(9.707106781186548, 0.2928932188134524), new(10, 1)),
+        new MixedProfileLineSegment(new(10, 5)),
+        new MixedProfileThreePointArcSegment(new(9.707106781186548, 5.707106781186548), new(9, 6)),
+        new MixedProfileLineSegment(new(1, 6)),
+        new MixedProfileThreePointArcSegment(new(0.2928932188134524, 5.707106781186548), new(0, 5)),
+        new MixedProfileLineSegment(new(0, 1)),
+        new MixedProfileThreePointArcSegment(new(0.2928932188134524, 0.2928932188134524), new(1, 0)),
+    ]);
+
+    private static MixedClosedProfile ArcRing(int count) => new(new(5, 0), System.Collections.Immutable.ImmutableArray.CreateRange(Enumerable.Range(1, count)
+        .Select(index =>
+        {
+            var start = (index - 1) * 2 * Math.PI / count;
+            var end = index * 2 * Math.PI / count;
+            return (MixedProfileSegmentInput)new MixedProfileThreePointArcSegment(
+                new(5 * Math.Cos((start + end) / 2), 5 * Math.Sin((start + end) / 2)),
+                new(5 * Math.Cos(end), 5 * Math.Sin(end)));
+        })));
 
     private static MixedProfileInput D() => new(new(0, 0),
     [

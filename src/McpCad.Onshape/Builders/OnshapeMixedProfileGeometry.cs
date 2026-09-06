@@ -31,10 +31,12 @@ internal sealed record NormalizedMixedProfileArc(
 
 internal static class OnshapeMixedProfileGeometry
 {
-    private const double ArcTolerance = 1e-12;
+    internal const int MinimumMixedArcCount = 1;
+        internal const int MaximumMixedArcCount = 8;
+        private const double ArcTolerance = 1e-12;
 
     /// <summary>Normalizes the existing single-arc profile facade.</summary>
-    public static NormalizedMixedProfile Normalize(MixedProfileInput input) => Normalize(input, 1, 1);
+    public static NormalizedMixedProfile Normalize(MixedProfileInput input) => Normalize(input, MinimumMixedArcCount, MinimumMixedArcCount);
 
     internal static NormalizedMixedProfile Normalize(MixedProfileInput input, int minimumArcCount, int maximumArcCount)
     {
