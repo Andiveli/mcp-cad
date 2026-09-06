@@ -83,6 +83,15 @@ public class OnshapeGodPartModelingTests
     }
 
     [Fact]
+    public void skill_onshape_god_part_AcceptsRepeatedClosingProfilePoint()
+    {
+        var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
+        var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, """{"profile":[{"x_cm":0,"y_cm":0},{"x_cm":4,"y_cm":0},{"x_cm":2,"y_cm":3},{"x_cm":0,"y_cm":0}]}"""));
+        result["success"].Should().Be(true);
+        JsonSerializer.Serialize(provider.Calls.Single(call => call.Method == nameof(ICadWebProvider.SketchReplace)).Arguments[1]).Should().Contain("closed-profile-line-2").And.NotContain("closed-profile-line-3");
+    }
+
+    [Fact]
     public void skill_onshape_god_part_UsesStrictSingleArcProfile()
         {
             var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
@@ -104,20 +113,27 @@ public class OnshapeGodPartModelingTests
         public void skill_onshape_god_part_RejectsMalformedStrictProfileBeforeProviderMutation(string options, string error) => AssertValidationNoCalls(options, error);
 
         [Fact]
-        public void skill_onshape_god_part_RejectsSecondArcBeforeProviderMutation() =>
-            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"arc","through":{"x_cm":1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}}]}}""", "exactly one arc");
+        public void skill_onshape_god_part_RejectsThreeArcsBeforeProviderMutation() =>
+            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"arc","through":{"x_cm":1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}},{"type":"arc","through":{"x_cm":-1,"y_cm":1},"end":{"x_cm":0,"y_cm":0}}]}}""", "1 to 2 arcs");
 
         [Fact]
-        public void skill_onshape_god_part_AcceptsRepeatedClosingProfilePoint()
+        public void skill_onshape_god_part_UsesStrictTwoArcProfile()
     {
         var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
-        var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, """{"profile":[{"x_cm":0,"y_cm":0},{"x_cm":4,"y_cm":0},{"x_cm":2,"y_cm":3},{"x_cm":0,"y_cm":0}]}"""));
+        var result = Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 0, 0, 2, """{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"arc","through":{"x_cm":1,"y_cm":-1},"end":{"x_cm":2,"y_cm":0}},{"type":"line","end":{"x_cm":2,"y_cm":4}},{"type":"arc","through":{"x_cm":1,"y_cm":5},"end":{"x_cm":0,"y_cm":4}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}"""));
         result["success"].Should().Be(true);
-        JsonSerializer.Serialize(provider.Calls.Single(call => call.Method == nameof(ICadWebProvider.SketchReplace)).Arguments[1]).Should().Contain("closed-profile-line-2").And.NotContain("closed-profile-line-3");
+        var sketch = SketchPayload(provider).GetProperty("feature");
+            sketch.GetProperty("entities").GetArrayLength().Should().Be(4);
+            sketch.GetProperty("entities").EnumerateArray().Count(entity => entity.GetProperty("geometry").GetProperty("btType").GetString() == "BTCurveGeometryCircle-115").Should().Be(2);
+            sketch.GetProperty("constraints").GetArrayLength().Should().Be(4);
     }
 
     [Fact]
-    public void skill_onshape_god_part_PreservesRectangleFallbackPayload()
+    public void skill_onshape_god_part_RejectsZeroArcsBeforeProviderMutation() =>
+            AssertValidationNoCalls("""{"profile":{"start":{"x_cm":0,"y_cm":0},"segments":[{"type":"line","end":{"x_cm":2,"y_cm":0}},{"type":"line","end":{"x_cm":0,"y_cm":0}}]}}""", "1 to 2 arcs");
+
+        [Fact]
+        public void skill_onshape_god_part_PreservesRectangleFallbackPayload()
     {
         var provider = RecordingProvider.Create([Success("sketch-1"), Success("extrude-1")], [CaptureSuccess(), CaptureSuccess()]);
         Structured(new OnshapeSkillTools(provider.Provider).skill_onshape_god_part(AddressJson(), 0, 0, 10, 5, 2))["success"].Should().Be(true);

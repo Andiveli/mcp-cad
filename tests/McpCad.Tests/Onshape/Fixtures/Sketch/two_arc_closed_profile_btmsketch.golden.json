@@ -1,0 +1,19 @@
+{
+  "feature": {
+    "btType": "BTMSketch-151",
+    "parameters": [{ "btType": "BTMParameterQueryList-148", "parameterId": "sketchPlane" }],
+    "entities": [
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "mixed-profile-segment-0", "startPointId": "mixed-profile-segment-0.start", "endPointId": "mixed-profile-segment-0.end", "centerId": "mixed-profile-segment-0.center", "geometry": { "btType": "BTCurveGeometryCircle-115", "xCenter": 0.01, "yCenter": 0, "radius": 0.01, "clockwise": false, "xDir": 1, "yDir": 0 }, "startParam": 3.14159265, "endParam": 6.28318531, "isConstruction": false },
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "mixed-profile-segment-1", "startPointId": "mixed-profile-segment-1.start", "endPointId": "mixed-profile-segment-1.end", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0.02, "pntY": 0.02, "dirX": 0, "dirY": 1 }, "startParam": -0.02, "endParam": 0.02, "isConstruction": false },
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "mixed-profile-segment-2", "startPointId": "mixed-profile-segment-2.start", "endPointId": "mixed-profile-segment-2.end", "centerId": "mixed-profile-segment-2.center", "geometry": { "btType": "BTCurveGeometryCircle-115", "xCenter": 0.01, "yCenter": 0.04, "radius": 0.01, "clockwise": false, "xDir": 1, "yDir": 0 }, "startParam": 0, "endParam": 3.14159265, "isConstruction": false },
+      { "btType": "BTMSketchCurveSegment-155", "entityId": "mixed-profile-segment-3", "startPointId": "mixed-profile-segment-3.start", "endPointId": "mixed-profile-segment-3.end", "geometry": { "btType": "BTCurveGeometryLine-117", "pntX": 0, "pntY": 0.02, "dirX": 0, "dirY": -1 }, "startParam": -0.02, "endParam": 0.02, "isConstruction": false }
+    ],
+    "constraints": [
+      { "btType": "BTMSketchConstraint-2", "entityId": "mixed-profile-constraint-coincident-0", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "mixed-profile-segment-0.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "mixed-profile-segment-1.start" }] },
+      { "btType": "BTMSketchConstraint-2", "entityId": "mixed-profile-constraint-coincident-1", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "mixed-profile-segment-1.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "mixed-profile-segment-2.start" }] },
+      { "btType": "BTMSketchConstraint-2", "entityId": "mixed-profile-constraint-coincident-2", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "mixed-profile-segment-2.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "mixed-profile-segment-3.start" }] },
+      { "btType": "BTMSketchConstraint-2", "entityId": "mixed-profile-constraint-coincident-3", "constraintType": "COINCIDENT", "parameters": [{ "btType": "BTMParameterString-149", "parameterId": "localFirst", "value": "mixed-profile-segment-3.end" }, { "btType": "BTMParameterString-149", "parameterId": "localSecond", "value": "mixed-profile-segment-0.start" }] }
+    ]
+  },
+  "rejectMicroversionSkew": true
+}

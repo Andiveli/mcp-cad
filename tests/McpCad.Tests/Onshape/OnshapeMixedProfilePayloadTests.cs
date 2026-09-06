@@ -66,6 +66,52 @@ public class OnshapeMixedProfilePayloadTests
     }
 
     [Fact]
+    public void BuildMixedClosedProfile_EmitsDeterministicTwoArcCapsule()
+    {
+        using var doc = OnshapeMixedProfileFacade.BuildMixedClosedProfile(new MixedClosedProfile(
+            new(0, 0), [
+                new MixedProfileThreePointArcSegment(new(1, -1), new(2, 0)),
+                new MixedProfileLineSegment(new(2, 4)),
+                new MixedProfileThreePointArcSegment(new(1, 5), new(0, 4)),
+                new MixedProfileLineSegment(new(0, 0))]), "front");
+        var feature = doc.RootElement.GetProperty("feature");
+        var entities = feature.GetProperty("entities");
+        var constraints = feature.GetProperty("constraints");
+
+        entities.GetArrayLength().Should().Be(4);
+        constraints.GetArrayLength().Should().Be(4);
+        foreach (var index in new[] { 0, 2 })
+        {
+            var entity = entities[index];
+            entity.GetProperty("btType").GetString().Should().Be("BTMSketchCurveSegment-155");
+            entity.GetProperty("startPointId").GetString().Should().Be($"mixed-profile-segment-{index}.start");
+            entity.GetProperty("endPointId").GetString().Should().Be($"mixed-profile-segment-{index}.end");
+            entity.GetProperty("centerId").GetString().Should().Be($"mixed-profile-segment-{index}.center");
+            entity.GetProperty("geometry").GetProperty("btType").GetString().Should().Be("BTCurveGeometryCircle-115");
+        }
+        entities.EnumerateArray().Should().NotContain(entity => entity.GetProperty("btType").GetString() == "BTMSketchPoint-158");
+        constraints.EnumerateArray().Select(constraint => constraint.GetProperty("constraintType").GetString()).Should().OnlyContain(type => type == "COINCIDENT");
+        constraints.EnumerateArray().Select(constraint => constraint.GetProperty("parameters")[0].GetProperty("value").GetString()).Should()
+            .Equal("mixed-profile-segment-0.end", "mixed-profile-segment-1.end", "mixed-profile-segment-2.end", "mixed-profile-segment-3.end");
+    }
+
+    [Fact]
+    public void BuildMixedClosedProfile_RejectsZeroOrMoreThanTwoArcs()
+    {
+        var zero = new MixedClosedProfile(new(0, 0), [new MixedProfileLineSegment(new(1, 0)), new MixedProfileLineSegment(new(0, 0))]);
+        var three = new MixedClosedProfile(new(0, 0), [
+            new MixedProfileThreePointArcSegment(new(1, -1), new(2, 0)),
+            new MixedProfileThreePointArcSegment(new(3, 1), new(4, 0)),
+            new MixedProfileThreePointArcSegment(new(3, -1), new(0, 0))]);
+
+        var zeroAct = () => OnshapeMixedProfileFacade.BuildMixedClosedProfile(zero);
+        var threeAct = () => OnshapeMixedProfileFacade.BuildMixedClosedProfile(three);
+
+        zeroAct.Should().Throw<ArgumentException>();
+        threeAct.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public void BuildSingleArcClosedProfile_RejectsInputBeforePayloadEmission()
     {
         var invalid = new MixedProfileInput(new(0, 0),

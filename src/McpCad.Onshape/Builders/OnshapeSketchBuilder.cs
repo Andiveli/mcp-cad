@@ -181,9 +181,16 @@ public static class OnshapeSketchBuilder
     }
 
     /// <summary>Builds a validated, exactly-one-arc closed profile from ordered centimeter coordinates.</summary>
-    internal static JsonDocument BuildSingleArcClosedProfile(MixedProfileInput input, string? plane = null)
+    internal static JsonDocument BuildSingleArcClosedProfile(MixedProfileInput input, string? plane = null) =>
+        BuildMixedClosedProfile(input, plane, 1);
+
+    /// <summary>Builds a validated one- or two-arc closed profile from ordered centimeter coordinates.</summary>
+    internal static JsonDocument BuildMixedClosedProfile(MixedProfileInput input, string? plane = null) =>
+        BuildMixedClosedProfile(input, plane, 2);
+
+    private static JsonDocument BuildMixedClosedProfile(MixedProfileInput input, string? plane, int maximumArcCount)
     {
-        var normalized = OnshapeMixedProfileGeometry.Normalize(input);
+        var normalized = OnshapeMixedProfileGeometry.Normalize(input, 1, maximumArcCount);
         var validated = OnshapeMixedProfileTopology.Validate(normalized);
         var segments = validated.Profile.Segments;
         var entities = new List<Dictionary<string, object?>>(segments.Length);
