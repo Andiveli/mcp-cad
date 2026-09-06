@@ -1,6 +1,6 @@
 namespace McpCad.Onshape.Builders;
 
-/// <summary>Whole-boundary contact validation and Green-theorem area for one-arc profiles.</summary>
+/// <summary>Whole-boundary contact validation and Green-theorem area for one- or two-arc profiles.</summary>
 internal sealed record ValidatedMixedProfile(NormalizedMixedProfile Profile, double SignedArea);
 
 internal static class OnshapeMixedProfileTopology
@@ -8,14 +8,14 @@ internal static class OnshapeMixedProfileTopology
     private const double RelativeTolerance = 1e-10;
     private const double MinimumArea = 1e-10; // square metres
 
-    public static ValidatedMixedProfile Validate(MixedProfileInput input) => Validate(OnshapeMixedProfileGeometry.Normalize(input));
+    public static ValidatedMixedProfile Validate(MixedProfileInput input) => Validate(OnshapeMixedProfileGeometry.Normalize(input, 1, 2));
 
     public static ValidatedMixedProfile Validate(NormalizedMixedProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
         var segments = profile.Segments;
-        if (segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc) != 1)
-            throw new ArgumentException("A mixed profile requires exactly one arc.", nameof(profile));
+        if (segments.Count(segment => segment.Kind == MixedProfileSegmentKind.Arc) is < 1 or > 2)
+            throw new ArgumentException("A mixed profile requires one or two arcs.", nameof(profile));
         var tolerance = RelativeTolerance * Scale(profile);
         for (var i = 0; i < segments.Length; i++)
             for (var j = i + 1; j < segments.Length; j++)
@@ -34,7 +34,86 @@ internal static class OnshapeMixedProfileTopology
             ValidateLineArc(a, b, adjacent, tolerance);
         else if (b.Kind == MixedProfileSegmentKind.Line)
             ValidateLineArc(b, a, adjacent, tolerance);
+        else
+            ValidateArcArc(a, b, adjacent, tolerance);
     }
+
+    private static void ValidateArcArc(NormalizedMixedProfileSegment a, NormalizedMixedProfileSegment b, bool adjacent, double tolerance)
+    {
+        var first = a.Arc ?? throw new ArgumentException("Arc geometry is required.");
+        var second = b.Arc ?? throw new ArgumentException("Arc geometry is required.");
+        var delta = Subtract(second.Center, first.Center); var distance = Math.Sqrt(Dot(delta, delta));
+        var local = Math.Max(Math.Max(first.Radius, second.Radius), distance);
+        var lengthTolerance = 4 * Math.Max(tolerance, RelativeTolerance * Math.Max(1, local));
+        if (!double.IsFinite(distance)) Reject();
+        var radiusDifference = Math.Abs(first.Radius - second.Radius);
+        if (distance == 0)
+        {
+            if (radiusDifference > lengthTolerance) return;
+            ValidateCoincidentArcs(a, b, adjacent, lengthTolerance);
+            return;
+        }
+        if (distance <= lengthTolerance)
+        {
+            if (radiusDifference > lengthTolerance) return;
+            Reject();
+        }
+        var sum = first.Radius + second.Radius; var difference = radiusDifference;
+        if (distance > sum + lengthTolerance || distance < difference - lengthTolerance) return;
+        var externalTangentOffset = Math.Abs(distance - sum); var internalTangentOffset = Math.Abs(distance - difference);
+        var tangent = externalTangentOffset <= lengthTolerance || internalTangentOffset <= lengthTolerance;
+        if (tangent && externalTangentOffset != 0 && internalTangentOffset != 0) Reject();
+        var along = (first.Radius * first.Radius - second.Radius * second.Radius + distance * distance) / (2 * distance);
+        var heightSquared = first.Radius * first.Radius - along * along;
+        var heightTolerance = RelativeTolerance * Math.Max(Math.Max(first.Radius * first.Radius, along * along), local * local);
+        if (!double.IsFinite(heightSquared) || heightSquared < -heightTolerance) Reject();
+        if (tangent) heightSquared = 0;
+        else if (Math.Abs(heightSquared) <= heightTolerance) Reject();
+        var basePoint = Add(first.Center, Scale(delta, along / distance)); var contacts = 0;
+        if (heightSquared == 0) ValidateArcArcContact(a, b, basePoint, adjacent, lengthTolerance, ref contacts);
+        else
+        {
+            var height = Math.Sqrt(heightSquared); var offset = new SketchPoint(-delta.Y * height / distance, delta.X * height / distance);
+            ValidateArcArcContact(a, b, Add(basePoint, offset), adjacent, lengthTolerance, ref contacts);
+            ValidateArcArcContact(a, b, Subtract(basePoint, offset), adjacent, lengthTolerance, ref contacts);
+        }
+        if (contacts > 1) Reject();
+    }
+
+    private static void ValidateArcArcContact(NormalizedMixedProfileSegment a, NormalizedMixedProfileSegment b, SketchPoint point, bool adjacent, double tolerance, ref int contacts)
+    {
+        var first = ArcMembership(point, a.Arc!, tolerance); var second = ArcMembership(point, b.Arc!, tolerance);
+        if (first == 0 || second == 0) return;
+        if (first < 0 || second < 0 || !adjacent || !IsDesignatedArcArcJoin(a, b, point, first, second, tolerance)) Reject();
+        contacts++;
+    }
+
+    private static void ValidateCoincidentArcs(NormalizedMixedProfileSegment a, NormalizedMixedProfileSegment b, bool adjacent, double tolerance)
+    {
+        var first = a.Arc!; var second = b.Arc!; var angleTolerance = AngularTolerance(first, tolerance);
+        foreach (var left in DirectedIntervals(first)) foreach (var right in DirectedIntervals(second))
+            if (Math.Min(left.End, right.End) - Math.Max(left.Start, right.Start) > angleTolerance) Reject();
+        var contacts = new List<SketchPoint>();
+        foreach (var point in new[] { a.Start, a.End, b.Start, b.End })
+        {
+            var firstMembership = ArcMembership(point, first, tolerance); var secondMembership = ArcMembership(point, second, tolerance);
+            if (firstMembership <= 1 || secondMembership <= 1 || contacts.Any(existing => Distance(existing, point) <= tolerance)) continue;
+            if (!adjacent || !IsDesignatedArcArcJoin(a, b, point, firstMembership, secondMembership, tolerance)) Reject();
+            contacts.Add(point);
+        }
+        if (contacts.Count > 1) Reject();
+    }
+
+    private static IEnumerable<(double Start, double End)> DirectedIntervals(NormalizedMixedProfileArc arc)
+    {
+        var start = arc.Sweep > 0 ? Positive(arc.StartParameter) : Positive(arc.EndParameter); var end = start + Math.Abs(arc.Sweep);
+        if (end <= 2 * Math.PI) { yield return (start, end); yield break; }
+        yield return (start, 2 * Math.PI); yield return (0, end - 2 * Math.PI);
+    }
+
+    private static bool IsDesignatedArcArcJoin(NormalizedMixedProfileSegment a, NormalizedMixedProfileSegment b, SketchPoint point, int first, int second, double tolerance) =>
+        first == 3 && second == 2 && Distance(point, a.End) <= tolerance && Distance(point, b.Start) <= tolerance
+        || first == 2 && second == 3 && Distance(point, a.Start) <= tolerance && Distance(point, b.End) <= tolerance;
 
     private static void ValidateLines(NormalizedMixedProfileSegment a, NormalizedMixedProfileSegment b, bool adjacent, double tolerance)
     {
@@ -97,15 +176,18 @@ internal static class OnshapeMixedProfileTopology
         if (!double.IsFinite(radialDistance) || Math.Abs(radialDistance - arc.Radius) > tolerance) return 0;
         var angle = Math.Atan2(point.Y - arc.Center.Y, point.X - arc.Center.X);
         if (!double.IsFinite(angle)) return -1;
+        var angularTolerance = AngularTolerance(arc, tolerance);
         var travelled = arc.Sweep >= 0 ? Positive(angle - arc.StartParameter) : -Positive(arc.StartParameter - angle);
         var startDistance = Distance(point, PointOnArc(arc, arc.StartParameter));
         var endDistance = Distance(point, PointOnArc(arc, arc.EndParameter));
         if (startDistance <= tolerance) return 2;
         if (endDistance <= tolerance) return 3;
-        if (arc.Sweep > 0 && travelled > tolerance && travelled < arc.Sweep - tolerance) return 1;
-        if (arc.Sweep < 0 && travelled < -tolerance && travelled > arc.Sweep + tolerance) return 1;
-        return Math.Abs(travelled) <= tolerance || Math.Abs(travelled - arc.Sweep) <= tolerance ? -1 : 0;
+        if (arc.Sweep > 0 && travelled > angularTolerance && travelled < arc.Sweep - angularTolerance) return 1;
+        if (arc.Sweep < 0 && travelled < -angularTolerance && travelled > arc.Sweep + angularTolerance) return 1;
+        return Math.Abs(travelled) <= angularTolerance || Math.Abs(travelled - arc.Sweep) <= angularTolerance ? -1 : 0;
     }
+
+    private static double AngularTolerance(NormalizedMixedProfileArc arc, double lengthTolerance) => Math.Max(RelativeTolerance, lengthTolerance / arc.Radius);
 
     private static bool IsDesignatedLineArcJoin(NormalizedMixedProfileSegment line, NormalizedMixedProfileSegment arc, SketchPoint point, int membership, double tolerance) =>
         membership == 2 && Distance(point, line.End) <= tolerance && Distance(point, arc.Start) <= tolerance

@@ -73,4 +73,58 @@ public class OnshapeMixedProfileGeometryTests
         yield return [new MixedProfileInput(start, [new MixedProfileLine(new(2, 0)), new MixedProfileArc(new(1, 1), start), close])]; // duplicate vertex
         yield return [new MixedProfileInput(start, [new MixedProfileArc(new(1, 1), new(2, 0)), new MixedProfileLine(new(2, 0)), close])]; // duplicate vertex
     }
+
+    [Theory]
+    [MemberData(nameof(ValidTwoArcProfiles))]
+    public void Normalize_OneOrTwoArcs_PreservesEachArcIndependently(
+        object value, bool firstClockwise, bool secondClockwise, bool firstMajor, bool secondSemicircle)
+    {
+        var input = (MixedProfileInput)value;
+        var result = OnshapeMixedProfileGeometry.Normalize(input, 1, 2);
+
+        var arcs = result.Segments.Where(segment => segment.Kind == MixedProfileSegmentKind.Arc).ToArray();
+        result.Segments.Should().HaveCount(input.Segments.Count);
+        arcs.Should().HaveCount(2);
+        arcs[0].Arc!.Clockwise.Should().Be(firstClockwise);
+        arcs[1].Arc!.Clockwise.Should().Be(secondClockwise);
+        (Math.Abs(arcs[0].Arc!.Sweep) > Math.PI).Should().Be(firstMajor);
+        (Math.Abs(Math.Abs(arcs[1].Arc!.Sweep) - Math.PI) < 1e-9).Should().Be(secondSemicircle);
+        result.Segments[^1].End.Should().Be(result.Start);
+    }
+
+    public static IEnumerable<object[]> ValidTwoArcProfiles()
+    {
+        yield return [new MixedProfileInput(new(0, 1), [
+            new MixedProfileArc(new(1, 2), new(2, 1)), new MixedProfileLine(new(2, -1)),
+            new MixedProfileArc(new(1, -2), new(0, -1)), new MixedProfileLine(new(0, 1))]), true, true, false, true];
+        yield return [new MixedProfileInput(new(0, 1), [
+            new MixedProfileLine(new(0, -1)), new MixedProfileArc(new(1, -2), new(2, -1)),
+            new MixedProfileLine(new(2, 1)), new MixedProfileArc(new(1, 2), new(0, 1))]), false, false, false, true];
+        yield return [new MixedProfileInput(new(0, 0), [
+            new MixedProfileArc(new(1, -.5), new(2, 0)), new MixedProfileLine(new(2, 2)),
+            new MixedProfileArc(new(1, 1), new(0, 2)), new MixedProfileLine(new(0, 0))]), false, true, false, true];
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidTwoArcProfiles))]
+    public void Normalize_OneOrTwoArcs_RejectsInvalidArcCountsAndSecondArcGeometry(object value)
+    {
+        var act = () => OnshapeMixedProfileGeometry.Normalize((MixedProfileInput)value, 1, 2);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    public static IEnumerable<object[]> InvalidTwoArcProfiles()
+    {
+        yield return [new MixedProfileInput(new(0, 0), [new MixedProfileLine(new(1, 0)), new MixedProfileLine(new(0, 0))])];
+        yield return [new MixedProfileInput(new(0, 0), [
+            new MixedProfileArc(new(1, 1), new(2, 0)), new MixedProfileArc(new(3, 1), new(4, 0)),
+            new MixedProfileArc(new(3, -1), new(0, 0))])];
+        yield return [new MixedProfileInput(new(0, 0), [
+            new MixedProfileArc(new(1, 1), new(2, 0)), new MixedProfileLine(new(2, 2)),
+            new MixedProfileArc(new(2, 2), new(0, 2)), new MixedProfileLine(new(0, 0))])];
+        yield return [new MixedProfileInput(new(0, 0), [
+            new MixedProfileArc(new(1, 1), new(2, 0)), new MixedProfileLine(new(2, 2)),
+            new MixedProfileArc(new(1, 2), new(0, 2)), new MixedProfileLine(new(0, 0))])];
+    }
 }

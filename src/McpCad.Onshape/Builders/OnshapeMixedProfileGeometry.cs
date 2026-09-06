@@ -33,14 +33,26 @@ internal static class OnshapeMixedProfileGeometry
 {
     private const double ArcTolerance = 1e-12;
 
-    public static NormalizedMixedProfile Normalize(MixedProfileInput input)
+    /// <summary>Normalizes the existing single-arc profile facade.</summary>
+    public static NormalizedMixedProfile Normalize(MixedProfileInput input) => Normalize(input, 1, 1);
+
+    internal static NormalizedMixedProfile Normalize(MixedProfileInput input, int minimumArcCount, int maximumArcCount)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(input.Segments);
+        if (minimumArcCount < 0 || maximumArcCount < minimumArcCount)
+            throw new ArgumentOutOfRangeException(nameof(minimumArcCount));
         if (input.Segments.Count is < 2 or > 256)
             throw new ArgumentException("A mixed profile requires 2 to 256 segments.", nameof(input));
-        if (input.Segments.Count(segment => segment is MixedProfileArc) != 1)
-            throw new ArgumentException("A mixed profile requires exactly one arc.", nameof(input));
+        var arcCount = input.Segments.Count(segment => segment is MixedProfileArc);
+        if (arcCount < minimumArcCount || arcCount > maximumArcCount)
+            throw new ArgumentException(
+                minimumArcCount == maximumArcCount
+                    ? minimumArcCount == 1
+                        ? "A mixed profile requires exactly one arc."
+                        : $"A mixed profile requires exactly {minimumArcCount} arcs."
+                    : $"A mixed profile requires {minimumArcCount} to {maximumArcCount} arcs.",
+                nameof(input));
 
         ValidateFinite(input.Start, nameof(input));
         foreach (var segment in input.Segments)
