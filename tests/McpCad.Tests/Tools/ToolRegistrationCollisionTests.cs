@@ -1,5 +1,6 @@
 using McpCad.Core.Exceptions;
 using McpCad.Tools;
+using McpCad.Tools.Onshape;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 
@@ -43,6 +44,15 @@ public class ToolRegistrationCollisionTests
         Assert.Null(exception);
     }
 #endif
+
+    [Fact]
+    public void OnshapeSkillTools_RegistersOneAdditiveOrchestratorWithoutChangingGodPart()
+    {
+        var names = ToolRegistrationValidator.GetToolMethodNames(typeof(OnshapeSkillTools));
+
+        names.Count(name => name == "onshape_orchestrate_part").Should().Be(1);
+        names.Should().Contain("skill_onshape_god_part");
+    }
 
     [Fact]
     public void GetToolMethodNames_OnshapeAtomicTools_Uses_Onshape_Export_Prefix_Not_Bare_Export_On_Onshape_Type()
