@@ -1,0 +1,67 @@
+schema: spec-driven
+strict_tdd: true
+context: |
+  mcp-cad is a C# 12/.NET 8 MCP server for agent-driven parametric CAD.
+  Architecture: provider-agnostic McpCad.Core contracts and models; Inventor is a
+  Windows-only COM provider; Onshape is an authenticated REST provider using API
+  key credentials (with HMAC support where applicable); McpCad.Tools exposes atomic
+  and composable snake_case MCP tools; McpCad.Server provides the stdio MCP
+  transport; McpCad.Installer provides the Spectre.Console TUI.
+  The requested change is onshape-part-orchestrator and must preserve existing
+  OpenSpec changes, specifications, and archives.
+  Conventions: PascalCase C# types and members, snake_case MCP tool names,
+  nullable reference types and implicit usings enabled, provider boundaries kept
+  behind interfaces, and tests use mocks or WireMock rather than live CAD calls.
+  Project-level constraints from /home/samael/Escritorio/Programacion/AGENTS.md:
+  check returned errors, propagate context for cancellation and timeouts, preserve
+  the established src/ and tests/ project structure, and avoid global mutable state.
+  Testing: xUnit with FluentAssertions, Moq, WireMock.Net, and coverlet.collector.
+  Primary test command: dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore.
+  Strict TDD is required: write failing tests first, implement the smallest
+  passing change, triangulate behavior, then refactor while preserving evidence.
+rules:
+  proposal:
+    require_problem_statement: true
+  spec:
+    require_acceptance_criteria: true
+  design:
+    require_tradeoffs: true
+  tasks:
+    protect_review_workload: true
+  apply:
+    test_command: "dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore"
+  verify:
+    test_command: "dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore"
+    build_command: "dotnet build src/mcp-cad.sln"
+    coverage_threshold: 0
+  archive:
+    warn_before_destructive_deltas: true
+testing:
+  detected: "2026-09-05"
+  runner:
+    command: "dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore"
+    framework: "xUnit 2.5.3"
+  layers:
+    unit: "xUnit"
+    integration: "xUnit with WireMock.Net and provider fakes"
+    e2e: ""
+  commands:
+    unit:
+      - scope: "tests/McpCad.Tests/"
+        command: "dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore"
+        framework: "xUnit 2.5.3"
+    integration:
+      - scope: "tests/McpCad.Tests/"
+        command: "dotnet test tests/McpCad.Tests/McpCad.Tests.csproj --framework net8.0 --no-restore"
+        framework: "xUnit 2.5.3 + WireMock.Net"
+    e2e: []
+  coverage:
+    command: "dotnet test tests/McpCad.Tests/ --collect:\"XPlat Code Coverage\""
+    commands: []
+quality:
+  lint: ""
+  lint_commands: []
+  typecheck: "dotnet build src/mcp-cad.sln"
+  typecheck_commands: []
+  format: ""
+  format_commands: []
