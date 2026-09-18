@@ -1,6 +1,8 @@
 using McpCad.Core;
 using McpCad.Core.Exceptions;
+using McpCad.Core.Modeling;
 using McpCad.Onshape;
+using McpCad.Onshape.Modeling;
 using McpCad.Tools;
 using McpCad.Tools.Onshape;
 using Microsoft.Extensions.Configuration;
@@ -87,6 +89,7 @@ public static partial class ProviderBootstrap
 
             services.AddSingleton<OnshapeDriver>();
         services.AddSingleton<OnshapeProvider>();
+        services.AddSingleton<IPartModelingContextFactory, OnshapePartModelingContextFactory>();
         services.AddSingleton<ICadWebProvider>(sp => sp.GetRequiredService<OnshapeProvider>());
         services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<OnshapeProvider>());
         services.AddSingleton<IMechanicalCadProvider, NullMechanicalCadProvider>();

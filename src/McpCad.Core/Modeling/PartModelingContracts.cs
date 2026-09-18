@@ -1,3 +1,5 @@
+using McpCad.Core.Models;
+
 namespace McpCad.Core.Modeling;
 
 public enum CanonicalPlane
@@ -115,6 +117,11 @@ public enum OptionalOperationStatus
 public sealed record PartModelingCapabilities(
     OptionalCapabilityStatus Evidence,
     OptionalCapabilityStatus Revision);
+
+public interface IPartModelingContextFactory
+{
+    IPartModelingContext Bind(CadElementAddress target);
+}
 
 public interface IPartModelingContext
 {

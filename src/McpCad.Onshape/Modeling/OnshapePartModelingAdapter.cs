@@ -5,6 +5,19 @@ using McpCad.Onshape.Builders;
 
 namespace McpCad.Onshape.Modeling;
 
+/// <summary>Creates address-bound, one-shot portable modeling contexts for Onshape Part Studios.</summary>
+public sealed class OnshapePartModelingContextFactory : IPartModelingContextFactory
+{
+    private readonly OnshapePartModelingAdapter _adapter;
+
+    public OnshapePartModelingContextFactory(OnshapeClient client)
+    {
+        _adapter = new OnshapePartModelingAdapter(client);
+    }
+
+    public IPartModelingContext Bind(CadElementAddress target) => _adapter.Bind(target);
+}
+
 internal sealed class OnshapePartModelingAdapter
 {
     private readonly OnshapeClient _client;
