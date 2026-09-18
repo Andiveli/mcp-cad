@@ -80,9 +80,9 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
 
         using (payload)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 using var response = await _client.SendJsonAsync(
                     HttpMethod.Post, FeaturesPath(), payload.RootElement.GetRawText(), cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
@@ -99,7 +99,7 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
                 _result = _result with { Sketch = operation };
                 return operation;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 return SetSketchFailure(AdapterError(ex.Message), MutationDisposition.Unknown, OperationStatus.Uncertain);
             }
@@ -127,9 +127,9 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
             return SetExtrusionFailure(normalized.Error!, MutationDisposition.None);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
             using var payload = OnshapeFeatureTemplates.ExtrudeFromSketch(
                 nativeSketchId, normalized.Value!.Depth, Direction(normalized.Value.Direction), "new");
             using var response = await _client.SendJsonAsync(
@@ -146,7 +146,7 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
             _result = _result with { Extrusion = operation };
             return operation;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             return SetExtrusionFailure(AdapterError(ex.Message), MutationDisposition.Unknown, OperationStatus.Uncertain);
         }

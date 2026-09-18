@@ -87,6 +87,34 @@ public sealed class OnshapePartModelingWireMockTests : IDisposable
             "/api/v17/partstudios/d/doc-1/w/ws-1/e/e-part/featurescript");
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Context_MarksDispatchedWriteUncertainWhenCancelled(int cancelledWrite)
+    {
+        var handler = new CancellationAfterWriteHandler(cancelledWrite);
+        var context = CreateAdapter(handler).Bind(Target());
+
+        if (cancelledWrite == 1)
+        {
+            var sketch = await context.CreateSketch(Circle(), CancellationToken.None);
+            sketch.Should().Match<OperationResult<SketchReference>>(result =>
+                result.Status == OperationStatus.Uncertain && result.Mutation == MutationDisposition.Unknown);
+            (await context.CreateSketch(Circle(), CancellationToken.None)).Status.Should().Be(OperationStatus.Uncertain);
+        }
+        else
+        {
+            var sketch = await context.CreateSketch(Circle(), CancellationToken.None);
+            var extrusion = await context.ExtrudeNewBody(sketch.Reference!, new ExtrusionDefinition(
+                0.01, LengthUnit.Meter, ExtrusionDirection.Positive), CancellationToken.None);
+            extrusion.Should().Match<OperationResult<FeatureReference>>(result =>
+                result.Status == OperationStatus.Uncertain && result.Mutation == MutationDisposition.Unknown);
+            (await context.ExtrudeNewBody(sketch.Reference!, new ExtrusionDefinition(
+                0.01, LengthUnit.Meter, ExtrusionDirection.Positive), CancellationToken.None)).Status.Should().Be(OperationStatus.Uncertain);
+        }
+
+    }
+
     [Fact]
     public async Task Context_RejectsForeignReferenceWithoutRetryingOrWritingAnExtrusion()
     {
@@ -106,6 +134,9 @@ public sealed class OnshapePartModelingWireMockTests : IDisposable
 
     private OnshapePartModelingAdapter CreateAdapter() => new(
         new OnshapeClient(new HttpClient(), "sanitized-key", "sanitized-secret", _server.Url));
+
+    private static OnshapePartModelingAdapter CreateAdapter(HttpMessageHandler handler) => new(
+        new OnshapeClient(new HttpClient(handler), "sanitized-key", "sanitized-secret", "http://localhost"));
 
     private static CadElementAddress Target() => new("doc-1", "ws-1", null, "e-part");
 
@@ -136,6 +167,35 @@ public sealed class OnshapePartModelingWireMockTests : IDisposable
         .Select(entry => (entry.RequestMessage.Method, entry.RequestMessage.AbsolutePath, entry.RequestMessage.Body))
         .Where(request => request.AbsolutePath.StartsWith("/api/", StringComparison.Ordinal))
         .Select(request => (request.Method, Path: request.AbsolutePath, request.Body));
+
+    private sealed class CancellationAfterWriteHandler(int cancelledWrite) : HttpMessageHandler
+    {
+        private int _writes;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            if (request.Method == HttpMethod.Get && path == FeaturesPath)
+            {
+                return Task.FromResult(Json("{\"libraryVersion\":4012}"));
+            }
+
+            if (path.EndsWith("/featurescript", StringComparison.Ordinal))
+            {
+                return Task.FromResult(Json(FrameResponse()));
+            }
+
+            _writes++;
+            if (_writes == cancelledWrite)
+            {
+                return Task.FromCanceled<HttpResponseMessage>(new CancellationToken(true));
+            }
+
+            return Task.FromResult(Json("{\"feature\":{\"featureId\":\"native-sketch\"}}"));
+        }
+
+        private static HttpResponseMessage Json(string body) => new(System.Net.HttpStatusCode.OK) { Content = new StringContent(body) };
+    }
 
     private static string FrameResponse()
     {
