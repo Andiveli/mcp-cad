@@ -88,6 +88,24 @@ public sealed class OnshapePartModelingWireMockTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Context_StopsBeforeSketchTransportWhenOutOfOrderExtrusionFails(bool hasForeignReference)
+    {
+        StubFrame();
+        var context = CreateAdapter().Bind(Target());
+
+        var extrusion = await context.ExtrudeNewBody(hasForeignReference ? SketchReference.Create() : null!, new ExtrusionDefinition(
+            0.01, LengthUnit.Meter, ExtrusionDirection.Positive), CancellationToken.None);
+        var sketch = await context.CreateSketch(Circle(), CancellationToken.None);
+
+        extrusion.Status.Should().Be(OperationStatus.Failed);
+        extrusion.Mutation.Should().Be(MutationDisposition.None);
+        sketch.Status.Should().Be(OperationStatus.NotAttempted);
+        Requests().Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(2)]
     public async Task Context_MarksDispatchedWriteUncertainWhenCancelled(int cancelledWrite)

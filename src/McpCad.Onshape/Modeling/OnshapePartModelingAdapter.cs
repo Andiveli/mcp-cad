@@ -58,7 +58,7 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
         SketchDefinition definition,
         CancellationToken cancellationToken)
     {
-        if (_result.Sketch.Status != OperationStatus.NotAttempted)
+        if (_result.Sketch.Status != OperationStatus.NotAttempted || FailedOrUncertain(_result.Extrusion.Status))
         {
             return _result.Sketch;
         }
