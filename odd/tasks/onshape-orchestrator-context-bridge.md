@@ -78,7 +78,7 @@ Using the reviewed context boundary for the portable baseline consolidates frame
 - Native review lineage `review-891b269e41af1417` approved the frozen candidate and its acknowledgement completed. The frozen projection also contained two pre-existing excluded `.atl/**` files; they remain outside intended delivery.
 - At BRIDGE-4 closure no commit, staging, push, or PR had been performed for this feature. The user subsequently authorized commits only.
 - `8c20a9e` `feat(onshape): expose native context receipts and workspace compatibility` (123 changed lines): receipt, injected factory, configured WVM, registration tests.
-- `519ffc1` `feat(onshape): route eligible orchestrator plans through bound context` (529 changed lines): bounded route, validator mapping, failure and fallback unit tests. This cohesive unit exceeds the 400-line PR review budget; do not put it in a PR without explicit `size:exception` or a separately approved review strategy. One honest slicing pass found its test fixtures/failure matrix coupled to the routing behavior.
+- `519ffc1` `feat(onshape): route eligible orchestrator plans through bound context` (529 changed lines): bounded route, validator mapping, failure and fallback unit tests. This cohesive unit exceeds the 400-line PR review budget. The user explicitly accepted `size:exception` for this 529-line route unit; one honest slicing pass found its test fixtures/failure matrix coupled to the routing behavior. This exception does not authorize push or PR creation.
 - `1b544b6` `test(onshape): prove context routing and isolate root probes` (204 changed lines): local DI/WireMock end-to-end proof and narrow root-probe isolation.
 - Each staged diff passed `git diff --cached --check`; no commit contains `.atl/**`, `.pi/**`, or `.pi-subagents/**`. Final independent current-HEAD net8 regression passed 701, failed 0, skipped 7; `git diff --check` clean. Intermediate commits were not independently built; current HEAD was tested. `.atl/**` modifications and `.pi/**` / `.pi-subagents/**` untracked files remain outside delivery.
 
@@ -90,4 +90,4 @@ Using the reviewed context boundary for the portable baseline consolidates frame
 - Native review approved and was acknowledged after the passing full regression. Excluded pre-existing `.atl/**` tracked changes remain outside intended delivery.
 
 ## Next step
-- The bridge commits are prepared on the feature branch. Before any PR, decide how to handle the cohesive 529-line route commit's review-budget exception; no push or PR is authorized.
+- The bridge commits are prepared on the feature branch, with `size:exception` accepted only for the 529-line route unit. Push and PR creation still require separate authorization.
