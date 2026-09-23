@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text.Json.Serialization;
+using McpCad.Core.Modeling;
 using McpCad.Core.Models;
 using McpCad.Onshape.Builders;
 
@@ -39,7 +40,7 @@ internal sealed record ValidatedOnshapePartPlan(
     ImmutableArray<ValidatedOnshapePlanStage> Stages);
 
 internal abstract record ValidatedOnshapePlanStage(string Id);
-internal sealed record ValidatedSketchPlanStage(string Id, string SketchRequestJson) : ValidatedOnshapePlanStage(Id);
+internal sealed record ValidatedSketchPlanStage(string Id, string SketchRequestJson, SketchDefinition? ContextDefinition) : ValidatedOnshapePlanStage(Id);
 internal sealed record ValidatedExtrudePlanStage(
     string Id,
     string SketchId,

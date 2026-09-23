@@ -13,7 +13,10 @@ public partial class OnshapeSkillTools
         {
             var (address, plan) = OnshapePartPlanParser.Parse(address_json, plan_json);
             var validated = OnshapePartPlanValidator.Validate(address, plan);
-            var state = new OnshapePartPlanExecutor(provider).Execute(validated);
+            var bridge = _partModelingContextFactory is null ? null : new OnshapePartPlanContextBridge(_partModelingContextFactory);
+            var state = bridge is not null && bridge.TryExecute(validated, out var bridged)
+                ? bridged
+                : new OnshapePartPlanExecutor(provider).Execute(validated);
             return OnshapeOrchestrationResultBuilder.Build(state);
         }
         catch (ArgumentException exception)

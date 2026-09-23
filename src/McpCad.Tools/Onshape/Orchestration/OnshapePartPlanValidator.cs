@@ -2,6 +2,12 @@ using System.Collections.Immutable;
 using McpCad.Core.Models;
 using McpCad.Onshape;
 using McpCad.Onshape.Builders;
+using CoreCanonicalPlane = McpCad.Core.Modeling.CanonicalPlane;
+using CoreCircleProfile = McpCad.Core.Modeling.CircleProfile;
+using CoreLengthUnit = McpCad.Core.Modeling.LengthUnit;
+using CorePoint2 = McpCad.Core.Modeling.Point2;
+using CoreRectangleProfile = McpCad.Core.Modeling.RectangleProfile;
+using CoreSketchDefinition = McpCad.Core.Modeling.SketchDefinition;
 
 namespace McpCad.Tools.Onshape.Orchestration;
 
@@ -29,7 +35,7 @@ internal static class OnshapePartPlanValidator
             switch (stage)
             {
                 case SketchPlanStage sketch:
-                    validated.Add(new ValidatedSketchPlanStage(sketch.Id, Compile(sketch)));
+                    validated.Add(Compile(sketch));
                     latestModelingId = sketch.Id;
                     break;
                 case ExtrudePlanStage extrude:
@@ -59,45 +65,61 @@ internal static class OnshapePartPlanValidator
         return new ValidatedOnshapePartPlan(address, validated.ToImmutable());
     }
 
-    private static string Compile(SketchPlanStage stage)
+    private static ValidatedSketchPlanStage Compile(SketchPlanStage stage)
     {
         if (!Enum.IsDefined(stage.Plane)) Fail("INVALID_PLAN_SCHEMA", $"sketch '{stage.Id}' has an unsupported plane");
         try
         {
-            using var document = stage.Profile switch
+            var (document, definition) = stage.Profile switch
             {
                 RectangleProfile rectangle => Rectangle(rectangle, stage.Plane),
                 CircleProfile circle => Circle(circle, stage.Plane),
-                PolygonProfile polygon => OnshapeSketchBuilder.BuildClosedProfile(polygon.PointsCm, stage.Plane.ToString()),
-                MixedProfile mixed => OnshapeMixedProfileFacade.BuildMixedClosedProfile(new MixedClosedProfile(mixed.Start, mixed.Segments), stage.Plane.ToString()),
+                PolygonProfile polygon => (OnshapeSketchBuilder.BuildClosedProfile(polygon.PointsCm, stage.Plane.ToString()), (CoreSketchDefinition?)null),
+                MixedProfile mixed => (OnshapeMixedProfileFacade.BuildMixedClosedProfile(new MixedClosedProfile(mixed.Start, mixed.Segments), stage.Plane.ToString()), (CoreSketchDefinition?)null),
                 _ => throw new ArgumentException("Unsupported closed profile."),
             };
-            return document.RootElement.GetRawText();
+            using (document)
+            {
+                return new ValidatedSketchPlanStage(stage.Id, document.RootElement.GetRawText(), definition);
+            }
         }
         catch (ArgumentException exception)
         {
             Fail("INVALID_GEOMETRY", $"sketch '{stage.Id}' is invalid: {exception.Message}");
-            return string.Empty;
+            return null!;
         }
     }
 
-    private static System.Text.Json.JsonDocument Rectangle(RectangleProfile profile, CanonicalSketchPlane plane)
+    private static (System.Text.Json.JsonDocument Document, CoreSketchDefinition Definition) Rectangle(RectangleProfile profile, CanonicalSketchPlane plane)
     {
         if (!Finite(profile.X1Cm, profile.Y1Cm, profile.X2Cm, profile.Y2Cm) || profile.X1Cm == profile.X2Cm || profile.Y1Cm == profile.Y2Cm)
             Fail("INVALID_GEOMETRY", "rectangle coordinates must be finite with nonzero width and height");
-        return OnshapeSketchBuilder.BuildRectangle(
-            OnshapeUnitConversion.CmToMeters(profile.X1Cm), OnshapeUnitConversion.CmToMeters(profile.Y1Cm),
-            OnshapeUnitConversion.CmToMeters(profile.X2Cm), OnshapeUnitConversion.CmToMeters(profile.Y2Cm), plane.ToString());
+        var x1 = OnshapeUnitConversion.CmToMeters(profile.X1Cm);
+        var y1 = OnshapeUnitConversion.CmToMeters(profile.Y1Cm);
+        var x2 = OnshapeUnitConversion.CmToMeters(profile.X2Cm);
+        var y2 = OnshapeUnitConversion.CmToMeters(profile.Y2Cm);
+        return (OnshapeSketchBuilder.BuildRectangle(x1, y1, x2, y2, plane.ToString()),
+            new CoreSketchDefinition(CorePlane(plane), CoreLengthUnit.Meter, new CoreRectangleProfile(new CorePoint2(x1, y1), new CorePoint2(x2, y2))));
     }
 
-    private static System.Text.Json.JsonDocument Circle(CircleProfile profile, CanonicalSketchPlane plane)
+    private static (System.Text.Json.JsonDocument Document, CoreSketchDefinition Definition) Circle(CircleProfile profile, CanonicalSketchPlane plane)
     {
         if (!Finite(profile.CxCm, profile.CyCm, profile.RadiusCm) || profile.RadiusCm <= 0)
             Fail("INVALID_GEOMETRY", "circle coordinates must be finite and radius_cm must be positive");
-        return OnshapeSketchBuilder.BuildCircle(
-            OnshapeUnitConversion.CmToMeters(profile.CxCm), OnshapeUnitConversion.CmToMeters(profile.CyCm),
-            OnshapeUnitConversion.CmToMeters(profile.RadiusCm), plane.ToString());
+        var cx = OnshapeUnitConversion.CmToMeters(profile.CxCm);
+        var cy = OnshapeUnitConversion.CmToMeters(profile.CyCm);
+        var radius = OnshapeUnitConversion.CmToMeters(profile.RadiusCm);
+        return (OnshapeSketchBuilder.BuildCircle(cx, cy, radius, plane.ToString()),
+            new CoreSketchDefinition(CorePlane(plane), CoreLengthUnit.Meter, new CoreCircleProfile(new CorePoint2(cx, cy), radius)));
     }
+
+    private static CoreCanonicalPlane CorePlane(CanonicalSketchPlane plane) => plane switch
+    {
+        CanonicalSketchPlane.Top => CoreCanonicalPlane.Top,
+        CanonicalSketchPlane.Front => CoreCanonicalPlane.Front,
+        CanonicalSketchPlane.Right => CoreCanonicalPlane.Right,
+        _ => throw new ArgumentOutOfRangeException(nameof(plane)),
+    };
 
     private static void ValidateAddress(CadElementAddress address)
     {
