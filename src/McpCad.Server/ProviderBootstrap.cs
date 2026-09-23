@@ -87,9 +87,20 @@ public static partial class ProviderBootstrap
                 return new OnshapeClient(http, accessKey, secretKey, baseUrl);
             });
 
-            services.AddSingleton<OnshapeDriver>();
+        services.AddSingleton(sp =>
+        {
+            var driver = new OnshapeDriver(sp.GetRequiredService<OnshapeClient>());
+            var configuredWvm = section["DefaultWvm"];
+            if (configuredWvm is not null)
+            {
+                driver.DefaultWvm = configuredWvm;
+            }
+
+            return driver;
+        });
         services.AddSingleton<OnshapeProvider>();
-        services.AddSingleton<IPartModelingContextFactory, OnshapePartModelingContextFactory>();
+        services.AddSingleton<IPartModelingContextFactory>(sp => new OnshapePartModelingContextFactory(
+            sp.GetRequiredService<OnshapeClient>(), sp.GetRequiredService<OnshapeDriver>()));
         services.AddSingleton<ICadWebProvider>(sp => sp.GetRequiredService<OnshapeProvider>());
         services.AddSingleton<ICadProvider>(sp => sp.GetRequiredService<OnshapeProvider>());
         services.AddSingleton<IMechanicalCadProvider, NullMechanicalCadProvider>();

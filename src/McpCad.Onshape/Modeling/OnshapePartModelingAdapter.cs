@@ -5,15 +5,48 @@ using McpCad.Onshape.Builders;
 
 namespace McpCad.Onshape.Modeling;
 
+/// <summary>Retains the native IDs emitted by one Onshape modeling context.</summary>
+public sealed record OnshapePartModelingReceipt(string? SketchNativeFeatureId, string? ExtrusionNativeFeatureId);
+
+/// <summary>Provides Onshape-native IDs without extending portable Core modeling contracts.</summary>
+public interface IOnshapePartModelingContextReceipt
+{
+    OnshapePartModelingReceipt Receipt { get; }
+}
+
+/// <summary>Exposes the effective Onshape WVM mode to Onshape-only orchestration.</summary>
+public interface IOnshapePartModelingContextFactoryCompatibility
+{
+    string EffectiveWvm { get; }
+    bool IsWorkspaceCompatible { get; }
+    bool SupportsNativeReceipts { get; }
+}
+
 /// <summary>Creates address-bound, one-shot portable modeling contexts for Onshape Part Studios.</summary>
-public sealed class OnshapePartModelingContextFactory : IPartModelingContextFactory
+public sealed class OnshapePartModelingContextFactory : IPartModelingContextFactory, IOnshapePartModelingContextFactoryCompatibility
 {
     private readonly OnshapePartModelingAdapter _adapter;
+    private readonly OnshapeDriver _driver;
 
     public OnshapePartModelingContextFactory(OnshapeClient client)
+        : this(client, new OnshapeDriver(client))
+    {
+    }
+
+    public OnshapePartModelingContextFactory(OnshapeClient client, OnshapeDriver driver)
     {
         _adapter = new OnshapePartModelingAdapter(client);
+        _driver = driver ?? throw new ArgumentNullException(nameof(driver));
     }
+
+    public string EffectiveWvm => _driver.DefaultWvm;
+
+    public bool IsWorkspaceCompatible => IsWorkspaceCompatibleWvm(EffectiveWvm);
+
+    public bool SupportsNativeReceipts => true;
+
+    public static bool IsWorkspaceCompatibleWvm(string? effectiveWvm) =>
+        string.Equals(effectiveWvm, "w", StringComparison.Ordinal);
 
     public IPartModelingContext Bind(CadElementAddress target) => _adapter.Bind(target);
 }
@@ -31,12 +64,14 @@ internal sealed class OnshapePartModelingAdapter
         new OnshapePartModelingContext(_client, target ?? throw new ArgumentNullException(nameof(target)));
 }
 
-internal sealed class OnshapePartModelingContext : IPartModelingContext
+internal sealed class OnshapePartModelingContext : IPartModelingContext, IOnshapePartModelingContextReceipt
 {
     private readonly OnshapeClient _client;
     private readonly CadElementAddress _target;
     private readonly OnshapePartModelingPreflightAdapter _preflight;
     private readonly Dictionary<SketchReference, string> _sketchIds = [];
+    private string? _sketchNativeFeatureId;
+    private string? _extrusionNativeFeatureId;
     private PartModelingResult _result = new(
         new OperationResult<SketchReference>(OperationStatus.NotAttempted, MutationDisposition.None, null, null),
         new OperationResult<FeatureReference>(OperationStatus.NotAttempted, MutationDisposition.None, null, null));
@@ -53,6 +88,8 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
         OptionalCapabilityStatus.Unsupported);
 
     public PartModelingResult Result => _result;
+
+    public OnshapePartModelingReceipt Receipt => new(_sketchNativeFeatureId, _extrusionNativeFeatureId);
 
     public async ValueTask<OperationResult<SketchReference>> CreateSketch(
         SketchDefinition definition,
@@ -108,6 +145,7 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
 
                 var reference = SketchReference.Create();
                 _sketchIds.Add(reference, nativeId);
+                _sketchNativeFeatureId = nativeId;
                 var operation = new OperationResult<SketchReference>(OperationStatus.Succeeded, MutationDisposition.Present, null, reference);
                 _result = _result with { Sketch = operation };
                 return operation;
@@ -148,12 +186,14 @@ internal sealed class OnshapePartModelingContext : IPartModelingContext
             using var response = await _client.SendJsonAsync(
                 HttpMethod.Post, FeaturesPath(), payload.RootElement.GetRawText(), cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(FeatureId(response.RootElement)))
+            var nativeId = FeatureId(response.RootElement);
+            if (string.IsNullOrWhiteSpace(nativeId))
             {
                 return SetExtrusionFailure(AdapterError("The Onshape extrusion response did not contain a feature ID."), MutationDisposition.Unknown,
                     OperationStatus.Uncertain);
             }
 
+            _extrusionNativeFeatureId = nativeId;
             var operation = new OperationResult<FeatureReference>(
                 OperationStatus.Succeeded, MutationDisposition.Present, null, FeatureReference.Create());
             _result = _result with { Extrusion = operation };

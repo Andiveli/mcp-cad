@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using McpCad.Core;
 using McpCad.Core.Exceptions;
+using McpCad.Core.Modeling;
 using McpCad.Core.Models;
 using McpCad.Onshape;
 using McpCad.Onshape.Builders;
@@ -15,6 +16,14 @@ namespace McpCad.Tools.Onshape;
 [McpServerToolType]
 public partial class OnshapeSkillTools(ICadWebProvider provider)
 {
+    private readonly IPartModelingContextFactory? _partModelingContextFactory;
+
+    public OnshapeSkillTools(ICadWebProvider provider, IPartModelingContextFactory partModelingContextFactory)
+        : this(provider)
+    {
+        _partModelingContextFactory = partModelingContextFactory ?? throw new ArgumentNullException(nameof(partModelingContextFactory));
+    }
+
     [McpServerTool, Description("Create a rectangle sketch and extrude it in one bounded Part Studio call. Coordinates and depth are in cm.")]
     public Dictionary<string, object?> skill_sketch_and_extrude(
         string address_json,
