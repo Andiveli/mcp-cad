@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using McpCad.Core.Exceptions;
 
 namespace McpCad.Onshape;
@@ -141,5 +142,18 @@ public sealed class OnshapeClient : IDisposable
             var retryAfter = response.Headers.RetryAfter?.Delta;
             throw OnshapeApiException.FromHttpStatus((int)response.StatusCode, reason, retryAfter);
         }
+    }
+
+    /// <summary>Returns a parsed JSON response; the caller owns the document.</summary>
+    public async Task<JsonDocument> SendJsonAsync(
+        HttpMethod method,
+        string path,
+        string? body = null,
+        IReadOnlyDictionary<string, string?>? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await SendAsync(method, path, body, query, cancellationToken).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }
